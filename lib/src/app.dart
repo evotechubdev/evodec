@@ -171,15 +171,18 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                       ),
                       const SizedBox(height: 10),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        value: controller.remember,
-                        onChanged: controller.loading
-                            ? null
-                            : controller.setRemember,
-                        title: const Text(
-                          'Lembrar login e senha',
-                          style: TextStyle(color: _textMuted, fontSize: 14),
+                      Material(
+                        type: MaterialType.transparency,
+                        child: SwitchListTile.adaptive(
+                          contentPadding: EdgeInsets.zero,
+                          value: controller.remember,
+                          onChanged: controller.loading
+                              ? null
+                              : controller.setRemember,
+                          title: const Text(
+                            'Lembrar login e senha',
+                            style: TextStyle(color: _textMuted, fontSize: 14),
+                          ),
                         ),
                       ),
                       if (controller.error.isNotEmpty) ...[
