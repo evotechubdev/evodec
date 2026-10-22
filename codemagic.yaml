@@ -39,6 +39,14 @@ workflows:
             --dart-define=FIREBASE_API_KEY="${FIREBASE_API_KEY:-}" \
             --dart-define=EVO_VERSION_CODE="${EVO_VERSION_CODE:-}" \
             --dart-define=EVO_PLATFORM="${EVO_PLATFORM:-android}"
+      - name: Empacotar IPA para teste gratuito
+        script: |
+          PACKAGE_DIR="$CM_BUILD_DIR/build/ios/unsigned-package"
+          mkdir -p "$PACKAGE_DIR/Payload"
+          ditto "$CM_BUILD_DIR/build/ios/iphoneos/Runner.app" "$PACKAGE_DIR/Payload/Runner.app"
+          cd "$PACKAGE_DIR"
+          ditto -c -k --sequesterRsrc --keepParent Payload "$CM_BUILD_DIR/build/ios/EVOTV-unsigned.ipa"
     artifacts:
       - build/ios/iphoneos/**/*.app
+      - build/ios/EVOTV-unsigned.ipa
       - /tmp/xcodebuild_logs/*.log
