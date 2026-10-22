@@ -138,3 +138,51 @@ class CatalogPage {
   final int total;
   final bool hasMore;
 }
+
+class SeriesDetails {
+  const SeriesDetails({
+    required this.title,
+    required this.plot,
+    required this.coverUrl,
+    required this.seasons,
+  });
+
+  final String title;
+  final String plot;
+  final String coverUrl;
+  final List<SeriesSeason> seasons;
+}
+
+class SeriesSeason {
+  const SeriesSeason({required this.number, required this.episodes});
+
+  final int number;
+  final List<SeriesEpisode> episodes;
+
+  String get label => number == 0 ? 'Especiais' : 'Temporada $number';
+}
+
+class SeriesEpisode {
+  const SeriesEpisode({
+    required this.id,
+    required this.number,
+    required this.title,
+    required this.duration,
+    required this.extension,
+  });
+
+  final String id;
+  final int number;
+  final String title;
+  final String duration;
+  final String extension;
+
+  CatalogItem asCatalogItem(String seriesTitle) => CatalogItem(
+    id: id,
+    name: '$seriesTitle — $title',
+    categoryId: '',
+    extension: extension,
+    imageUrl: '',
+    kind: MediaKind.series,
+  );
+}

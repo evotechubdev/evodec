@@ -57,6 +57,32 @@ class FakeEvoApi implements EvoApiClient {
   );
 
   @override
+  Future<SeriesDetails> seriesDetails(
+    String token,
+    String sessionToken,
+    int profile,
+    CatalogItem series,
+  ) async => SeriesDetails(
+    title: series.name,
+    plot: 'Série de teste',
+    coverUrl: '',
+    seasons: const <SeriesSeason>[
+      SeriesSeason(
+        number: 1,
+        episodes: <SeriesEpisode>[
+          SeriesEpisode(
+            id: '101',
+            number: 1,
+            title: 'Episódio 1',
+            duration: '45:00',
+            extension: 'mp4',
+          ),
+        ],
+      ),
+    ],
+  );
+
+  @override
   Future<void> releaseProfile(
     String token,
     String sessionToken,

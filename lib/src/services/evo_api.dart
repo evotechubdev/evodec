@@ -20,6 +20,13 @@ abstract interface class EvoApiClient {
     MediaKind kind,
   );
 
+  Future<SeriesDetails> seriesDetails(
+    String token,
+    String sessionToken,
+    int profile,
+    CatalogItem series,
+  );
+
   Future<void> releaseProfile(
     String token,
     String sessionToken,
@@ -210,6 +217,90 @@ class EvoApi implements EvoApiClient {
   }
 
   @override
+  Future<SeriesDetails> seriesDetails(
+    String token,
+    String sessionToken,
+    int profile,
+    CatalogItem series,
+  ) async {
+    final response = await _client
+        .post(
+          Uri.parse('${AppConfig.backendUrl}/api/iptv'),
+          headers: _backendHeaders(
+            token,
+            sessionToken: sessionToken,
+            profile: profile,
+          ),
+          body: jsonEncode(<String, Object>{
+            'action': 'get_series_info',
+            'extra': <String, String>{'series_id': series.id},
+            'adult': false,
+          }),
+        )
+        .timeout(const Duration(seconds: 30));
+    final data = _objectResponse(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw EvoApiException(_backendError(data, response.statusCode));
+    }
+    final info = _stringMap(data['info']);
+    final rawEpisodes = data['episodes'];
+    final seasons = <SeriesSeason>[];
+    if (rawEpisodes is Map) {
+      for (final entry in rawEpisodes.entries) {
+        final seasonNumber = int.tryParse(entry.key.toString()) ?? 0;
+        final rawSeason = entry.value;
+        if (rawSeason is! List) continue;
+        final episodes = <SeriesEpisode>[];
+        for (var index = 0; index < rawSeason.length; index++) {
+          final episode = _stringMap(rawSeason[index]);
+          final episodeInfo = _stringMap(episode['info']);
+          final id = episode['id']?.toString() ?? '';
+          if (id.isEmpty) continue;
+          final number = _asInt(
+            episode['episode_num'] ?? episodeInfo['episode_num'],
+            fallback: index + 1,
+          );
+          final title = _firstText(<Object?>[
+            episode['title'],
+            episodeInfo['name'],
+            'Episódio $number',
+          ]);
+          episodes.add(
+            SeriesEpisode(
+              id: id,
+              number: number,
+              title: title,
+              duration: _firstText(<Object?>[
+                episodeInfo['duration'],
+                episodeInfo['duration_secs'],
+              ]),
+              extension: _firstText(<Object?>[
+                episode['container_extension'],
+                'mp4',
+              ]),
+            ),
+          );
+        }
+        if (episodes.isNotEmpty) {
+          episodes.sort((a, b) => a.number.compareTo(b.number));
+          seasons.add(SeriesSeason(number: seasonNumber, episodes: episodes));
+        }
+      }
+    }
+    seasons.sort((a, b) => a.number.compareTo(b.number));
+    return SeriesDetails(
+      title: _firstText(<Object?>[info['name'], series.name]),
+      plot: _firstText(<Object?>[info['plot'], info['description']]),
+      coverUrl: _firstText(<Object?>[
+        info['cover'],
+        info['movie_image'],
+        series.imageUrl,
+      ]),
+      seasons: seasons,
+    );
+  }
+
+  @override
   Future<void> releaseProfile(
     String token,
     String sessionToken,
@@ -274,6 +365,19 @@ class EvoApi implements EvoApiClient {
   int _asInt(Object? value, {required int fallback}) {
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  Map<String, dynamic> _stringMap(Object? value) {
+    if (value is! Map) return <String, dynamic>{};
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+
+  String _firstText(List<Object?> values) {
+    for (final value in values) {
+      final text = value?.toString().trim() ?? '';
+      if (text.isNotEmpty) return text;
+    }
+    return '';
   }
 
   Map<String, dynamic> _objectResponse(http.Response response) {

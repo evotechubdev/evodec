@@ -155,12 +155,23 @@ class AppController extends ChangeNotifier {
   }
 
   Uri playbackSource(CatalogItem item) {
-    if (item.kind == MediaKind.series) {
-      throw StateError('A seleção de episódios será adicionada na próxima etapa.');
-    }
     final grant = profileSession?.playbackGrant;
     if (grant == null) throw StateError('A sessão de reprodução não está ativa.');
     return grant.source(item);
+  }
+
+  Future<SeriesDetails> loadSeries(CatalogItem series) async {
+    final auth = authSession;
+    final session = profileSession;
+    if (auth == null || session == null || selectedProfile < 1) {
+      throw StateError('A sessão do perfil terminou. Abra o perfil novamente.');
+    }
+    return _api.seriesDetails(
+      auth.idToken,
+      session.sessionToken,
+      selectedProfile,
+      series,
+    );
   }
 
   Future<void> logout() async {
