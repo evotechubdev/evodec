@@ -26,7 +26,11 @@ workflows:
       - name: Executar testes
         script: flutter test
       - name: Compilar iOS sem assinatura
-        script: flutter build ios --debug --no-codesign
+        script: |
+          flutter build ios --debug --no-codesign \
+            --dart-define=FIREBASE_API_KEY="${FIREBASE_API_KEY:-}" \
+            --dart-define=EVO_VERSION_CODE="${EVO_VERSION_CODE:-}" \
+            --dart-define=EVO_PLATFORM="${EVO_PLATFORM:-android}"
     artifacts:
       - build/ios/iphoneos/**/*.app
       - /tmp/xcodebuild_logs/*.log

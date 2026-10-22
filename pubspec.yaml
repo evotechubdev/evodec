@@ -1,7 +1,7 @@
 name: evoiptv
 description: Aplicativo iOS do EVOTV.
 publish_to: "none"
-version: 0.1.0+1
+version: 1.0.6+10006
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
@@ -10,6 +10,8 @@ dependencies:
   flutter:
     sdk: flutter
   cupertino_icons: ^1.0.8
+  flutter_secure_storage: ^10.3.4
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
@@ -18,3 +20,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/images/logo_evotv.png
