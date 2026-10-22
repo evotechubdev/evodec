@@ -1,0 +1,32 @@
+workflows:
+  ios-unsigned-debug:
+    name: EVOTV iOS - compilacao sem assinatura
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+    cache:
+      cache_paths:
+        - $FLUTTER_ROOT/.pub-cache
+        - $HOME/Library/Caches/CocoaPods
+    scripts:
+      - name: Gerar projeto nativo do iOS
+        script: >-
+          flutter create
+          --platforms=ios
+          --org com.thiago07cb2
+          --project-name evoiptv
+          .
+      - name: Instalar dependencias
+        script: flutter pub get
+      - name: Verificar codigo
+        script: flutter analyze
+      - name: Executar testes
+        script: flutter test
+      - name: Compilar iOS sem assinatura
+        script: flutter build ios --debug --no-codesign
+    artifacts:
+      - build/ios/iphoneos/**/*.app
+      - /tmp/xcodebuild_logs/*.log
