@@ -511,7 +511,8 @@ class _CatalogCard extends StatelessWidget {
                   : Image.network(
                       item.imageUrl,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const _CatalogPlaceholder(),
+                      errorBuilder: (context, error, stackTrace) =>
+                          const _CatalogPlaceholder(),
                     ),
             ),
             Padding(

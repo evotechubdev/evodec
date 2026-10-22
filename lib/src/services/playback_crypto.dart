@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:cryptography/cryptography.dart';
-import 'package:fast_rsa/fast_rsa.dart';
+import 'package:fast_rsa/fast_rsa.dart' as fast_rsa;
 
 import '../models.dart';
 
@@ -13,8 +13,8 @@ class PlaybackKeys {
   final String publicKey;
 
   static Future<PlaybackKeys> generate() async {
-    final pair = await RSA.generate(2048);
-    final pkix = await RSA.convertPublicKeyToPKIX(pair.publicKey);
+    final pair = await fast_rsa.RSA.generate(2048);
+    final pkix = await fast_rsa.RSA.convertPublicKeyToPKIX(pair.publicKey);
     final encoded = pkix.replaceAll(RegExp(r'-----[^-]+-----|\s'), '');
     if (encoded.isEmpty) {
       throw const FormatException('Não foi possível gerar a chave de reprodução.');
@@ -31,10 +31,10 @@ class PlaybackKeys {
     }
 
     final encryptedKey = _decodeUrl(_requiredString(envelope, 'key'));
-    final key = await RSA.decryptOAEPBytes(
+    final key = await fast_rsa.RSA.decryptOAEPBytes(
       Uint8List.fromList(encryptedKey),
       '',
-      Hash.SHA256,
+      fast_rsa.Hash.SHA256,
       _privateKey,
     );
     final iv = _decodeUrl(_requiredString(envelope, 'iv'));
