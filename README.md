@@ -25,3 +25,5 @@ Para autenticar de verdade, configure como variaveis secretas no Codemagic:
 - `FIREBASE_API_KEY`: chave Web API do projeto Firebase.
 - `EVO_VERSION_CODE`: codigo de versao aceito pelo backend.
 - `EVO_PLATFORM`: temporariamente `android`, ate o backend ganhar um canal `ios`.
+
+As tres variaveis pertencem ao grupo `evotv_config`, importado pelo workflow.
