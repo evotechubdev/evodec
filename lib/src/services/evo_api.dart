@@ -4,11 +4,27 @@ import 'package:http/http.dart' as http;
 
 import '../config/app_config.dart';
 import '../models.dart';
+import 'playback_crypto.dart';
 
 abstract interface class EvoApiClient {
   Future<AuthSession> signIn(String login, String password);
 
   Future<Account> account(String token);
+
+  Future<ProfileSession> selectProfile(String token, int profile);
+
+  Future<CatalogPage> catalog(
+    String token,
+    String sessionToken,
+    int profile,
+    MediaKind kind,
+  );
+
+  Future<void> releaseProfile(
+    String token,
+    String sessionToken,
+    int profile,
+  );
 
   void close();
 }
@@ -107,13 +123,158 @@ class EvoApi implements EvoApiClient {
     );
   }
 
-  Map<String, String> _backendHeaders(String token) => <String, String>{
+  @override
+  Future<ProfileSession> selectProfile(String token, int profile) async {
+    final keys = await PlaybackKeys.generate();
+    final response = await _client
+        .post(
+          Uri.parse('${AppConfig.backendUrl}/api/profile'),
+          headers: _backendHeaders(token),
+          body: jsonEncode(<String, Object>{
+            'profile': profile,
+            'force': true,
+            'pin': '',
+            'playbackPublicKey': keys.publicKey,
+          }),
+        )
+        .timeout(const Duration(seconds: 30));
+    final data = _objectResponse(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw EvoApiException(_backendError(data, response.statusCode));
+    }
+    final sessionToken = data['sessionToken']?.toString() ?? '';
+    final rawGrant = data['playbackGrant'];
+    if (sessionToken.isEmpty || rawGrant is! Map<String, dynamic>) {
+      throw const EvoApiException(
+        'O servidor não enviou uma sessão de reprodução válida.',
+      );
+    }
+    try {
+      final grant = await keys.decrypt(rawGrant, profile);
+      return ProfileSession(sessionToken: sessionToken, playbackGrant: grant);
+    } on Object catch (_) {
+      throw const EvoApiException(
+        'Não foi possível validar a autorização de reprodução.',
+      );
+    }
+  }
+
+  @override
+  Future<CatalogPage> catalog(
+    String token,
+    String sessionToken,
+    int profile,
+    MediaKind kind,
+  ) async {
+    final response = await _client
+        .post(
+          Uri.parse('${AppConfig.backendUrl}/api/catalog'),
+          headers: _backendHeaders(
+            token,
+            sessionToken: sessionToken,
+            profile: profile,
+          ),
+          body: jsonEncode(<String, Object>{
+            'section': kind.section,
+            'category': 'all',
+            'page': 1,
+            'limit': 48,
+            'query': '',
+            'adult': false,
+          }),
+        )
+        .timeout(const Duration(seconds: 30));
+    final data = _objectResponse(response);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw EvoApiException(_backendError(data, response.statusCode));
+    }
+    final rawItems = data['items'];
+    final items = rawItems is List
+        ? rawItems
+              .whereType<Map>()
+              .map(
+                (raw) => _catalogItem(
+                  raw.map((key, value) => MapEntry(key.toString(), value)),
+                  kind,
+                ),
+              )
+              .whereType<CatalogItem>()
+              .toList(growable: false)
+        : const <CatalogItem>[];
+    return CatalogPage(
+      items: items,
+      page: _asInt(data['page'], fallback: 1),
+      total: _asInt(data['total'], fallback: items.length),
+      hasMore: data['hasMore'] == true,
+    );
+  }
+
+  @override
+  Future<void> releaseProfile(
+    String token,
+    String sessionToken,
+    int profile,
+  ) async {
+    try {
+      await _client
+          .delete(
+            Uri.parse('${AppConfig.backendUrl}/api/session'),
+            headers: _backendHeaders(
+              token,
+              sessionToken: sessionToken,
+              profile: profile,
+            ),
+          )
+          .timeout(const Duration(seconds: 10));
+    } on Object {
+      // Encerrar uma sessão é uma limpeza de melhor esforço.
+    }
+  }
+
+  Map<String, String> _backendHeaders(
+    String token, {
+    String? sessionToken,
+    int? profile,
+  }) => <String, String>{
     'Accept': 'application/json',
+    'Content-Type': 'application/json',
     'Authorization': 'Bearer $token',
     'x-evo-platform': AppConfig.clientPlatform,
     'x-evo-version': AppConfig.clientVersion,
     'x-evo-version-code': AppConfig.clientVersionCode,
+    if (sessionToken != null) 'x-evo-session': sessionToken,
+    if (profile != null) 'x-evo-profile': '$profile',
   };
+
+  CatalogItem? _catalogItem(
+    Map<String, dynamic> data,
+    MediaKind kind,
+  ) {
+    final idKey = kind == MediaKind.series ? 'series_id' : 'stream_id';
+    final id = data[idKey]?.toString() ?? '';
+    if (id.isEmpty) return null;
+    final imageKey = kind == MediaKind.series ? 'cover' : 'stream_icon';
+    return CatalogItem(
+      id: id,
+      name: data['name']?.toString().trim().isNotEmpty == true
+          ? data['name'].toString()
+          : 'Sem título',
+      categoryId: data['category_id']?.toString() ?? '',
+      extension:
+          data['container_extension']?.toString().trim().isNotEmpty == true
+          ? data['container_extension'].toString()
+          : kind == MediaKind.live
+          ? 'ts'
+          : 'mp4',
+      imageUrl: data[imageKey]?.toString() ?? '',
+      kind: kind,
+    );
+  }
+
+  int _asInt(Object? value, {required int fallback}) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
 
   Map<String, dynamic> _objectResponse(http.Response response) {
     if (response.body.trim().isEmpty) return <String, dynamic>{};

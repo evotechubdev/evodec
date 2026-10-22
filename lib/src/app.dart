@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_controller.dart';
+import 'models.dart';
 
 const _background = Color(0xFF07080A);
 const _surface = Color(0xFF15181E);
@@ -57,6 +58,7 @@ class _EvoIptvAppState extends State<EvoIptvApp> {
         builder: (context, _) => switch (widget.controller.screen) {
           AppScreen.login => LoginScreen(controller: widget.controller),
           AppScreen.profiles => ProfilesScreen(controller: widget.controller),
+          AppScreen.catalog => CatalogScreen(controller: widget.controller),
         },
       ),
     );
@@ -291,6 +293,18 @@ class ProfilesScreen extends StatelessWidget {
                   style: const TextStyle(color: Color(0xFF68E39A)),
                 ),
               ],
+              if (controller.error.isNotEmpty) ...[
+                const SizedBox(height: 14),
+                Text(
+                  controller.error,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _error),
+                ),
+              ],
+              if (controller.loading) ...[
+                const SizedBox(height: 14),
+                const Center(child: CircularProgressIndicator()),
+              ],
               const SizedBox(height: 24),
               Expanded(
                 child: GridView.builder(
@@ -305,7 +319,9 @@ class ProfilesScreen extends StatelessWidget {
                     final profile = index + 1;
                     return InkWell(
                       key: ValueKey('profile-$profile'),
-                      onTap: () => controller.selectProfile(profile),
+                      onTap: controller.loading
+                          ? null
+                          : () => controller.selectProfile(profile),
                       borderRadius: BorderRadius.circular(20),
                       child: Ink(
                         decoration: BoxDecoration(
@@ -354,4 +370,178 @@ class ProfilesScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+class CatalogScreen extends StatelessWidget {
+  const CatalogScreen({required this.controller, super.key});
+
+  final AppController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final profileIndex = controller.selectedProfile - 1;
+    final profileName = controller.account?.profileName(profileIndex) ??
+        'Perfil ${controller.selectedProfile}';
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        leading: IconButton(
+          tooltip: 'Trocar perfil',
+          onPressed: controller.loading ? null : controller.backToProfiles,
+          icon: const Icon(Icons.arrow_back),
+        ),
+        title: Image.asset(
+          'assets/images/logo_evotv.png',
+          height: 40,
+          fit: BoxFit.contain,
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Text(
+                profileName,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _textMuted,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
+              child: Row(
+                children: MediaKind.values
+                    .map(
+                      (kind) => Padding(
+                        padding: const EdgeInsets.only(right: 10),
+                        child: ChoiceChip(
+                          label: Text(kind.label),
+                          selected: controller.selectedKind == kind,
+                          onSelected: controller.loading
+                              ? null
+                              : (_) => controller.changeKind(kind),
+                        ),
+                      ),
+                    )
+                    .toList(growable: false),
+              ),
+            ),
+            if (controller.error.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 20, 4),
+                child: Text(
+                  controller.error,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(color: _error),
+                ),
+              ),
+            Expanded(child: _catalogBody(context)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _catalogBody(BuildContext context) {
+    if (controller.loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (controller.catalog.isEmpty) {
+      return Center(
+        child: Text(
+          'Nenhum conteúdo encontrado em ${controller.selectedKind.label}.',
+          textAlign: TextAlign.center,
+          style: const TextStyle(color: _textMuted),
+        ),
+      );
+    }
+    return GridView.builder(
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+      gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+        maxCrossAxisExtent: 190,
+        childAspectRatio: .67,
+        crossAxisSpacing: 14,
+        mainAxisSpacing: 14,
+      ),
+      itemCount: controller.catalog.length,
+      itemBuilder: (context, index) {
+        final item = controller.catalog[index];
+        return _CatalogCard(
+          item: item,
+          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('O player será conectado na próxima etapa.'),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _CatalogCard extends StatelessWidget {
+  const _CatalogCard({required this.item, required this.onTap});
+
+  final CatalogItem item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _surface,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Expanded(
+              child: item.imageUrl.isEmpty
+                  ? const _CatalogPlaceholder()
+                  : Image.network(
+                      item.imageUrl,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => const _CatalogPlaceholder(),
+                    ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Text(
+                item.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: _textPrimary,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CatalogPlaceholder extends StatelessWidget {
+  const _CatalogPlaceholder();
+
+  @override
+  Widget build(BuildContext context) => const ColoredBox(
+    color: _surfaceLight,
+    child: Center(
+      child: Icon(Icons.play_circle_outline, color: _accent, size: 46),
+    ),
+  );
 }

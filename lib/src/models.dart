@@ -36,3 +36,77 @@ class SavedCredentials {
   final String login;
   final String password;
 }
+
+enum MediaKind { live, movie, series }
+
+extension MediaKindLabels on MediaKind {
+  String get label => switch (this) {
+    MediaKind.live => 'Canais',
+    MediaKind.movie => 'Filmes',
+    MediaKind.series => 'Séries',
+  };
+
+  String get section => switch (this) {
+    MediaKind.live => 'channels',
+    MediaKind.movie => 'movies',
+    MediaKind.series => 'series',
+  };
+}
+
+class PlaybackGrant {
+  const PlaybackGrant({
+    required this.server,
+    required this.username,
+    required this.password,
+    required this.profile,
+    required this.expiresAt,
+  });
+
+  final String server;
+  final String username;
+  final String password;
+  final int profile;
+  final DateTime expiresAt;
+}
+
+class ProfileSession {
+  const ProfileSession({
+    required this.sessionToken,
+    required this.playbackGrant,
+  });
+
+  final String sessionToken;
+  final PlaybackGrant playbackGrant;
+}
+
+class CatalogItem {
+  const CatalogItem({
+    required this.id,
+    required this.name,
+    required this.categoryId,
+    required this.extension,
+    required this.imageUrl,
+    required this.kind,
+  });
+
+  final String id;
+  final String name;
+  final String categoryId;
+  final String extension;
+  final String imageUrl;
+  final MediaKind kind;
+}
+
+class CatalogPage {
+  const CatalogPage({
+    required this.items,
+    required this.page,
+    required this.total,
+    required this.hasMore,
+  });
+
+  final List<CatalogItem> items;
+  final int page;
+  final int total;
+  final bool hasMore;
+}

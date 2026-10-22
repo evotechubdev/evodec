@@ -22,6 +22,48 @@ class FakeEvoApi implements EvoApiClient {
   );
 
   @override
+  Future<ProfileSession> selectProfile(String token, int profile) async =>
+      ProfileSession(
+        sessionToken: 'session',
+        playbackGrant: PlaybackGrant(
+          server: 'https://example.com',
+          username: 'user',
+          password: 'password',
+          profile: profile,
+          expiresAt: DateTime.now().add(const Duration(hours: 1)),
+        ),
+      );
+
+  @override
+  Future<CatalogPage> catalog(
+    String token,
+    String sessionToken,
+    int profile,
+    MediaKind kind,
+  ) async => CatalogPage(
+    items: <CatalogItem>[
+      CatalogItem(
+        id: '1',
+        name: kind == MediaKind.live ? 'TV Bahia' : 'Conteúdo de teste',
+        categoryId: '1',
+        extension: 'ts',
+        imageUrl: '',
+        kind: kind,
+      ),
+    ],
+    page: 1,
+    total: 1,
+    hasMore: false,
+  );
+
+  @override
+  Future<void> releaseProfile(
+    String token,
+    String sessionToken,
+    int profile,
+  ) async {}
+
+  @override
   void close() {}
 }
 
@@ -44,5 +86,11 @@ void main() {
     expect(find.text('Quem está assistindo?'), findsOneWidget);
     expect(find.text('Thiago'), findsOneWidget);
     expect(find.text('Convidado'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('profile-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Canais'), findsOneWidget);
+    expect(find.text('TV Bahia'), findsOneWidget);
   });
 }

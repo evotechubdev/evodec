@@ -4,7 +4,7 @@ import 'models.dart';
 import 'services/credentials_store.dart';
 import 'services/evo_api.dart';
 
-enum AppScreen { login, profiles }
+enum AppScreen { login, profiles, catalog }
 
 class AppController extends ChangeNotifier {
   AppController({required EvoApiClient api, required CredentialsStore credentials})
@@ -22,6 +22,11 @@ class AppController extends ChangeNotifier {
   String error = '';
   String notice = '';
   Account? account;
+  AuthSession? authSession;
+  ProfileSession? profileSession;
+  int selectedProfile = 0;
+  MediaKind selectedKind = MediaKind.live;
+  List<CatalogItem> catalog = const <CatalogItem>[];
 
   Future<void> initialize() async {
     final saved = await _credentials.load();
@@ -72,6 +77,7 @@ class AppController extends ChangeNotifier {
         await _credentials.clear();
       }
       account = loadedAccount;
+      authSession = auth;
       passwordValue = '';
       screen = AppScreen.profiles;
     } on Object catch (exception) {
@@ -82,19 +88,93 @@ class AppController extends ChangeNotifier {
     }
   }
 
-  void selectProfile(int profile) {
-    notice = 'Perfil $profile selecionado. O catálogo será conectado na próxima etapa.';
+  Future<void> selectProfile(int profile) async {
+    final auth = authSession;
+    if (loading || auth == null) return;
+    loading = true;
+    error = '';
+    notice = '';
+    notifyListeners();
+    try {
+      final session = await _api.selectProfile(auth.idToken, profile);
+      profileSession = session;
+      selectedProfile = profile;
+      final page = await _api.catalog(
+        auth.idToken,
+        session.sessionToken,
+        profile,
+        MediaKind.live,
+      );
+      selectedKind = MediaKind.live;
+      catalog = page.items;
+      screen = AppScreen.catalog;
+    } on Object catch (exception) {
+      await _releaseSession();
+      selectedProfile = 0;
+      error = _readable(exception);
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> changeKind(MediaKind kind) async {
+    final auth = authSession;
+    final session = profileSession;
+    if (loading || auth == null || session == null || kind == selectedKind) {
+      return;
+    }
+    selectedKind = kind;
+    loading = true;
+    error = '';
+    catalog = const <CatalogItem>[];
+    notifyListeners();
+    try {
+      final page = await _api.catalog(
+        auth.idToken,
+        session.sessionToken,
+        selectedProfile,
+        kind,
+      );
+      catalog = page.items;
+    } on Object catch (exception) {
+      error = _readable(exception);
+    } finally {
+      loading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> backToProfiles() async {
+    await _releaseSession();
+    catalog = const <CatalogItem>[];
+    selectedProfile = 0;
+    screen = AppScreen.profiles;
     error = '';
     notifyListeners();
   }
 
-  void logout() {
+  Future<void> logout() async {
+    await _releaseSession();
     account = null;
+    authSession = null;
+    catalog = const <CatalogItem>[];
+    selectedProfile = 0;
     screen = AppScreen.login;
     notice = '';
     error = '';
     if (!remember) loginValue = '';
     notifyListeners();
+  }
+
+  Future<void> _releaseSession() async {
+    final auth = authSession;
+    final session = profileSession;
+    final profile = selectedProfile;
+    profileSession = null;
+    if (auth != null && session != null && profile > 0) {
+      await _api.releaseProfile(auth.idToken, session.sessionToken, profile);
+    }
   }
 
   String _readable(Object error) {
