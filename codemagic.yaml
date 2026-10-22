@@ -21,6 +21,12 @@ workflows:
           --org com.thiago07cb2
           --project-name evoiptv
           .
+      - name: Permitir streams HTTP no player
+        script: |
+          PLIST_PATH="ios/Runner/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST_PATH" || true
+          /usr/libexec/PlistBuddy -c "Set :NSAppTransportSecurity:NSAllowsArbitraryLoadsForMedia true" "$PLIST_PATH" || \
+            /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoadsForMedia bool true" "$PLIST_PATH"
       - name: Instalar dependencias
         script: flutter pub get
       - name: Verificar codigo

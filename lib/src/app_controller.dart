@@ -154,6 +154,15 @@ class AppController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Uri playbackSource(CatalogItem item) {
+    if (item.kind == MediaKind.series) {
+      throw StateError('A seleção de episódios será adicionada na próxima etapa.');
+    }
+    final grant = profileSession?.playbackGrant;
+    if (grant == null) throw StateError('A sessão de reprodução não está ativa.');
+    return grant.source(item);
+  }
+
   Future<void> logout() async {
     await _releaseSession();
     account = null;

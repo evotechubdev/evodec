@@ -67,6 +67,34 @@ class PlaybackGrant {
   final String password;
   final int profile;
   final DateTime expiresAt;
+
+  Uri source(CatalogItem item) {
+    if (!DateTime.now().isBefore(expiresAt)) {
+      throw StateError('A autorização de reprodução expirou.');
+    }
+    final folder = switch (item.kind) {
+      MediaKind.live => 'live',
+      MediaKind.movie => 'movie',
+      MediaKind.series => 'series',
+    };
+    final normalizedExtension = item.extension
+        .toLowerCase()
+        .replaceAll(RegExp('[^a-z0-9]'), '')
+        .trim();
+    final extension = normalizedExtension.length > 8
+        ? normalizedExtension.substring(0, 8)
+        : normalizedExtension;
+    final safeExtension = extension.isEmpty
+        ? item.kind == MediaKind.live
+              ? 'ts'
+              : 'mp4'
+        : extension;
+    return Uri.parse(
+      '${server.replaceFirst(RegExp(r'/+$'), '')}/$folder/'
+      '${Uri.encodeComponent(username)}/${Uri.encodeComponent(password)}/'
+      '${Uri.encodeComponent(item.id)}.$safeExtension',
+    );
+  }
 }
 
 class ProfileSession {

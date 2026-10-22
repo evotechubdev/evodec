@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'app_controller.dart';
 import 'models.dart';
+import 'playback_screen.dart';
 
 const _background = Color(0xFF07080A);
 const _surface = Color(0xFF15181E);
@@ -477,11 +478,20 @@ class CatalogScreen extends StatelessWidget {
         final item = controller.catalog[index];
         return _CatalogCard(
           item: item,
-          onTap: () => ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('O player será conectado na próxima etapa.'),
-            ),
-          ),
+          onTap: () {
+            try {
+              final source = controller.playbackSource(item);
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => PlaybackScreen(item: item, source: source),
+                ),
+              );
+            } on Object catch (error) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text(error.toString())),
+              );
+            }
+          },
         );
       },
     );
