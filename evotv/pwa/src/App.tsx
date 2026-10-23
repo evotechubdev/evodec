@@ -976,7 +976,7 @@ function InstallHelp({
             {ios
               ? <>No Safari, toque manualmente no ícone <strong>Compartilhar</strong> da barra do navegador e escolha <strong>Adicionar à Tela de Início</strong>.</>
               : chrome
-                ? <>No Chrome, abra <strong>Menu</strong> → <strong>Transmitir, guardar e partilhar</strong> → <strong>Criar atalho</strong> → <strong>Criar</strong>.</>
+                ? <>No Chrome, abra <strong>Menu</strong> → <strong>Transmitir, guardar e partilhar</strong> → <strong>Instalar página como app</strong>. Se aparecer apenas <strong>Criar atalho</strong>, marque <strong>Abrir como janela</strong> antes de tocar em <strong>Criar</strong>.</>
               : <>No menu do navegador, escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>}
           </p>
         )}
