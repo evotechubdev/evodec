@@ -36,7 +36,9 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const api = new EvoApi();
-const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
+const isPwaPath = /\/pwa\/?$/.test(window.location.pathname);
+const assetUrl = (path: string) =>
+  `${import.meta.env.BASE_URL}${isPwaPath ? '../' : ''}${path}`;
 const INSTALL_HELP_DISMISSED = 'evotv_install_help_dismissed';
 const ANDROID_DOWNLOAD_URL =
   'https://github.com/evotechubdev/multimideas-evo-pwa/releases/download/v1.0.6/EVOTV.Android.1.0.6.apk';
@@ -51,8 +53,7 @@ interface PublicContacts {
 }
 
 export default function App() {
-  const openPlayer =
-    isStandalone() || new URLSearchParams(window.location.search).get('app') === '1';
+  const openPlayer = isPwaPath || isStandalone();
   return openPlayer ? <PlayerApp /> : <SupportPortal />;
 }
 

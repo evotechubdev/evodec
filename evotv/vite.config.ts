@@ -8,9 +8,15 @@ export default defineConfig({
   plugins: [react()],
   publicDir: 'assets',
   build: {
-    outDir: 'dist/pwa',
+    outDir: 'dist',
     emptyOutDir: true,
     sourcemap: true,
+    rollupOptions: {
+      input: {
+        support: 'index.html',
+        pwa: 'pwa/index.html',
+      },
+    },
   },
   server: {
     host: true,

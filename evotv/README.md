@@ -28,12 +28,13 @@ Para validar e gerar os arquivos estáticos:
 npm run build
 ```
 
-O resultado fica em `dist/pwa/` e deve ser servido publicamente em `/pwa/` por
+O resultado fica em `dist/`: `dist/index.html` é o portal de suporte e
+`dist/pwa/index.html` é o aplicativo instalável. Ambos devem ser servidos por
 HTTPS. O service worker não é registrado durante `npm run dev`.
 
-O arquivo `render.yaml` contém as rotas que devem ser incorporadas ao serviço do
-site principal no Render. Ele publica `dist/`, redireciona `/pwa` para `/pwa/`,
-entrega a aplicação por `/pwa/*` e encaminha `/pwa-api/*` ao backend atual.
+O arquivo `render.yaml` publica `dist/`, mantém o portal na raiz, redireciona
+`/pwa` para `/pwa/`, entrega o aplicativo por `/pwa/*` e encaminha
+`/pwa-api/*` ao backend atual.
 
 ## Variáveis
 
@@ -51,6 +52,12 @@ GitHub Pages a cada push na branch `main`. A publicação fica disponível em:
 
 ```text
 https://evotechubdev.github.io/multimideas-evo-pwa/
+```
+
+O portal de suporte ocupa esse endereço. O aplicativo PWA fica em:
+
+```text
+https://evotechubdev.github.io/multimideas-evo-pwa/pwa/
 ```
 
 ## Ajustes aditivos no backend

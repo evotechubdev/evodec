@@ -1,7 +1,9 @@
 const CACHE_NAME = 'evotv-pwa-v3';
 const APP_ROOT = new URL('./', self.location.href).href;
+const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const APP_SHELL = [
   APP_ROOT,
+  PWA_ROOT,
   new URL('manifest.webmanifest', APP_ROOT).href,
   new URL('icons/icon-192.png', APP_ROOT).href,
   new URL('icons/icon-512.png', APP_ROOT).href,
@@ -44,14 +46,15 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
+    const fallback = url.pathname.endsWith('/pwa/') ? PWA_ROOT : APP_ROOT;
     event.respondWith(
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          void caches.open(CACHE_NAME).then((cache) => cache.put(APP_ROOT, copy));
+          void caches.open(CACHE_NAME).then((cache) => cache.put(fallback, copy));
           return response;
         })
-        .catch(() => caches.match(APP_ROOT)),
+        .catch(() => caches.match(fallback)),
     );
     return;
   }
