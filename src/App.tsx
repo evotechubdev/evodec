@@ -129,24 +129,18 @@ function SupportPortal() {
       <main>
         <section className="support-hero" id="inicio">
           <span className="support-kicker">CENTRAL OFICIAL EVOTV</span>
-          <h1>Seu entretenimento,<br /><span>em qualquer tela.</span></h1>
+          <h1>Escolha onde assistir.</h1>
           <p>
-            Baixe o aplicativo ideal para seu dispositivo ou fale diretamente
-            com nossa equipe de atendimento.
+            Baixe o EVOTV para Android ou Windows. Para iOS e outros sistemas
+            de TV, instale a versão PWA.
           </p>
-          <a className="support-primary-link" href="#downloads">Escolher aplicativo</a>
-          <div className="support-trust-row" aria-label="Benefícios">
-            <span>✓ Downloads oficiais</span>
-            <span>✓ Instalação segura</span>
-            <span>✓ Suporte especializado</span>
-          </div>
         </section>
 
         <section className="downloads-section" id="downloads">
           <div className="support-section-heading">
             <span className="support-kicker">APLICATIVOS</span>
-            <h2>Escolha onde assistir</h2>
-            <p>Versões oficiais e atualizadas do EVOTV.</p>
+            <h2>Três formas de acessar</h2>
+            <p>Selecione seu sistema para baixar ou instalar.</p>
           </div>
           <div className="download-grid">
             <DownloadCard
@@ -239,9 +233,7 @@ function DownloadCard({
 }) {
   const content = (
     <>
-      <span className={`platform-icon platform-${icon}`} aria-hidden="true">
-        {icon === 'android' ? 'A' : icon === 'windows' ? '⊞' : '◈'}
-      </span>
+      <PlatformIcon platform={icon} />
       <span className="download-card-copy">
         <strong>{title} <small>(versão: {version})</small></strong>
         <span>{description}</span>
@@ -253,6 +245,40 @@ function DownloadCard({
     return <a className={`download-card${featured ? ' featured' : ''}`} href={href}>{content}</a>;
   }
   return <button className={`download-card${featured ? ' featured' : ''}`} onClick={onClick}>{content}</button>;
+}
+
+function PlatformIcon({ platform }: { platform: 'android' | 'windows' | 'pwa' }) {
+  if (platform === 'android') {
+    return (
+      <span className="platform-icon platform-android" aria-label="Android">
+        <svg viewBox="0 0 48 48" role="img">
+          <path d="M15 17h18a4 4 0 0 1 4 4v12H11V21a4 4 0 0 1 4-4Z" />
+          <path d="M16 17a8 8 0 0 1 16 0M17 9l-3-4M31 9l3-4M11 22H7v10h4M37 22h4v10h-4M17 33v8M31 33v8" />
+          <circle cx="18" cy="22" r="1.3" /><circle cx="30" cy="22" r="1.3" />
+        </svg>
+        <small>ANDROID</small>
+      </span>
+    );
+  }
+  if (platform === 'windows') {
+    return (
+      <span className="platform-icon platform-windows" aria-label="Windows">
+        <svg viewBox="0 0 48 48" role="img">
+          <path d="M6 9l16-2v16H6V9Zm19-2 17-2v18H25V7ZM6 26h16v16L6 40V26Zm19 0h17v18l-17-2V26Z" />
+        </svg>
+        <small>WINDOWS</small>
+      </span>
+    );
+  }
+  return (
+    <span className="platform-icon platform-pwa" aria-label="PWA para iOS e TVs">
+      <svg viewBox="0 0 48 48" role="img">
+        <rect x="13" y="5" width="22" height="38" rx="5" />
+        <path d="M20 10h8M21 37h6M18 24h12M24 18v12" />
+      </svg>
+      <small>iOS + TV</small>
+    </span>
+  );
 }
 
 function ContactCard({
