@@ -3,6 +3,7 @@ import {
   type ReactNode,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from 'react';
 
@@ -289,6 +290,7 @@ function PlayerApp() {
   const [installPreparationSeconds, setInstallPreparationSeconds] =
     useState<number | null>(null);
   const [installed, setInstalled] = useState(isStandalone);
+  const profileSelectionInFlight = useRef(false);
 
   useTvSpatialNavigation();
 
@@ -361,7 +363,8 @@ function PlayerApp() {
   }
 
   async function chooseProfile(profile: number) {
-    if (!auth || busy) return;
+    if (!auth || busy || profileSelectionInFlight.current) return;
+    profileSelectionInFlight.current = true;
     setBusy(true);
     setError('');
     try {
@@ -382,6 +385,7 @@ function PlayerApp() {
       setSelectedProfile(0);
       setError(readableError(reason));
     } finally {
+      profileSelectionInFlight.current = false;
       setBusy(false);
     }
   }
@@ -619,6 +623,16 @@ function PlayerApp() {
               setError('');
               setScreen(player.returnTo);
               setPlayer(null);
+            }}
+            onSessionEnded={(message) => {
+              setError(message);
+              setPlayer(null);
+              setProfileSession(null);
+              setSelectedProfile(0);
+              setCatalog([]);
+              setSeriesItem(null);
+              setSeriesDetails(null);
+              setScreen('profiles');
             }}
           />
         )}
@@ -940,7 +954,15 @@ function SeriesScreen({
   );
 }
 
-function PlayerScreen({ player, onBack }: { player: PlayerState; onBack(): void }) {
+function PlayerScreen({
+  player,
+  onBack,
+  onSessionEnded,
+}: {
+  player: PlayerState;
+  onBack(): void;
+  onSessionEnded(message: string): void;
+}) {
   const [failure, setFailure] = useState('');
   return (
     <section className="player-screen">
@@ -967,7 +989,10 @@ function PlayerScreen({ player, onBack }: { player: PlayerState; onBack(): void 
             onError={(event) => {
               const fallback = browserMediaError(event.currentTarget.error);
               setFailure(fallback);
-              void inspectPlaybackFailure(player.source, fallback).then(setFailure);
+              void inspectPlaybackFailure(player.source, fallback).then((result) => {
+                setFailure(result.message);
+                if (result.status === 409) onSessionEnded(result.message);
+              });
             }}
           />
         )}
@@ -989,25 +1014,33 @@ function browserMediaError(error: MediaError | null): string {
   return 'O servidor de mídia não conseguiu iniciar a reprodução.';
 }
 
-async function inspectPlaybackFailure(source: string, fallback: string): Promise<string> {
+async function inspectPlaybackFailure(
+  source: string,
+  fallback: string,
+): Promise<{ message: string; status?: number }> {
   const controller = new AbortController();
   const timeout = window.setTimeout(() => controller.abort(), 12_000);
   try {
     const response = await fetch(source, { signal: controller.signal });
     if (response.ok) {
       await response.body?.cancel();
-      return fallback;
+      return { message: fallback };
     }
     const body = await response.text();
     try {
       const data = JSON.parse(body) as { error?: unknown };
-      if (typeof data.error === 'string' && data.error.trim()) return data.error;
+      if (typeof data.error === 'string' && data.error.trim()) {
+        return { message: data.error, status: response.status };
+      }
     } catch {
       // Respostas não JSON usam a mensagem segura abaixo.
     }
-    return `O proxy de mídia respondeu com HTTP ${response.status}.`;
+    return {
+      message: `O proxy de mídia respondeu com HTTP ${response.status}.`,
+      status: response.status,
+    };
   } catch {
-    return 'Não foi possível conectar ao proxy HTTPS de mídia.';
+    return { message: 'Não foi possível conectar ao proxy HTTPS de mídia.' };
   } finally {
     window.clearTimeout(timeout);
   }
