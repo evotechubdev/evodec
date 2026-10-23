@@ -1074,29 +1074,42 @@ input:disabled {
   line-height: 1.65;
 }
 
-.install-guide-tabs {
+.install-steps {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-  margin: 18px 0 12px;
+  gap: 12px;
+  margin-top: 18px;
+  text-align: left;
 }
 
-.install-guide-tab {
-  min-height: 42px;
-  padding: 8px 12px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 11px;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.04);
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
+.install-step-group {
+  padding: 15px 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.035);
 }
 
-.install-guide-tab.active {
-  border-color: rgba(50, 215, 255, 0.65);
+.install-step-group h3 {
+  margin: 0 0 9px;
   color: #fff;
-  background: rgba(50, 215, 255, 0.13);
+  font-size: 0.96rem;
+}
+
+.install-step-group ol {
+  margin: 0;
+  padding-left: 21px;
+  color: #c9d2e3;
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.install-step-group li + li { margin-top: 4px; }
+
+.install-step-group small {
+  display: block;
+  margin-top: 9px;
+  color: var(--accent);
+  font-size: 0.73rem;
+  line-height: 1.45;
 }
 
 @media (max-width: 900px) {

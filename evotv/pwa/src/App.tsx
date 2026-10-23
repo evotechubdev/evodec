@@ -31,16 +31,10 @@ interface PlayerState {
   returnTo: 'catalog' | 'series';
 }
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>;
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
-}
-
 const api = new EvoApi();
 const isPwaPath = /\/pwa(?:\/|$)/.test(window.location.pathname);
 const assetUrl = (path: string) =>
   `${import.meta.env.BASE_URL}${isPwaPath ? '../' : ''}${path}`;
-const INSTALL_HELP_DISMISSED = 'evotv_install_help_dismissed';
 const ANDROID_DOWNLOAD_URL =
   'https://github.com/evotechubdev/evodec/releases/download/v1.0.6/EVOTV.Android.1.0.6.apk';
 const WINDOWS_DOWNLOAD_URL =
@@ -280,16 +274,9 @@ function PlayerApp() {
   const [seriesItem, setSeriesItem] = useState<CatalogItem | null>(null);
   const [seriesDetails, setSeriesDetails] = useState<SeriesDetails | null>(null);
   const [player, setPlayer] = useState<PlayerState | null>(null);
-  const [installPrompt, setInstallPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
   const [showInstallHelp, setShowInstallHelp] = useState(
     shouldShowInstallHelpFromRedirect,
   );
-  const [installPreparationEndsAt, setInstallPreparationEndsAt] =
-    useState<number | null>(null);
-  const [installPreparationSeconds, setInstallPreparationSeconds] =
-    useState<number | null>(null);
-  const [installed, setInstalled] = useState(isStandalone);
   const profileSelectionInFlight = useRef(false);
 
   useTvSpatialNavigation();
@@ -304,38 +291,6 @@ function PlayerApp() {
       `${url.pathname}${url.search}${url.hash}`,
     );
   }, []);
-
-  useEffect(() => {
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-      setInstallPreparationEndsAt(null);
-      setInstallPreparationSeconds(null);
-    };
-    const onInstalled = () => {
-      setInstalled(true);
-      setInstallPrompt(null);
-      closeInstallHelp();
-    };
-    window.addEventListener('beforeinstallprompt', onPrompt);
-    window.addEventListener('appinstalled', onInstalled);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (installPreparationEndsAt === null || installPrompt) return;
-    const updateCountdown = () => {
-      setInstallPreparationSeconds(
-        Math.max(0, Math.ceil((installPreparationEndsAt - Date.now()) / 1000)),
-      );
-    };
-    updateCountdown();
-    const timer = window.setInterval(updateCountdown, 1000);
-    return () => window.clearInterval(timer);
-  }, [installPreparationEndsAt, installPrompt]);
 
   useEffect(() => {
     if (!auth || !profileSession || selectedProfile < 1) return;
@@ -518,36 +473,12 @@ function PlayerApp() {
     setBusy(false);
   }
 
-  async function requestInstall() {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const choice = await installPrompt.userChoice;
-      setInstallPrompt(null);
-      if (choice.outcome === 'accepted') setShowInstallHelp(false);
-      return;
-    }
+  function openInstallGuide() {
     setShowInstallHelp(true);
-    if (isChromeBrowser() && !isIosDevice()) {
-      setInstallPreparationEndsAt(Date.now() + 32_000);
-      setInstallPreparationSeconds(32);
-    }
   }
 
   function closeInstallHelp() {
-    try {
-      sessionStorage.setItem(INSTALL_HELP_DISMISSED, '1');
-    } catch {
-      // O assistente ainda pode ser fechado quando o armazenamento está bloqueado.
-    }
-    setInstallPreparationEndsAt(null);
-    setInstallPreparationSeconds(null);
     setShowInstallHelp(false);
-  }
-
-  function reloadForInstall() {
-    const url = new URL(window.location.href);
-    url.searchParams.set('install', '1');
-    window.location.assign(url.href);
   }
 
   function endProfileSession(message: string) {
@@ -574,8 +505,6 @@ function PlayerApp() {
       {screen !== 'login' && (
         <Header
           profileName={currentProfileName}
-          canInstall={!installed}
-          onInstall={requestInstall}
           onLogout={logout}
         />
       )}
@@ -588,7 +517,6 @@ function PlayerApp() {
             remember={remember}
             busy={busy}
             error={error}
-            installed={installed}
             onLogin={setLogin}
             onPassword={setPassword}
             onRemember={(checked) => {
@@ -596,7 +524,7 @@ function PlayerApp() {
               if (!checked) clearSavedLogin();
             }}
             onSubmit={signIn}
-            onInstall={requestInstall}
+            onOpenInstallGuide={openInstallGuide}
           />
         )}
 
@@ -662,13 +590,7 @@ function PlayerApp() {
       </main>
 
       {showInstallHelp && (
-        <InstallHelp
-          canPrompt={Boolean(installPrompt)}
-          preparationSeconds={installPreparationSeconds}
-          onInstall={requestInstall}
-          onReload={reloadForInstall}
-          onClose={closeInstallHelp}
-        />
+        <InstallHelp onClose={closeInstallHelp} />
       )}
     </div>
   );
@@ -676,13 +598,9 @@ function PlayerApp() {
 
 function Header({
   profileName: currentProfile,
-  canInstall,
-  onInstall,
   onLogout,
 }: {
   profileName: string;
-  canInstall: boolean;
-  onInstall(): void;
   onLogout(): void;
 }) {
   return (
@@ -690,11 +608,6 @@ function Header({
       <img className="topbar-logo" src={assetUrl('images/logo_evotv.png')} alt="EVOTV" />
       <div className="topbar-actions">
         {currentProfile && <span className="profile-pill">{currentProfile}</span>}
-        {canInstall && (
-          <button className="button button-ghost compact" onClick={onInstall}>
-            Instalar
-          </button>
-        )}
         <button className="button button-ghost compact" onClick={onLogout}>
           Sair
         </button>
@@ -709,24 +622,22 @@ function LoginScreen({
   remember,
   busy,
   error,
-  installed,
   onLogin,
   onPassword,
   onRemember,
   onSubmit,
-  onInstall,
+  onOpenInstallGuide,
 }: {
   login: string;
   password: string;
   remember: boolean;
   busy: boolean;
   error: string;
-  installed: boolean;
   onLogin(value: string): void;
   onPassword(value: string): void;
   onRemember(value: boolean): void;
   onSubmit(event: FormEvent): void;
-  onInstall(): void;
+  onOpenInstallGuide(): void;
 }) {
   const [showPassword, setShowPassword] = useState(false);
   return (
@@ -782,11 +693,9 @@ function LoginScreen({
         <button className="button button-primary button-large" disabled={busy}>
           {busy ? <Spinner /> : 'CONTINUAR'}
         </button>
-        {!installed && (
-          <button type="button" className="install-link" onClick={onInstall}>
-            Instalar o EVOTV na tela inicial
-          </button>
-        )}
+        <button type="button" className="install-link" onClick={onOpenInstallGuide}>
+          Guia de Instalação
+        </button>
         <small className="security-note">
           A senha não é armazenada no navegador.
         </small>
@@ -1069,110 +978,52 @@ async function inspectPlaybackFailure(
   }
 }
 
-function InstallHelp({
-  canPrompt,
-  preparationSeconds,
-  onInstall,
-  onReload,
-  onClose,
-}: {
-  canPrompt: boolean;
-  preparationSeconds: number | null;
-  onInstall(): void;
-  onReload(): void;
-  onClose(): void;
-}) {
-  const ios = isIosDevice();
-  const chrome = isChromeBrowser();
-  const [guide, setGuide] = useState<'chrome' | 'safari'>(
-    ios ? 'safari' : 'chrome',
-  );
-  const nativeInstallReady = guide === 'chrome' && canPrompt;
-  const chromeAvailable = guide === 'chrome' && chrome && !ios;
-  const preparing = chromeAvailable && preparationSeconds !== null;
-  const preparationExpired = preparing && preparationSeconds === 0;
+function InstallHelp({ onClose }: { onClose(): void }) {
   return (
-    <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
+    <div className="modal-backdrop" role="presentation">
       <section
         className="install-modal"
         role="dialog"
         aria-modal="true"
         aria-labelledby="install-title"
-        onMouseDown={(event) => event.stopPropagation()}
       >
-        <button className="modal-close" aria-label="Fechar" onClick={onClose}>×</button>
+        <button type="button" className="modal-close" aria-label="Fechar guia de instalação" onClick={onClose}>×</button>
         <img src={assetUrl('icons/icon-192.png')} alt="" className="install-icon" />
         <span className="eyebrow">EVOTV PWA</span>
-        <h2 id="install-title">INSTALAR AGORA</h2>
+        <h2 id="install-title">GUIA DE INSTALAÇÃO</h2>
         <p className="install-audience">
-          Opção indicada para iOS e outros sistemas de TV ou dispositivos onde
-          os aplicativos Android e Windows não estão disponíveis.
+          Escolha as instruções do seu dispositivo. Este guia não abre o
+          compartilhamento nem inicia uma instalação automaticamente.
         </p>
-        <div className="install-guide-tabs" role="tablist" aria-label="Escolha o navegador">
-          <button
-            type="button"
-            role="tab"
-            aria-selected={guide === 'chrome'}
-            className={guide === 'chrome' ? 'install-guide-tab active' : 'install-guide-tab'}
-            onClick={() => setGuide('chrome')}
-          >
-            Chrome
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={guide === 'safari'}
-            className={guide === 'safari' ? 'install-guide-tab active' : 'install-guide-tab'}
-            onClick={() => setGuide('safari')}
-          >
-            Safari / iPhone
-          </button>
+        <div className="install-steps">
+          <section className="install-step-group">
+            <h3>Chrome no Android</h3>
+            <ol>
+              <li>Abra esta página no Google Chrome.</li>
+              <li>Toque no menu <strong>⋮</strong>.</li>
+              <li>Toque em <strong>Adicionar à tela inicial</strong> ou <strong>Instalar app</strong>.</li>
+              <li>Confirme em <strong>Instalar</strong>.</li>
+            </ol>
+          </section>
+          <section className="install-step-group">
+            <h3>Chrome no computador</h3>
+            <ol>
+              <li>Abra o menu <strong>⋮</strong>.</li>
+              <li>Acesse <strong>Transmitir, guardar e partilhar</strong>.</li>
+              <li>Escolha <strong>Instalar EVOTV</strong> e confirme.</li>
+            </ol>
+            <small>Use a opção “Instalar”, não “Criar atalho”, para abrir como aplicativo.</small>
+          </section>
+          <section className="install-step-group">
+            <h3>Safari no iPhone ou iPad</h3>
+            <ol>
+              <li>Abra esta página no Safari.</li>
+              <li>Toque em <strong>Compartilhar</strong>.</li>
+              <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
+              <li>Confirme em <strong>Adicionar</strong>.</li>
+            </ol>
+          </section>
         </div>
-        {nativeInstallReady ? (
-          <p>
-            Este navegador pode instalar o EVOTV como aplicativo. Confirme na
-            próxima janela para adicioná-lo ao dispositivo.
-          </p>
-        ) : guide === 'safari' ? (
-          <p>
-            No iPhone ou iPad, abra no Safari e toque em <strong>Compartilhar</strong> → <strong>Adicionar à Tela de Início</strong>. No Mac, use <strong>Arquivo</strong> → <strong>Adicionar ao Dock</strong>.
-          </p>
-        ) : !chromeAvailable ? (
-          <p>
-            {ios
-              ? <>No iPhone ou iPad, o Chrome não oferece instalação PWA nativa. Escolha <strong>Safari / iPhone</strong> acima.</>
-              : <>Abra este mesmo endereço no Google Chrome para preparar a instalação como aplicativo.</>}
-          </p>
-        ) : (
-          <p>
-            {preparationExpired
-              ? <>O Chrome concluiu o tempo de preparação. Toque em <strong>Atualizar para instalar</strong> para verificar novamente.</>
-              : preparing
-                ? <>O Chrome está preparando a instalação. Mantenha esta página aberta; o botão mudará para <strong>Instalar</strong> quando estiver pronto.</>
-                : <>Toque em <strong>Preparar instalação</strong> e mantenha esta página aberta por alguns segundos.</>}
-          </p>
-        )}
-        {nativeInstallReady ? (
-          <button className="button button-primary button-large" onClick={onInstall}>
-            Instalar
-          </button>
-        ) : guide === 'safari' || !chromeAvailable ? (
-          <button className="button button-primary button-large" onClick={onClose}>
-            Fechar
-          </button>
-        ) : preparationExpired ? (
-          <button className="button button-primary button-large" onClick={onReload}>
-            Atualizar para instalar
-          </button>
-        ) : preparing ? (
-          <button className="button button-primary button-large" disabled>
-            <Spinner /> Preparando… {preparationSeconds}s
-          </button>
-        ) : (
-          <button className="button button-primary button-large" onClick={onInstall}>
-            Preparar instalação
-          </button>
-        )}
       </section>
     </div>
   );
@@ -1215,20 +1066,6 @@ function shouldShowInstallHelpFromRedirect(): boolean {
   return (
     !isStandalone() &&
     new URLSearchParams(window.location.search).get('install') === '1'
-  );
-}
-
-function isIosDevice(): boolean {
-  return (
-    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
-    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
-  );
-}
-
-function isChromeBrowser(): boolean {
-  return (
-    /Chrome|CriOS/i.test(navigator.userAgent) &&
-    !/Edg|OPR|SamsungBrowser/i.test(navigator.userAgent)
   );
 }
 

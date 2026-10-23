@@ -85,10 +85,9 @@ compatibilidade com o contrato atual. Isso não modifica o aplicativo Android.
 
 No Android e no Android TV, o aplicativo Android nativo continua sendo a opção
 principal. A PWA é uma alternativa para aparelhos onde o APK não pode ser
-instalado. Em navegadores compatíveis, o botão **Instalar** abre a confirmação
-do próprio sistema; nos demais, o EVOTV funciona pelo endereço web e pode ser
-salvo como favorito. A instalação formal em Smart TVs depende do navegador e do
-sistema do fabricante.
+instalado. O botão **Guia de Instalação**, na tela de login, mostra o passo a
+passo para Chrome no Android, Chrome no computador e Safari no iPhone ou iPad.
+A instalação formal em Smart TVs depende do navegador e do sistema do fabricante.
 
 A interface aceita teclado e as setas de controles remotos que o navegador
 expõe como `ArrowUp`, `ArrowDown`, `ArrowLeft` e `ArrowRight`. A reprodução ainda
@@ -99,14 +98,12 @@ depende dos formatos de vídeo suportados pelo navegador de cada TV.
 O cartão **EVOTV - PWA (versão: 1.0.6)** deve apontar diretamente para:
 
 ```text
-https://www.evotv.com.br/pwa/
+https://evotechubdev.github.io/evodec/evotv/pwa/index.html
 ```
 
-Na primeira visita de cada sessão, a própria página abre o assistente de
-instalação. Navegadores compatíveis oferecem a confirmação nativa quando
-disponível. Nenhum navegador permite concluir a instalação sem uma ação
-explícita do usuário. O parâmetro opcional
-`?install=1` força a reabertura do assistente e `?install=0` o ignora.
+O parâmetro `?install=1`, usado pelo cartão do site de suporte, abre diretamente
+o guia na tela de login. O guia não dispara compartilhamento nem instalação:
+ele apresenta apenas as instruções e um **X** para fechar.
 
 No site principal, mantenha sempre as três opções visíveis, nesta ordem e com
 estes textos:
