@@ -122,7 +122,7 @@ function SupportPortal() {
               version="1.0.6"
               description="Indicada para iOS e outros sistemas de TV ou dispositivos."
               label="Instalar PWA"
-              href={assetUrl('pwa/index.html')}
+              href={assetUrl('pwa/index.html?install=1')}
               featured
             />
           </div>
@@ -281,10 +281,23 @@ function PlayerApp() {
   const [player, setPlayer] = useState<PlayerState | null>(null);
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [showInstallHelp, setShowInstallHelp] = useState(
+    shouldShowInstallHelpFromRedirect,
+  );
   const [installed, setInstalled] = useState(isStandalone);
 
   useTvSpatialNavigation();
+
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get('install') !== '1') return;
+    url.searchParams.delete('install');
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, []);
 
   useEffect(() => {
     const onPrompt = (event: Event) => {
@@ -994,6 +1007,13 @@ function isStandalone(): boolean {
   return (
     window.matchMedia('(display-mode: standalone)').matches ||
     navigatorWithStandalone.standalone === true
+  );
+}
+
+function shouldShowInstallHelpFromRedirect(): boolean {
+  return (
+    !isStandalone() &&
+    new URLSearchParams(window.location.search).get('install') === '1'
   );
 }
 
