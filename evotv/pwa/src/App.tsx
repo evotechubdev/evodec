@@ -941,7 +941,7 @@ function SeriesScreen({
 }
 
 function PlayerScreen({ player, onBack }: { player: PlayerState; onBack(): void }) {
-  const [failed, setFailed] = useState(false);
+  const [failure, setFailure] = useState('');
   return (
     <section className="player-screen">
       <div className="player-toolbar">
@@ -950,10 +950,11 @@ function PlayerScreen({ player, onBack }: { player: PlayerState; onBack(): void 
         {player.item.kind === 'live' && <span className="live-badge static">AO VIVO</span>}
       </div>
       <div className="video-stage">
-        {failed ? (
+        {failure ? (
           <EmptyState>
             <p>Não foi possível reproduzir este conteúdo no navegador.</p>
-            <small>Confirme se o servidor oferece HTTPS e um formato compatível com o navegador.</small>
+            <small>{failure}</small>
+            <small>A mídia já é acessada pelo proxy HTTPS; este aviso não é um bloqueio de conteúdo HTTP misto.</small>
             <button className="button button-primary" onClick={onBack}>Voltar</button>
           </EmptyState>
         ) : (
@@ -963,12 +964,53 @@ function PlayerScreen({ player, onBack }: { player: PlayerState; onBack(): void 
             controls
             autoPlay
             playsInline
-            onError={() => setFailed(true)}
+            onError={(event) => {
+              const fallback = browserMediaError(event.currentTarget.error);
+              setFailure(fallback);
+              void inspectPlaybackFailure(player.source, fallback).then(setFailure);
+            }}
           />
         )}
       </div>
     </section>
   );
+}
+
+function browserMediaError(error: MediaError | null): string {
+  if (error?.code === MediaError.MEDIA_ERR_NETWORK) {
+    return 'A conexão com o servidor de mídia foi interrompida.';
+  }
+  if (error?.code === MediaError.MEDIA_ERR_DECODE) {
+    return 'O navegador não conseguiu decodificar o formato ou codec deste vídeo.';
+  }
+  if (error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
+    return 'O navegador não reconheceu o formato ou codec entregue pelo servidor.';
+  }
+  return 'O servidor de mídia não conseguiu iniciar a reprodução.';
+}
+
+async function inspectPlaybackFailure(source: string, fallback: string): Promise<string> {
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), 12_000);
+  try {
+    const response = await fetch(source, { signal: controller.signal });
+    if (response.ok) {
+      await response.body?.cancel();
+      return fallback;
+    }
+    const body = await response.text();
+    try {
+      const data = JSON.parse(body) as { error?: unknown };
+      if (typeof data.error === 'string' && data.error.trim()) return data.error;
+    } catch {
+      // Respostas não JSON usam a mensagem segura abaixo.
+    }
+    return `O proxy de mídia respondeu com HTTP ${response.status}.`;
+  } catch {
+    return 'Não foi possível conectar ao proxy HTTPS de mídia.';
+  } finally {
+    window.clearTimeout(timeout);
+  }
 }
 
 function InstallHelp({

@@ -1,8 +1,10 @@
-const CACHE_NAME = 'evotv-pwa-v7';
+const CACHE_NAME = 'evotv-pwa-v8';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
+const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
 const APP_SHELL = [
   PWA_ROOT,
+  PWA_INDEX,
   new URL('pwa/manifest.json', APP_ROOT).href,
   new URL('icons/icon-192.png', APP_ROOT).href,
   new URL('icons/icon-512.png', APP_ROOT).href,
@@ -52,7 +54,7 @@ self.addEventListener('fetch', (event) => {
           void caches.open(CACHE_NAME).then((cache) => cache.put(PWA_ROOT, copy));
           return response;
         })
-        .catch(() => caches.match(PWA_ROOT)),
+        .catch(async () => (await caches.match(PWA_ROOT)) || Response.error()),
     );
     return;
   }
@@ -66,6 +68,13 @@ self.addEventListener('fetch', (event) => {
           void caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
         }
         return response;
+      }).catch(async () => {
+        if (url.href === PWA_INDEX || url.pathname === new URL(PWA_ROOT).pathname) {
+          return (await caches.match(PWA_INDEX)) ||
+            (await caches.match(PWA_ROOT)) ||
+            Response.error();
+        }
+        return Response.error();
       });
     }),
   );
