@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: evotv-pwa
+    runtime: static
+    buildCommand: npm install --no-audit --no-fund && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: VITE_FIREBASE_API_KEY
+        value: AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo
+      - key: VITE_EVO_BACKEND_URL
+        value: /pwa-api
+      - key: VITE_EVO_VERSION
+        value: 1.0.6
+      - key: VITE_EVO_VERSION_CODE
+        value: bde12f9159868653eea9eb54f9150bc44e66e84909fa84ede26833be0a2f63b5
+      - key: VITE_EVO_PLATFORM
+        value: android
+    routes:
+      - type: rewrite
+        source: /pwa-api/*
+        destination: https://multimideas-evo-backend.onrender.com/*
+      - type: redirect
+        source: /pwa
+        destination: /pwa/
+      - type: rewrite
+        source: /pwa/*
+        destination: /pwa/index.html

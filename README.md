@@ -1,29 +1,113 @@
-# EVOTV para iOS
+# EVOTV PWA
 
-Base Flutter do aplicativo EVOTV. A primeira etapa da migracao inclui a tela de
-login, autenticacao Firebase por API, consulta da conta no backend, armazenamento
-seguro das credenciais e selecao visual de perfis.
+Cliente web instalável do EVOTV, construído com React, TypeScript e Vite. Usa o
+mesmo Firebase e o mesmo backend no Render dos aplicativos Android e PC.
 
-O projeto nativo `ios/` e gerado durante a compilacao no Codemagic, permitindo
-iniciar o desenvolvimento no Windows sem manter arquivos gerados manualmente.
+## Recursos
 
-## Codemagic
+- login Firebase pela API REST;
+- contas, perfis, catálogo, filmes, séries e episódios;
+- autorização de reprodução com RSA-OAEP e AES-GCM usando Web Crypto;
+- manifesto e service worker para instalação na tela inicial;
+- interface responsiva para iPhone, Android, computador e Smart TV;
+- navegação por teclado, setas e controles remotos que enviam teclas direcionais;
+- senha mantida apenas na memória da página; somente o login pode ser lembrado.
 
-- Project path: `.`
-- Branch: `main`
-- Project type: `Flutter`
-- Workflow: `EVOTV iOS - compilacao sem assinatura`
+## Desenvolvimento
 
-O fluxo inicial apenas valida e compila o aplicativo sem assinatura Apple.
-Publicacao no TestFlight ou na App Store sera configurada separadamente quando
-existirem as credenciais do Apple Developer Program.
+Copie `.env.example` para `.env`, preencha as variáveis e execute:
 
-## Variaveis de ambiente
+```sh
+npm install
+npm run dev
+```
 
-Para autenticar de verdade, configure como variaveis secretas no Codemagic:
+Para validar e gerar os arquivos estáticos:
 
-- `FIREBASE_API_KEY`: chave Web API do projeto Firebase.
-- `EVO_VERSION_CODE`: codigo de versao aceito pelo backend.
-- `EVO_PLATFORM`: temporariamente `android`, ate o backend ganhar um canal `ios`.
+```sh
+npm run build
+```
 
-As tres variaveis pertencem ao grupo `evotv_config`, importado pelo workflow.
+O resultado fica em `dist/pwa/` e deve ser servido publicamente em `/pwa/` por
+HTTPS. O service worker não é registrado durante `npm run dev`.
+
+O arquivo `render.yaml` contém as rotas que devem ser incorporadas ao serviço do
+site principal no Render. Ele publica `dist/`, redireciona `/pwa` para `/pwa/`,
+entrega a aplicação por `/pwa/*` e encaminha `/pwa-api/*` ao backend atual.
+
+## Variáveis
+
+- `VITE_FIREBASE_API_KEY`: Web API Key do Firebase.
+- `VITE_EVO_BACKEND_URL`: padrão `/pwa-api`, no mesmo domínio público.
+- `VITE_EVO_VERSION`: versão exibida ao backend.
+- `VITE_EVO_VERSION_CODE`: código aceito pelo controle de versões do backend.
+- `VITE_EVO_PLATFORM`: use `android` para compatibilidade temporária; troque para
+  `web` depois de cadastrar o canal web no backend.
+
+No Codemagic, as variáveis existentes continuam no grupo `evotv_config` sem o
+prefixo `VITE_`; o workflow faz o mapeamento durante a compilação.
+
+## Ajustes aditivos no backend
+
+O código do backend não está neste repositório. O encaminhamento `/pwa-api/*`
+mantém as chamadas do navegador no mesmo domínio e envia a requisição ao backend
+`https://multimideas-evo-backend.onrender.com`. Se esse encaminhamento não for
+usado, o backend precisará permitir por CORS o domínio público e os cabeçalhos
+`Authorization`, `Content-Type`, `x-evo-platform`, `x-evo-version`,
+`x-evo-version-code`, `x-evo-session` e `x-evo-profile`.
+
+Antes de criar um canal próprio para a PWA, o serviço deve:
+
+1. cadastrar um canal de versão `web` sem remover ou alterar `android` e `pc`;
+2. manter as respostas atuais de `/api/account`, `/api/profile`, `/api/catalog`,
+   `/api/iptv` e `/api/session`;
+3. fornecer mídia por HTTPS. Páginas HTTPS não podem reproduzir streams HTTP.
+
+Enquanto o canal `web` não existir, o build usa `android` somente como modo de
+compatibilidade com o contrato atual. Isso não modifica o aplicativo Android.
+
+## Instalação no iPhone
+
+Abra o endereço no Safari, toque em **Compartilhar**, escolha **Adicionar à Tela
+de Início** e confirme. O iOS não permite instalação silenciosa de PWAs.
+
+## Android, Smart TVs e outros sistemas
+
+No Android e no Android TV, o aplicativo Android nativo continua sendo a opção
+principal. A PWA é uma alternativa para aparelhos onde o APK não pode ser
+instalado. Em navegadores compatíveis, o botão **Instalar** abre a confirmação
+do próprio sistema; nos demais, o EVOTV funciona pelo endereço web e pode ser
+salvo como favorito. A instalação formal em Smart TVs depende do navegador e do
+sistema do fabricante.
+
+A interface aceita teclado e as setas de controles remotos que o navegador
+expõe como `ArrowUp`, `ArrowDown`, `ArrowLeft` e `ArrowRight`. A reprodução ainda
+depende dos formatos de vídeo suportados pelo navegador de cada TV.
+
+## Link no site principal
+
+O cartão **EVOTV - PWA (versão: 1.0.6)** deve apontar diretamente para:
+
+```text
+https://www.evotv.com.br/pwa/
+```
+
+Na primeira visita de cada sessão, a própria página abre o assistente de
+instalação. Navegadores Chromium oferecem a confirmação nativa quando
+disponível. No iPhone, o assistente mostra o caminho obrigatório **Safari >
+Compartilhar > Adicionar à Tela de Início**. Nenhum navegador permite concluir
+a instalação sem uma ação explícita do usuário. O parâmetro opcional
+`?install=1` força a reabertura do assistente e `?install=0` o ignora.
+
+No site principal, mantenha sempre as três opções visíveis, nesta ordem e com
+estes textos:
+
+1. **EVOTV - Android (versão: 1.0.6)**
+2. **EVOTV - PC Windows (versão: 0.2)**
+3. **EVOTV - PWA (versão: 1.0.6)**
+
+O Android continua sendo a primeira tentativa do representante comercial. A
+PWA permanece disponível como alternativa universal, inclusive no Android e em
+Smart TVs. A identificação do dispositivo deve apenas orientar o clique na PWA;
+ela não deve esconder nem reordenar as três opções. Os cartões Android e Windows
+devem manter os links de distribuição já usados pelos respectivos projetos.

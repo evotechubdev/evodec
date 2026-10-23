@@ -1,52 +1,25 @@
 workflows:
-  ios-unsigned-debug:
-    name: EVOTV iOS - compilacao sem assinatura
+  pwa-release:
+    name: EVOTV PWA - React e Vite
     instance_type: mac_mini_m2
-    max_build_duration: 30
+    max_build_duration: 20
     environment:
       groups:
         - evotv_config
-      flutter: stable
-      xcode: latest
-      cocoapods: default
+      node: lts
     cache:
       cache_paths:
-        - $FLUTTER_ROOT/.pub-cache
-        - $HOME/Library/Caches/CocoaPods
+        - $HOME/.npm
     scripts:
-      - name: Gerar projeto nativo do iOS
-        script: >-
-          flutter create
-          --platforms=ios
-          --org com.thiago07cb2
-          --project-name evoiptv
-          .
-      - name: Permitir streams HTTP no player
+      - name: Instalar dependências
+        script: npm install --no-audit --no-fund
+      - name: Verificar e compilar a PWA
         script: |
-          PLIST_PATH="ios/Runner/Info.plist"
-          /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$PLIST_PATH" || true
-          /usr/libexec/PlistBuddy -c "Set :NSAppTransportSecurity:NSAllowsArbitraryLoadsForMedia true" "$PLIST_PATH" || \
-            /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoadsForMedia bool true" "$PLIST_PATH"
-      - name: Instalar dependencias
-        script: flutter pub get
-      - name: Verificar codigo
-        script: flutter analyze
-      - name: Executar testes
-        script: flutter test
-      - name: Compilar iOS sem assinatura
-        script: |
-          flutter build ios --debug --no-codesign \
-            --dart-define=FIREBASE_API_KEY="${FIREBASE_API_KEY:-}" \
-            --dart-define=EVO_VERSION_CODE="${EVO_VERSION_CODE:-}" \
-            --dart-define=EVO_PLATFORM="${EVO_PLATFORM:-android}"
-      - name: Empacotar IPA para teste gratuito
-        script: |
-          PACKAGE_DIR="$CM_BUILD_DIR/build/ios/unsigned-package"
-          mkdir -p "$PACKAGE_DIR/Payload"
-          ditto "$CM_BUILD_DIR/build/ios/iphoneos/Runner.app" "$PACKAGE_DIR/Payload/Runner.app"
-          cd "$PACKAGE_DIR"
-          ditto -c -k --sequesterRsrc --keepParent Payload "$CM_BUILD_DIR/build/ios/EVOTV-unsigned.ipa"
+          export VITE_FIREBASE_API_KEY="${FIREBASE_API_KEY:-AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo}"
+          export VITE_EVO_BACKEND_URL="${EVO_BACKEND_URL:-/pwa-api}"
+          export VITE_EVO_VERSION="${EVO_VERSION:-1.0.6}"
+          export VITE_EVO_VERSION_CODE="${EVO_VERSION_CODE:-bde12f9159868653eea9eb54f9150bc44e66e84909fa84ede26833be0a2f63b5}"
+          export VITE_EVO_PLATFORM="${EVO_PLATFORM:-android}"
+          npm run build
     artifacts:
-      - build/ios/iphoneos/**/*.app
-      - build/ios/EVOTV-unsigned.ipa
-      - /tmp/xcodebuild_logs/*.log
+      - dist/**
