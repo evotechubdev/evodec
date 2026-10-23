@@ -1049,11 +1049,15 @@ function isIosDevice(): boolean {
 
 async function openSystemInstallOptions(): Promise<boolean> {
   if (!navigator.share) return false;
+  const installUrl = new URL(
+    isPwaPath ? 'index.html' : 'pwa/index.html',
+    window.location.href,
+  ).href;
   try {
     await navigator.share({
       title: 'EVOTV',
       text: 'Instale o EVOTV na tela inicial.',
-      url: window.location.href,
+      url: installUrl,
     });
     return true;
   } catch {
