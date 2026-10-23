@@ -948,6 +948,7 @@ function InstallHelp({
   onClose(): void;
 }) {
   const ios = isIosDevice();
+  const chrome = isChromeBrowser();
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -974,6 +975,8 @@ function InstallHelp({
           <p>
             {ios
               ? <>No Safari, toque manualmente no ícone <strong>Compartilhar</strong> da barra do navegador e escolha <strong>Adicionar à Tela de Início</strong>.</>
+              : chrome
+                ? <>No Chrome, abra <strong>Menu</strong> → <strong>Transmitir, guardar e partilhar</strong> → <strong>Criar atalho</strong> → <strong>Criar</strong>.</>
               : <>No menu do navegador, escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>}
           </p>
         )}
@@ -1035,6 +1038,13 @@ function isIosDevice(): boolean {
   return (
     /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+function isChromeBrowser(): boolean {
+  return (
+    /Chrome|CriOS/i.test(navigator.userAgent) &&
+    !/Edg|OPR|SamsungBrowser/i.test(navigator.userAgent)
   );
 }
 
