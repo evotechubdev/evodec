@@ -38,8 +38,283 @@ interface BeforeInstallPromptEvent extends Event {
 const api = new EvoApi();
 const assetUrl = (path: string) => `${import.meta.env.BASE_URL}${path}`;
 const INSTALL_HELP_DISMISSED = 'evotv_install_help_dismissed';
+const ANDROID_DOWNLOAD_URL =
+  'https://github.com/evotechubdev/multimideas-evo-pwa/releases/download/v1.0.6/EVOTV.Android.1.0.6.apk';
+const WINDOWS_DOWNLOAD_URL =
+  'https://github.com/evotechubdev/multimideas-evo-pwa/releases/download/v1.0.6/programa.de.PC.EVOTV.Setup.0.0.2.exe';
+const PUBLIC_CONTACTS_URL =
+  'https://firestore.googleapis.com/v1/projects/multimideas-evotv/databases/(default)/documents/public/contatos';
+
+interface PublicContacts {
+  support: string;
+  commercial: string;
+}
 
 export default function App() {
+  const openPlayer =
+    isStandalone() || new URLSearchParams(window.location.search).get('app') === '1';
+  return openPlayer ? <PlayerApp /> : <SupportPortal />;
+}
+
+function SupportPortal() {
+  const [installPrompt, setInstallPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
+  const [contacts, setContacts] = useState<PublicContacts | null>(null);
+  const [contactsLoading, setContactsLoading] = useState(true);
+
+  useEffect(() => {
+    const onPrompt = (event: Event) => {
+      event.preventDefault();
+      setInstallPrompt(event as BeforeInstallPromptEvent);
+    };
+    const onInstalled = () => {
+      setInstallPrompt(null);
+      setShowInstallHelp(false);
+    };
+    window.addEventListener('beforeinstallprompt', onPrompt);
+    window.addEventListener('appinstalled', onInstalled);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onPrompt);
+      window.removeEventListener('appinstalled', onInstalled);
+    };
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void fetch(PUBLIC_CONTACTS_URL, { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error(`Firestore respondeu ${response.status}`);
+        const data = (await response.json()) as {
+          fields?: Record<string, { stringValue?: string }>;
+        };
+        setContacts({
+          support: normalizePhone(data.fields?.whatsapp_suporte?.stringValue),
+          commercial: normalizePhone(data.fields?.whatsapp_comercial?.stringValue),
+        });
+      })
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          setContacts(null);
+        }
+      })
+      .finally(() => setContactsLoading(false));
+    return () => controller.abort();
+  }, []);
+
+  async function requestInstall() {
+    if (!installPrompt) return;
+    await installPrompt.prompt();
+    const choice = await installPrompt.userChoice;
+    if (choice.outcome === 'accepted') {
+      setInstallPrompt(null);
+      setShowInstallHelp(false);
+    }
+  }
+
+  return (
+    <div className="support-site">
+      <div className="support-glow support-glow-one" />
+      <div className="support-glow support-glow-two" />
+      <header className="support-header">
+        <a className="support-brand" href="#inicio" aria-label="EVOTV - início">
+          <img src={assetUrl('images/logo_evotv.png')} alt="EVOTV" />
+        </a>
+        <nav aria-label="Navegação principal">
+          <a href="#downloads">Downloads</a>
+          <a href="#contato">Contato</a>
+        </nav>
+      </header>
+
+      <main>
+        <section className="support-hero" id="inicio">
+          <span className="support-kicker">CENTRAL OFICIAL EVOTV</span>
+          <h1>Seu entretenimento,<br /><span>em qualquer tela.</span></h1>
+          <p>
+            Baixe o aplicativo ideal para seu dispositivo ou fale diretamente
+            com nossa equipe de atendimento.
+          </p>
+          <a className="support-primary-link" href="#downloads">Escolher aplicativo</a>
+          <div className="support-trust-row" aria-label="Benefícios">
+            <span>✓ Downloads oficiais</span>
+            <span>✓ Instalação segura</span>
+            <span>✓ Suporte especializado</span>
+          </div>
+        </section>
+
+        <section className="downloads-section" id="downloads">
+          <div className="support-section-heading">
+            <span className="support-kicker">APLICATIVOS</span>
+            <h2>Escolha onde assistir</h2>
+            <p>Versões oficiais e atualizadas do EVOTV.</p>
+          </div>
+          <div className="download-grid">
+            <DownloadCard
+              icon="android"
+              title="EVOTV - Android"
+              version="1.0.6"
+              description="Para celulares, tablets, TV Box e Smart TVs com Android."
+              href={ANDROID_DOWNLOAD_URL}
+              label="Baixar APK"
+            />
+            <DownloadCard
+              icon="windows"
+              title="EVOTV - PC Windows"
+              version="0.2"
+              description="Aplicativo completo para computadores e notebooks Windows."
+              href={WINDOWS_DOWNLOAD_URL}
+              label="Baixar para Windows"
+            />
+            <DownloadCard
+              icon="pwa"
+              title="EVOTV - PWA"
+              version="1.0.6"
+              description="Indicada para iOS e outros sistemas de TV ou dispositivos."
+              label="Instalar PWA"
+              featured
+              onClick={() => setShowInstallHelp(true)}
+            />
+          </div>
+        </section>
+
+        <section className="contact-section" id="contato">
+          <div className="support-section-heading">
+            <span className="support-kicker">FALE COM A GENTE</span>
+            <h2>Como podemos ajudar?</h2>
+            <p>Escolha o canal adequado e fale com nossa equipe.</p>
+          </div>
+          <div className="contact-grid">
+            <ContactCard
+              kind="support"
+              title="Suporte técnico"
+              text="Ajuda com acesso, instalação ou funcionamento do aplicativo."
+              phone={contacts?.support || ''}
+              loading={contactsLoading}
+            />
+            <ContactCard
+              kind="commercial"
+              title="Contato comercial"
+              text="Planos, novas assinaturas e informações para representantes."
+              phone={contacts?.commercial || ''}
+              loading={contactsLoading}
+            />
+          </div>
+        </section>
+      </main>
+
+      <footer className="support-footer">
+        <img src={assetUrl('images/logo_evotv.png')} alt="EVOTV" />
+        <span>© {new Date().getFullYear()} EVOTV. Todos os direitos reservados.</span>
+      </footer>
+
+      {showInstallHelp && (
+        <InstallHelp
+          canPrompt={Boolean(installPrompt)}
+          onInstall={requestInstall}
+          onClose={() => setShowInstallHelp(false)}
+        />
+      )}
+    </div>
+  );
+}
+
+function DownloadCard({
+  icon,
+  title,
+  version,
+  description,
+  href,
+  label,
+  featured = false,
+  onClick,
+}: {
+  icon: 'android' | 'windows' | 'pwa';
+  title: string;
+  version: string;
+  description: string;
+  href?: string;
+  label: string;
+  featured?: boolean;
+  onClick?: () => void;
+}) {
+  const content = (
+    <>
+      <span className={`platform-icon platform-${icon}`} aria-hidden="true">
+        {icon === 'android' ? 'A' : icon === 'windows' ? '⊞' : '◈'}
+      </span>
+      <span className="download-card-copy">
+        <strong>{title} <small>(versão: {version})</small></strong>
+        <span>{description}</span>
+      </span>
+      <span className="download-action">{label}<b aria-hidden="true">→</b></span>
+    </>
+  );
+  if (href) {
+    return <a className={`download-card${featured ? ' featured' : ''}`} href={href}>{content}</a>;
+  }
+  return <button className={`download-card${featured ? ' featured' : ''}`} onClick={onClick}>{content}</button>;
+}
+
+function ContactCard({
+  kind,
+  title,
+  text,
+  phone,
+  loading,
+}: {
+  kind: 'support' | 'commercial';
+  title: string;
+  text: string;
+  phone: string;
+  loading: boolean;
+}) {
+  const message = kind === 'support'
+    ? 'Olá! Preciso de ajuda com o EVOTV.'
+    : 'Olá! Gostaria de informações comerciais sobre o EVOTV.';
+  return (
+    <article className="contact-card">
+      <span className={`contact-icon contact-${kind}`} aria-hidden="true">{kind === 'support' ? '?' : '↗'}</span>
+      <div><h3>{title}</h3><p>{text}</p></div>
+      {phone ? (
+        <a
+          className="contact-action"
+          href={`https://wa.me/${withBrazilCountryCode(phone)}?text=${encodeURIComponent(message)}`}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`${title}: ${formatPhone(phone)}`}
+        >
+          <span>{formatPhone(phone)}</span>
+          Chamar no WhatsApp
+        </a>
+      ) : (
+        <span className="contact-pending">
+          {loading ? 'Carregando contato…' : 'Contato temporariamente indisponível'}
+        </span>
+      )}
+    </article>
+  );
+}
+
+function normalizePhone(value: string | undefined): string {
+  return (value || '').replace(/\D/g, '').slice(0, 15);
+}
+
+function withBrazilCountryCode(phone: string): string {
+  return phone.startsWith('55') ? phone : `55${phone}`;
+}
+
+function formatPhone(phone: string): string {
+  const local = phone.startsWith('55') && phone.length > 11 ? phone.slice(2) : phone;
+  if (local.length === 11) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 7)}-${local.slice(7)}`;
+  }
+  if (local.length === 10) {
+    return `(${local.slice(0, 2)}) ${local.slice(2, 6)}-${local.slice(6)}`;
+  }
+  return `+${withBrazilCountryCode(local)}`;
+}
+
+function PlayerApp() {
   const initialLogin = useMemo(loadSavedLogin, []);
   const [screen, setScreen] = useState<Screen>('login');
   const [login, setLogin] = useState(initialLogin);
@@ -58,7 +333,7 @@ export default function App() {
   const [player, setPlayer] = useState<PlayerState | null>(null);
   const [installPrompt, setInstallPrompt] =
     useState<BeforeInstallPromptEvent | null>(null);
-  const [showInstallHelp, setShowInstallHelp] = useState(shouldOpenInstallHelp);
+  const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [installed, setInstalled] = useState(isStandalone);
 
   useTvSpatialNavigation();
@@ -727,8 +1002,12 @@ function InstallHelp({
       >
         <button className="modal-close" aria-label="Fechar" onClick={onClose}>×</button>
         <img src={assetUrl('icons/icon-192.png')} alt="" className="install-icon" />
-        <span className="eyebrow">INSTALAR A PWA</span>
-        <h2 id="install-title">EVOTV na tela inicial</h2>
+        <span className="eyebrow">EVOTV PWA</span>
+        <h2 id="install-title">INSTALAR AGORA</h2>
+        <p className="install-audience">
+          Opção indicada para iOS e outros sistemas de TV ou dispositivos onde
+          os aplicativos Android e Windows não estão disponíveis.
+        </p>
         {canPrompt ? (
           <p>
             Este navegador pode instalar o EVOTV como aplicativo. Confirme na
@@ -782,18 +1061,6 @@ function isStandalone(): boolean {
     window.matchMedia('(display-mode: standalone)').matches ||
     navigatorWithStandalone.standalone === true
   );
-}
-
-function shouldOpenInstallHelp(): boolean {
-  if (isStandalone()) return false;
-  const installParameter = new URLSearchParams(window.location.search).get('install');
-  if (installParameter === '0') return false;
-  if (installParameter === '1') return true;
-  try {
-    return sessionStorage.getItem(INSTALL_HELP_DISMISSED) !== '1';
-  } catch {
-    return true;
-  }
 }
 
 function useTvSpatialNavigation() {
