@@ -15,6 +15,11 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
+export interface SessionEnd {
+  code: string;
+  message: string;
+}
+
 export class EvoApiError extends Error {
   constructor(message: string) {
     super(message);
@@ -227,6 +232,57 @@ export class EvoApi {
     }
   }
 
+  async watchSession(
+    token: string,
+    sessionToken: string,
+    profile: number,
+    signal: AbortSignal,
+  ): Promise<SessionEnd | null> {
+    const response = await fetch(`${appConfig.backendUrl}/api/session/events`, {
+      headers: backendHeaders(token, sessionHeaders(sessionToken, profile)),
+      signal,
+    });
+    if (!response.ok) {
+      const data = await objectResponse(response);
+      throw new EvoApiError(backendError(data, response.status));
+    }
+    const reader = response.body?.getReader();
+    if (!reader) return null;
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      buffer += decoder.decode(value, { stream: !done });
+      let boundary = buffer.match(/\r?\n\r?\n/);
+      while (boundary?.index !== undefined) {
+        const block = buffer.slice(0, boundary.index);
+        buffer = buffer.slice(boundary.index + boundary[0].length);
+        const lines = block.split(/\r?\n/);
+        const event = lines.find((line) => line.startsWith('event:'))?.slice(6).trim();
+        if (event === 'session-ended') {
+          const rawData = lines
+            .filter((line) => line.startsWith('data:'))
+            .map((line) => line.slice(5).trim())
+            .join('\n');
+          try {
+            const data = object(JSON.parse(rawData));
+            return {
+              code: text(data?.code) || 'SESSION_INVALID',
+              message: text(data?.message) || 'A sessão deste perfil foi encerrada.',
+            };
+          } catch {
+            return {
+              code: 'SESSION_INVALID',
+              message: 'A sessão deste perfil foi encerrada.',
+            };
+          }
+        }
+        boundary = buffer.match(/\r?\n\r?\n/);
+      }
+      if (done) return null;
+    }
+  }
+
   async releaseProfile(
     token: string,
     sessionToken: string,
@@ -249,15 +305,7 @@ export class EvoApi {
   ): Promise<JsonObject> {
     let response: Response;
     try {
-      const headers = new Headers({
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-        'x-evo-platform': appConfig.clientPlatform,
-        'x-evo-version': appConfig.clientVersion,
-        'x-evo-version-code': appConfig.clientVersionCode,
-      });
-      new Headers(init.headers).forEach((value, key) => headers.set(key, value));
+      const headers = backendHeaders(token, init.headers);
       response = await fetchWithTimeout(`${appConfig.backendUrl}${path}`, {
         ...init,
         headers,
@@ -283,6 +331,19 @@ function sessionHeaders(sessionToken: string, profile: number): HeadersInit {
     'x-evo-session': sessionToken,
     'x-evo-profile': String(profile),
   };
+}
+
+function backendHeaders(token: string, extraHeaders?: HeadersInit): Headers {
+  const headers = new Headers({
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${token}`,
+    'x-evo-platform': appConfig.clientPlatform,
+    'x-evo-version': appConfig.clientVersion,
+    'x-evo-version-code': appConfig.clientVersionCode,
+  });
+  new Headers(extraHeaders).forEach((value, key) => headers.set(key, value));
+  return headers;
 }
 
 async function generatePlaybackKeys(): Promise<PlaybackKeys> {

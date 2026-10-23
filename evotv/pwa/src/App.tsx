@@ -337,6 +337,27 @@ function PlayerApp() {
     return () => window.clearInterval(timer);
   }, [installPreparationEndsAt, installPrompt]);
 
+  useEffect(() => {
+    if (!auth || !profileSession || selectedProfile < 1) return;
+    const controller = new AbortController();
+    void api
+      .watchSession(
+        auth.idToken,
+        profileSession.sessionToken,
+        selectedProfile,
+        controller.signal,
+      )
+      .then((ended) => {
+        if (ended && !controller.signal.aborted) endProfileSession(ended.message);
+      })
+      .catch((reason: unknown) => {
+        if (!(reason instanceof DOMException && reason.name === 'AbortError')) {
+          // Uma interrupção de rede não significa que o perfil foi substituído.
+        }
+      });
+    return () => controller.abort();
+  }, [auth, profileSession, selectedProfile]);
+
   async function signIn(event: FormEvent) {
     event.preventDefault();
     if (busy) return;
@@ -529,6 +550,17 @@ function PlayerApp() {
     window.location.assign(url.href);
   }
 
+  function endProfileSession(message: string) {
+    setError(message);
+    setPlayer(null);
+    setProfileSession(null);
+    setSelectedProfile(0);
+    setCatalog([]);
+    setSeriesItem(null);
+    setSeriesDetails(null);
+    setScreen('profiles');
+  }
+
   const currentProfileName =
     account && selectedProfile > 0
       ? profileName(account, selectedProfile - 1)
@@ -624,16 +656,7 @@ function PlayerApp() {
               setScreen(player.returnTo);
               setPlayer(null);
             }}
-            onSessionEnded={(message) => {
-              setError(message);
-              setPlayer(null);
-              setProfileSession(null);
-              setSelectedProfile(0);
-              setCatalog([]);
-              setSeriesItem(null);
-              setSeriesDetails(null);
-              setScreen('profiles');
-            }}
+            onSessionEnded={endProfileSession}
           />
         )}
       </main>
