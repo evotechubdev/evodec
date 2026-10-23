@@ -5,7 +5,7 @@
   "description": "EVOTV em qualquer tela.",
   "lang": "pt-BR",
   "start_url": "./pwa/index.html",
-  "scope": "./",
+  "scope": "./pwa/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
   "orientation": "any",

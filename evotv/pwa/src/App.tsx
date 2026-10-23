@@ -58,28 +58,8 @@ export default function App() {
 }
 
 function SupportPortal() {
-  const [installPrompt, setInstallPrompt] =
-    useState<BeforeInstallPromptEvent | null>(null);
-  const [showInstallHelp, setShowInstallHelp] = useState(false);
   const [contacts, setContacts] = useState<PublicContacts | null>(null);
   const [contactsLoading, setContactsLoading] = useState(true);
-
-  useEffect(() => {
-    const onPrompt = (event: Event) => {
-      event.preventDefault();
-      setInstallPrompt(event as BeforeInstallPromptEvent);
-    };
-    const onInstalled = () => {
-      setInstallPrompt(null);
-      setShowInstallHelp(false);
-    };
-    window.addEventListener('beforeinstallprompt', onPrompt);
-    window.addEventListener('appinstalled', onInstalled);
-    return () => {
-      window.removeEventListener('beforeinstallprompt', onPrompt);
-      window.removeEventListener('appinstalled', onInstalled);
-    };
-  }, []);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -102,21 +82,6 @@ function SupportPortal() {
       .finally(() => setContactsLoading(false));
     return () => controller.abort();
   }, []);
-
-  async function requestInstall() {
-    if (installPrompt) {
-      await installPrompt.prompt();
-      const choice = await installPrompt.userChoice;
-      if (choice.outcome === 'accepted') {
-        setInstallPrompt(null);
-        setShowInstallHelp(false);
-      }
-      return;
-    }
-    if (await openSystemInstallOptions()) {
-      setShowInstallHelp(false);
-    }
-  }
 
   return (
     <div className="support-site">
@@ -157,8 +122,8 @@ function SupportPortal() {
               version="1.0.6"
               description="Indicada para iOS e outros sistemas de TV ou dispositivos."
               label="Instalar PWA"
+              href={assetUrl('pwa/index.html')}
               featured
-              onClick={() => setShowInstallHelp(true)}
             />
           </div>
           <div className="contact-heading">
@@ -188,14 +153,6 @@ function SupportPortal() {
         <img src={assetUrl('images/logo_evotv.png')} alt="EVOTV" />
         <span>© {new Date().getFullYear()} EVOTV. Todos os direitos reservados.</span>
       </footer>
-
-      {showInstallHelp && (
-        <InstallHelp
-          canPrompt={Boolean(installPrompt)}
-          onInstall={requestInstall}
-          onClose={() => setShowInstallHelp(false)}
-        />
-      )}
     </div>
   );
 }

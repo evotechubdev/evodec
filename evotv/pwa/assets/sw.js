@@ -1,8 +1,7 @@
-const CACHE_NAME = 'evotv-pwa-v4';
+const CACHE_NAME = 'evotv-pwa-v5';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const APP_SHELL = [
-  APP_ROOT,
   PWA_ROOT,
   new URL('manifest.webmanifest', APP_ROOT).href,
   new URL('icons/icon-192.png', APP_ROOT).href,
@@ -25,11 +24,11 @@ self.addEventListener('activate', (event) => {
 async function cacheApplicationShell() {
   const cache = await caches.open(CACHE_NAME);
   await cache.addAll(APP_SHELL);
-  const documentResponse = await cache.match(APP_ROOT);
+  const documentResponse = await cache.match(PWA_ROOT);
   if (!documentResponse) return;
   const html = await documentResponse.text();
   const urls = Array.from(html.matchAll(/(?:src|href)=["']([^"']+)["']/g))
-    .map((match) => new URL(match[1], APP_ROOT))
+    .map((match) => new URL(match[1], PWA_ROOT))
     .filter(
       (url) =>
         url.origin === self.location.origin &&
@@ -46,16 +45,14 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    const pwaPathname = new URL(PWA_ROOT).pathname;
-    const fallback = url.pathname.startsWith(pwaPathname) ? PWA_ROOT : APP_ROOT;
     event.respondWith(
       fetch(request)
         .then((response) => {
           const copy = response.clone();
-          void caches.open(CACHE_NAME).then((cache) => cache.put(fallback, copy));
+          void caches.open(CACHE_NAME).then((cache) => cache.put(PWA_ROOT, copy));
           return response;
         })
-        .catch(() => caches.match(fallback)),
+        .catch(() => caches.match(PWA_ROOT)),
     );
     return;
   }
