@@ -20,8 +20,8 @@ services:
         source: /pwa-api/*
         destination: https://multimideas-evo-backend.onrender.com/*
       - type: redirect
-        source: /site_pwa
-        destination: /site_pwa/
+        source: /pwa
+        destination: /pwa/
       - type: rewrite
-        source: /site_pwa/*
-        destination: /site_pwa/index.html
+        source: /pwa/*
+        destination: /pwa/index.html

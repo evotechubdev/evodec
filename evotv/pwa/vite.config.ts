@@ -7,15 +7,15 @@ export default defineConfig({
   // subdiretório criado pelo GitHub Pages.
   base: './',
   plugins: [react()],
-  publicDir: 'site_pwa/assets',
+  publicDir: 'pwa/assets',
   build: {
-    outDir: 'site_pwa/dist',
+    outDir: 'pwa/dist',
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
       input: {
         support: 'index.html',
-        pwa: 'site_pwa/index.html',
+        pwa: 'pwa/index.html',
       },
     },
   },

@@ -1,6 +1,7 @@
 # Node / Vite
 node_modules/
 dist/
+pages-dist/
 .npm-cache/
 *.tsbuildinfo
 *.local

@@ -29,12 +29,12 @@ npm run build
 ```
 
 O resultado fica em `dist/`: `dist/index.html` é o portal de suporte e
-`dist/site_pwa/index.html` é a área privada instalável, iniciada pela tela de
+`dist/pwa/index.html` é a área privada instalável, iniciada pela tela de
 login. Ambos devem ser servidos por HTTPS. O service worker não é registrado
 durante `npm run dev`.
 
 O arquivo `render.yaml` publica `dist/`, mantém o portal na raiz, redireciona
-`/site_pwa` para `/site_pwa/`, entrega o aplicativo por `/site_pwa/*` e encaminha
+`/pwa` para `/pwa/`, entrega o aplicativo por `/pwa/*` e encaminha
 `/pwa-api/*` ao backend atual.
 
 ## Variáveis
@@ -48,17 +48,18 @@ O arquivo `render.yaml` publica `dist/`, mantém o portal na raiz, redireciona
 
 ## GitHub Actions e Pages
 
-O workflow `.github/workflows/pages.yml` valida, compila e publica o PWA no
-GitHub Pages a cada push na branch `main`. A publicação fica disponível em:
+O workflow `.github/workflows/pages.yml` valida, compila e publica os sites no
+GitHub Pages a cada push na branch `main`. O site principal do EVODEC fica em:
 
 ```text
-https://evotechubdev.github.io/evodec/
+https://evotechubdev.github.io/evodec/index.html
 ```
 
-O portal de suporte ocupa esse endereço. O aplicativo PWA fica em:
+O portal do EVOTV e o aplicativo PWA ficam, respectivamente, em:
 
 ```text
-https://evotechubdev.github.io/evodec/site_pwa/
+https://evotechubdev.github.io/evodec/evotv/index.html
+https://evotechubdev.github.io/evodec/evotv/pwa/index.html
 ```
 
 ## Ajustes aditivos no backend
@@ -98,7 +99,7 @@ depende dos formatos de vídeo suportados pelo navegador de cada TV.
 O cartão **EVOTV - PWA (versão: 1.0.6)** deve apontar diretamente para:
 
 ```text
-https://www.evotv.com.br/site_pwa/
+https://www.evotv.com.br/pwa/
 ```
 
 Na primeira visita de cada sessão, a própria página abre o assistente de

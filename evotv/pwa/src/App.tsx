@@ -36,7 +36,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const api = new EvoApi();
-const isPwaPath = /\/site_pwa\/?$/.test(window.location.pathname);
+const isPwaPath = /\/pwa(?:\/|$)/.test(window.location.pathname);
 const assetUrl = (path: string) =>
   `${import.meta.env.BASE_URL}${isPwaPath ? '../' : ''}${path}`;
 const INSTALL_HELP_DISMISSED = 'evotv_install_help_dismissed';

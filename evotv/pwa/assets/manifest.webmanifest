@@ -1,10 +1,10 @@
 {
-  "id": "./site_pwa/",
+  "id": "./pwa/",
   "name": "EVOTV",
   "short_name": "EVOTV",
   "description": "EVOTV em qualquer tela.",
   "lang": "pt-BR",
-  "start_url": "./site_pwa/",
+  "start_url": "./pwa/",
   "scope": "./",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone", "minimal-ui"],
