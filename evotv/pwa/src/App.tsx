@@ -104,11 +104,16 @@ function SupportPortal() {
   }, []);
 
   async function requestInstall() {
-    if (!installPrompt) return;
-    await installPrompt.prompt();
-    const choice = await installPrompt.userChoice;
-    if (choice.outcome === 'accepted') {
-      setInstallPrompt(null);
+    if (installPrompt) {
+      await installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice.outcome === 'accepted') {
+        setInstallPrompt(null);
+        setShowInstallHelp(false);
+      }
+      return;
+    }
+    if (await openSystemInstallOptions()) {
       setShowInstallHelp(false);
     }
   }
@@ -498,6 +503,7 @@ function PlayerApp() {
       if (choice.outcome === 'accepted') setInstallPrompt(null);
       return;
     }
+    if (await openSystemInstallOptions()) return;
     setShowInstallHelp(true);
   }
 
@@ -963,6 +969,7 @@ function InstallHelp({
   onInstall(): void;
   onClose(): void;
 }) {
+  const ios = isIosDevice();
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -986,17 +993,15 @@ function InstallHelp({
             próxima janela para adicioná-lo ao dispositivo.
           </p>
         ) : (
-          <p>Abra o menu do navegador e escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</p>
+          <p>
+            {ios
+              ? <>Toque em <strong>Instalar</strong> para abrir o menu do iPhone e escolha <strong>Adicionar à Tela de Início</strong>.</>
+              : <>No menu do navegador, escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>}
+          </p>
         )}
-        {canPrompt ? (
-          <button className="button button-primary button-large" onClick={onInstall}>
-            Instalar agora
-          </button>
-        ) : (
-          <button className="button button-primary button-large" onClick={onClose}>
-            Entendi
-          </button>
-        )}
+        <button className="button button-primary button-large" onClick={onInstall}>
+          Instalar
+        </button>
       </section>
     </div>
   );
@@ -1033,6 +1038,27 @@ function isStandalone(): boolean {
     window.matchMedia('(display-mode: standalone)').matches ||
     navigatorWithStandalone.standalone === true
   );
+}
+
+function isIosDevice(): boolean {
+  return (
+    /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
+    (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
+  );
+}
+
+async function openSystemInstallOptions(): Promise<boolean> {
+  if (!navigator.share) return false;
+  try {
+    await navigator.share({
+      title: 'EVOTV',
+      text: 'Instale o EVOTV na tela inicial.',
+      url: window.location.href,
+    });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 function useTvSpatialNavigation() {
