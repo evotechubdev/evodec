@@ -3,23 +3,25 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#050912" />
+    <meta name="theme-color" content="#f4f7fb" />
     <meta
       name="description"
       content="EVODEC — tecnologia, desenvolvimento de software e soluções digitais sob medida."
     />
+    <link rel="icon" type="image/png" href="./public/imagens/EVODEC-favicon.png" />
+    <link rel="apple-touch-icon" href="./public/imagens/EVODEC-favicon.png" />
     <title>EVODEC | Tecnologia e desenvolvimento de software</title>
     <style>
       :root {
-        color-scheme: dark;
+        color-scheme: light;
         font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        --page: #050912;
-        --surface-soft: rgba(13, 24, 43, 0.72);
-        --line: rgba(148, 177, 229, 0.16);
-        --text: #f5f8ff;
-        --muted: #a8b5cb;
-        --blue: #2c8dff;
-        --cyan: #44d8ff;
+        --page: #f4f7fb;
+        --surface-soft: rgba(255, 255, 255, 0.78);
+        --line: rgba(28, 61, 108, 0.14);
+        --text: #10213a;
+        --muted: #52647e;
+        --blue: #176cd6;
+        --cyan: #008ebd;
       }
 
       * { box-sizing: border-box; }
@@ -27,12 +29,13 @@
 
       body {
         min-width: 320px;
-        min-height: 100vh;
+        height: 100vh;
+        height: 100dvh;
         margin: 0;
-        overflow-x: hidden;
+        overflow: hidden;
         background:
-          radial-gradient(circle at 7% 5%, rgba(24, 105, 255, 0.2), transparent 30rem),
-          radial-gradient(circle at 92% 92%, rgba(19, 193, 255, 0.1), transparent 32rem),
+          radial-gradient(circle at 7% 5%, rgba(29, 113, 230, 0.13), transparent 30rem),
+          radial-gradient(circle at 92% 92%, rgba(38, 190, 226, 0.1), transparent 32rem),
           var(--page);
         color: var(--text);
       }
@@ -42,23 +45,24 @@
         inset: 0;
         z-index: -1;
         background-image:
-          linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+          linear-gradient(rgba(20, 58, 108, 0.035) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(20, 58, 108, 0.035) 1px, transparent 1px);
         background-size: 64px 64px;
         content: "";
         mask-image: linear-gradient(to bottom, black, transparent 82%);
       }
 
       .page {
-        width: min(100% - 48px, 1240px);
-        min-height: 100vh;
+        width: min(calc(100% - 48px), 1240px);
+        height: 100vh;
+        height: 100dvh;
         margin: 0 auto;
         display: flex;
         flex-direction: column;
       }
 
       header {
-        min-height: 112px;
+        flex: 0 0 clamp(72px, 11vh, 96px);
         display: flex;
         align-items: center;
         border-bottom: 1px solid var(--line);
@@ -66,27 +70,33 @@
 
       .brand {
         display: block;
-        width: 176px;
-        height: 84px;
+        width: clamp(138px, 14vw, 174px);
+        height: clamp(62px, 9vh, 80px);
         object-fit: contain;
         object-position: left center;
       }
 
       main {
         flex: 1;
-        padding: clamp(44px, 7vw, 88px) 0 54px;
+        width: 100%;
+        min-height: 0;
+        min-width: 0;
+        padding: clamp(18px, 3.6vh, 36px) 0;
       }
 
       .hero {
         display: grid;
+        width: 100%;
+        min-width: 0;
         grid-template-columns: minmax(0, 0.88fr) minmax(460px, 1.12fr);
-        gap: clamp(40px, 6vw, 84px);
+        height: 100%;
+        gap: clamp(32px, 5vw, 72px);
         align-items: center;
       }
 
       .eyebrow {
-        margin: 0 0 22px;
-        color: var(--cyan);
+        margin: 0 0 clamp(12px, 2vh, 20px);
+        color: var(--blue);
         font-size: 0.75rem;
         font-weight: 800;
         letter-spacing: 0.19em;
@@ -96,7 +106,7 @@
       h1 {
         max-width: 680px;
         margin: 0;
-        font-size: clamp(2.7rem, 6.2vw, 5.4rem);
+        font-size: clamp(2.4rem, 5vw, 4.8rem);
         line-height: 0.98;
         letter-spacing: -0.055em;
       }
@@ -104,21 +114,21 @@
       h1 span {
         display: block;
         margin-top: 8px;
-        background: linear-gradient(100deg, #ffffff 4%, #7edfff 56%, #4d8cff 100%);
+        background: linear-gradient(100deg, #174173 4%, #087fa8 56%, #176cd6 100%);
         background-clip: text;
         color: transparent;
       }
 
       .intro {
         max-width: 610px;
-        margin: 28px 0 0;
+        margin: clamp(16px, 2.5vh, 26px) 0 0;
         color: var(--muted);
         font-size: clamp(1.02rem, 1.7vw, 1.18rem);
-        line-height: 1.75;
+        line-height: 1.6;
       }
 
       .capabilities {
-        margin: 38px 0 0;
+        margin: clamp(18px, 3vh, 32px) 0 0;
         padding: 0;
         display: grid;
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -127,18 +137,21 @@
       }
 
       .capabilities li {
-        min-height: 96px;
-        padding: 18px;
+        min-width: 0;
+        min-height: clamp(68px, 9vh, 88px);
+        padding: 15px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         border: 1px solid var(--line);
         border-radius: 16px;
         background: var(--surface-soft);
-        color: #dce7f8;
+        box-shadow: 0 12px 34px rgba(30, 68, 116, 0.06);
+        color: #243b59;
         font-size: 0.82rem;
         font-weight: 700;
         line-height: 1.35;
+        overflow-wrap: anywhere;
       }
 
       .capabilities li::before {
@@ -149,14 +162,21 @@
         content: "";
       }
 
-      .visual { position: relative; min-width: 0; }
+      .visual {
+        position: relative;
+        width: 100%;
+        min-width: 0;
+        height: min(100%, 620px);
+        overflow: hidden;
+        border-radius: 28px;
+      }
 
       .visual::before {
         position: absolute;
         inset: -18px;
         z-index: -1;
         border-radius: 36px;
-        background: linear-gradient(135deg, rgba(50, 130, 255, 0.24), transparent 58%);
+        background: linear-gradient(135deg, rgba(50, 130, 255, 0.2), transparent 58%);
         content: "";
         filter: blur(16px);
       }
@@ -164,12 +184,13 @@
       .office-photo {
         display: block;
         width: 100%;
-        aspect-ratio: 16 / 11;
+        max-width: 100%;
+        height: 100%;
         object-fit: cover;
         object-position: center;
         border: 1px solid rgba(135, 180, 255, 0.24);
         border-radius: 28px;
-        box-shadow: 0 34px 90px rgba(0, 0, 0, 0.38);
+        box-shadow: 0 28px 70px rgba(26, 58, 99, 0.2);
       }
 
       .visual-label {
@@ -191,42 +212,72 @@
       }
 
       footer {
-        min-height: 72px;
+        flex: 0 0 48px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 20px;
         border-top: 1px solid var(--line);
-        color: #73829a;
+        color: #6c7d94;
         font-size: 0.78rem;
       }
 
-      footer strong { color: #aebbd0; }
+      footer strong { color: #314761; }
 
       @media (max-width: 980px) {
-        .page { width: min(100% - 32px, 760px); }
-        header { min-height: 92px; }
-        .brand { width: 150px; height: 70px; }
-        .hero { grid-template-columns: 1fr; }
+        .page { width: min(calc(100% - 32px), 760px); }
+        header { flex-basis: clamp(64px, 9vh, 78px); }
+        .brand { width: 138px; height: 62px; }
+        main { padding: clamp(12px, 2vh, 20px) 0; }
+        .hero {
+          grid-template-columns: 1fr;
+          grid-template-rows: minmax(120px, 0.85fr) auto;
+          gap: clamp(14px, 2.2vh, 22px);
+        }
         .visual { order: -1; }
-        .office-photo { aspect-ratio: 16 / 9; }
         h1 { max-width: 760px; }
+        .hero-copy { width: 100%; min-width: 0; min-height: 0; }
       }
 
       @media (max-width: 620px) {
-        .page { width: min(100% - 24px, 760px); }
-        main { padding-top: 30px; }
-        .office-photo { aspect-ratio: 4 / 3; border-radius: 20px; }
-        .visual::before { inset: -8px; }
-        .visual-label { right: 12px; bottom: 12px; max-width: 210px; }
-        .capabilities { grid-template-columns: 1fr; }
-        .capabilities li { min-height: 76px; }
-        footer {
-          align-items: flex-start;
+        .page { width: min(calc(100% - 24px), 760px); }
+        header { flex-basis: 58px; }
+        .brand { width: 112px; height: 52px; }
+        main { padding: 9px 0; }
+        .hero { display: flex; flex-direction: column; gap: 10px; }
+        .visual { flex: 0 0 min(32vh, 250px); }
+        .hero-copy {
+          flex: 1;
+          display: flex;
           flex-direction: column;
           justify-content: center;
-          padding: 20px 0;
+          overflow: hidden;
         }
+        .office-photo { border-radius: 18px; }
+        .visual::before { inset: -8px; }
+        .visual-label { display: none; }
+        .eyebrow { margin-bottom: 7px; font-size: 0.63rem; }
+        h1 { font-size: clamp(1.75rem, 8.6vw, 2.35rem); line-height: 1; }
+        h1 span { margin-top: 3px; }
+        .intro { margin-top: 10px; font-size: 0.84rem; line-height: 1.4; }
+        .capabilities { margin-top: 11px; gap: 5px; }
+        .capabilities li { min-height: 50px; padding: 8px; font-size: 0.64rem; }
+        .capabilities li::before { width: 18px; height: 2px; }
+        footer { flex-basis: 34px; justify-content: center; gap: 0; font-size: 0.62rem; }
+        footer strong { display: none; }
+        footer span { text-align: center; }
+      }
+
+      @media (max-height: 650px) {
+        header { flex-basis: 58px; }
+        .brand { width: 116px; height: 52px; }
+        main { padding: 9px 0; }
+        .eyebrow { margin-bottom: 8px; }
+        h1 { font-size: clamp(2rem, 4.5vw, 3.4rem); }
+        .intro { margin-top: 10px; font-size: 0.88rem; line-height: 1.4; }
+        .capabilities { margin-top: 12px; }
+        .capabilities li { min-height: 54px; padding: 9px; }
+        footer { flex-basis: 34px; }
       }
 
       @media (prefers-reduced-motion: no-preference) {
