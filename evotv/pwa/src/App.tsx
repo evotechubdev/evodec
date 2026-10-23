@@ -482,7 +482,6 @@ function PlayerApp() {
       if (choice.outcome === 'accepted') setInstallPrompt(null);
       return;
     }
-    if (await openSystemInstallOptions()) return;
     setShowInstallHelp(true);
   }
 
@@ -974,13 +973,19 @@ function InstallHelp({
         ) : (
           <p>
             {ios
-              ? <>Toque em <strong>Instalar</strong> para abrir o menu do iPhone e escolha <strong>Adicionar à Tela de Início</strong>.</>
+              ? <>No Safari, toque manualmente no ícone <strong>Compartilhar</strong> da barra do navegador e escolha <strong>Adicionar à Tela de Início</strong>.</>
               : <>No menu do navegador, escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>}
           </p>
         )}
-        <button className="button button-primary button-large" onClick={onInstall}>
-          Instalar
-        </button>
+        {canPrompt ? (
+          <button className="button button-primary button-large" onClick={onInstall}>
+            Instalar
+          </button>
+        ) : (
+          <button className="button button-primary button-large" onClick={onClose}>
+            Fechar
+          </button>
+        )}
       </section>
     </div>
   );
@@ -1031,24 +1036,6 @@ function isIosDevice(): boolean {
     /iPad|iPhone|iPod/i.test(navigator.userAgent) ||
     (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
   );
-}
-
-async function openSystemInstallOptions(): Promise<boolean> {
-  if (!navigator.share) return false;
-  const installUrl = new URL(
-    isPwaPath ? 'index.html' : 'pwa/index.html',
-    window.location.href,
-  ).href;
-  try {
-    await navigator.share({
-      title: 'EVOTV',
-      text: 'Instale o EVOTV na tela inicial.',
-      url: installUrl,
-    });
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function useTvSpatialNavigation() {
