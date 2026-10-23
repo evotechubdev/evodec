@@ -2,19 +2,20 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  root: '..',
   // Caminhos relativos permitem publicar o mesmo build em /pwa/ ou no
   // subdiretório criado pelo GitHub Pages.
   base: './',
   plugins: [react()],
-  publicDir: 'assets',
+  publicDir: 'site_pwa/assets',
   build: {
-    outDir: 'dist',
+    outDir: 'site_pwa/dist',
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
       input: {
         support: 'index.html',
-        pwa: 'pwa/index.html',
+        pwa: 'site_pwa/index.html',
       },
     },
   },

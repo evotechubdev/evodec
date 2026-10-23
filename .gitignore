@@ -8,6 +8,12 @@ dist/
 .env.*
 !.env.example
 
+# Projetos locais que nunca devem ser enviados ao Git
+evotv/local/
+evotv/app_android/
+evotv/programa_pc/
+.app_ios_repository_backup/
+
 # IDEs
 .idea/
 .vscode/

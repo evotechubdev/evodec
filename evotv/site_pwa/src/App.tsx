@@ -36,14 +36,14 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const api = new EvoApi();
-const isPwaPath = /\/pwa\/?$/.test(window.location.pathname);
+const isPwaPath = /\/site_pwa\/?$/.test(window.location.pathname);
 const assetUrl = (path: string) =>
   `${import.meta.env.BASE_URL}${isPwaPath ? '../' : ''}${path}`;
 const INSTALL_HELP_DISMISSED = 'evotv_install_help_dismissed';
 const ANDROID_DOWNLOAD_URL =
-  'https://github.com/evotechubdev/multimideas-evo-pwa/releases/download/v1.0.6/EVOTV.Android.1.0.6.apk';
+  'https://github.com/evotechubdev/evodec/releases/download/v1.0.6/EVOTV.Android.1.0.6.apk';
 const WINDOWS_DOWNLOAD_URL =
-  'https://github.com/evotechubdev/multimideas-evo-pwa/releases/download/v1.0.6/programa.de.PC.EVOTV.Setup.0.0.2.exe';
+  'https://github.com/evotechubdev/evodec/releases/download/v1.0.6/programa.de.PC.EVOTV.Setup.0.0.2.exe';
 const PUBLIC_CONTACTS_URL =
   'https://firestore.googleapis.com/v1/projects/multimideas-evotv/databases/(default)/documents/public/contatos';
 

@@ -1,6 +1,6 @@
 const CACHE_NAME = 'evotv-pwa-v3';
 const APP_ROOT = new URL('./', self.location.href).href;
-const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
+const PWA_ROOT = new URL('site_pwa/', APP_ROOT).href;
 const APP_SHELL = [
   APP_ROOT,
   PWA_ROOT,
@@ -46,7 +46,7 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin) return;
 
   if (request.mode === 'navigate') {
-    const fallback = url.pathname.endsWith('/pwa/') ? PWA_ROOT : APP_ROOT;
+    const fallback = url.pathname.endsWith('/site_pwa/') ? PWA_ROOT : APP_ROOT;
     event.respondWith(
       fetch(request)
         .then((response) => {
