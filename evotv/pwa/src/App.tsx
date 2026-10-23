@@ -677,20 +677,6 @@ function LoginScreen({
   const [showPassword, setShowPassword] = useState(false);
   return (
     <section className="login-layout">
-      <div className="brand-panel">
-        <span className="eyebrow">EVOTV WEB</span>
-        <h1>Sua programação.<br />Em qualquer tela.</h1>
-        <p>
-          Entre uma vez e acesse canais, filmes e séries com a mesma conta usada
-          nos outros dispositivos.
-        </p>
-        <div className="feature-row">
-          <span>Sem download</span>
-          <span>Atualização automática</span>
-          <span>Instalável</span>
-        </div>
-      </div>
-
       <form className="login-card" onSubmit={onSubmit}>
         <img className="login-logo" src={assetUrl('images/logo_evotv.png')} alt="EVOTV" />
         <div className="login-heading">

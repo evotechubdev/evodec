@@ -336,19 +336,12 @@ input:disabled {
 
 .login-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(360px, 480px);
-  align-items: center;
-  gap: clamp(42px, 8vw, 130px);
+  place-items: center;
   min-height: 100vh;
   min-height: 100dvh;
-  padding: clamp(28px, 6vw, 88px);
+  padding: clamp(20px, 5vw, 64px);
 }
 
-.brand-panel {
-  max-width: 700px;
-}
-
-.brand-panel h1,
 .page-title,
 .series-copy h1,
 .install-modal h2,
@@ -356,38 +349,6 @@ input:disabled {
   margin: 0;
   font-family: 'Space Grotesk', 'Manrope', sans-serif;
   letter-spacing: -0.04em;
-}
-
-.brand-panel h1 {
-  max-width: 680px;
-  margin-top: 20px;
-  font-size: clamp(3.2rem, 7.2vw, 7rem);
-  line-height: 0.94;
-}
-
-.brand-panel > p {
-  max-width: 590px;
-  margin: 28px 0 0;
-  color: var(--muted);
-  font-size: clamp(1rem, 1.6vw, 1.18rem);
-  line-height: 1.75;
-}
-
-.feature-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 34px;
-}
-
-.feature-row span {
-  padding: 9px 13px;
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: #c9d2e3;
-  background: rgba(255, 255, 255, 0.025);
-  font-size: 0.78rem;
-  font-weight: 700;
 }
 
 .eyebrow {
@@ -400,6 +361,7 @@ input:disabled {
 
 .login-card {
   position: relative;
+  width: min(100%, 480px);
   padding: clamp(24px, 4vw, 40px);
   border: 1px solid var(--line);
   border-radius: 28px;
@@ -1113,16 +1075,6 @@ input:disabled {
 }
 
 @media (max-width: 900px) {
-  .login-layout {
-    grid-template-columns: 1fr;
-    max-width: 620px;
-    margin: 0 auto;
-  }
-
-  .brand-panel {
-    display: none;
-  }
-
   .section-heading {
     align-items: stretch;
     flex-direction: column;
@@ -1154,12 +1106,11 @@ input:disabled {
   }
 
   .login-layout {
-    align-items: start;
     padding: max(20px, env(safe-area-inset-top)) 15px max(20px, env(safe-area-inset-bottom));
   }
 
   .login-card {
-    margin-top: 3vh;
+    margin: 0;
     padding: 24px 20px;
     border-radius: 22px;
   }
