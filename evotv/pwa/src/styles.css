@@ -1074,6 +1074,31 @@ input:disabled {
   line-height: 1.65;
 }
 
+.install-guide-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin: 18px 0 12px;
+}
+
+.install-guide-tab {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 11px;
+  color: var(--muted);
+  background: rgba(255, 255, 255, 0.04);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.install-guide-tab.active {
+  border-color: rgba(50, 215, 255, 0.65);
+  color: #fff;
+  background: rgba(50, 215, 255, 0.13);
+}
+
 @media (max-width: 900px) {
   .section-heading {
     align-items: stretch;

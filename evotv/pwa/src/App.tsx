@@ -284,6 +284,10 @@ function PlayerApp() {
   const [showInstallHelp, setShowInstallHelp] = useState(
     shouldShowInstallHelpFromRedirect,
   );
+  const [installPreparationEndsAt, setInstallPreparationEndsAt] =
+    useState<number | null>(null);
+  const [installPreparationSeconds, setInstallPreparationSeconds] =
+    useState<number | null>(null);
   const [installed, setInstalled] = useState(isStandalone);
 
   useTvSpatialNavigation();
@@ -303,6 +307,8 @@ function PlayerApp() {
     const onPrompt = (event: Event) => {
       event.preventDefault();
       setInstallPrompt(event as BeforeInstallPromptEvent);
+      setInstallPreparationEndsAt(null);
+      setInstallPreparationSeconds(null);
     };
     const onInstalled = () => {
       setInstalled(true);
@@ -316,6 +322,18 @@ function PlayerApp() {
       window.removeEventListener('appinstalled', onInstalled);
     };
   }, []);
+
+  useEffect(() => {
+    if (installPreparationEndsAt === null || installPrompt) return;
+    const updateCountdown = () => {
+      setInstallPreparationSeconds(
+        Math.max(0, Math.ceil((installPreparationEndsAt - Date.now()) / 1000)),
+      );
+    };
+    updateCountdown();
+    const timer = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(timer);
+  }, [installPreparationEndsAt, installPrompt]);
 
   async function signIn(event: FormEvent) {
     event.preventDefault();
@@ -484,6 +502,10 @@ function PlayerApp() {
       return;
     }
     setShowInstallHelp(true);
+    if (isChromeBrowser() && !isIosDevice()) {
+      setInstallPreparationEndsAt(Date.now() + 32_000);
+      setInstallPreparationSeconds(32);
+    }
   }
 
   function closeInstallHelp() {
@@ -492,7 +514,15 @@ function PlayerApp() {
     } catch {
       // O assistente ainda pode ser fechado quando o armazenamento está bloqueado.
     }
+    setInstallPreparationEndsAt(null);
+    setInstallPreparationSeconds(null);
     setShowInstallHelp(false);
+  }
+
+  function reloadForInstall() {
+    const url = new URL(window.location.href);
+    url.searchParams.set('install', '1');
+    window.location.assign(url.href);
   }
 
   const currentProfileName =
@@ -597,7 +627,9 @@ function PlayerApp() {
       {showInstallHelp && (
         <InstallHelp
           canPrompt={Boolean(installPrompt)}
+          preparationSeconds={installPreparationSeconds}
           onInstall={requestInstall}
+          onReload={reloadForInstall}
           onClose={closeInstallHelp}
         />
       )}
@@ -941,15 +973,26 @@ function PlayerScreen({ player, onBack }: { player: PlayerState; onBack(): void 
 
 function InstallHelp({
   canPrompt,
+  preparationSeconds,
   onInstall,
+  onReload,
   onClose,
 }: {
   canPrompt: boolean;
+  preparationSeconds: number | null;
   onInstall(): void;
+  onReload(): void;
   onClose(): void;
 }) {
   const ios = isIosDevice();
   const chrome = isChromeBrowser();
+  const [guide, setGuide] = useState<'chrome' | 'safari'>(
+    ios ? 'safari' : 'chrome',
+  );
+  const nativeInstallReady = guide === 'chrome' && canPrompt;
+  const chromeAvailable = guide === 'chrome' && chrome && !ios;
+  const preparing = chromeAvailable && preparationSeconds !== null;
+  const preparationExpired = preparing && preparationSeconds === 0;
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -967,31 +1010,69 @@ function InstallHelp({
           Opção indicada para iOS e outros sistemas de TV ou dispositivos onde
           os aplicativos Android e Windows não estão disponíveis.
         </p>
-        {canPrompt ? (
+        <div className="install-guide-tabs" role="tablist" aria-label="Escolha o navegador">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={guide === 'chrome'}
+            className={guide === 'chrome' ? 'install-guide-tab active' : 'install-guide-tab'}
+            onClick={() => setGuide('chrome')}
+          >
+            Chrome
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={guide === 'safari'}
+            className={guide === 'safari' ? 'install-guide-tab active' : 'install-guide-tab'}
+            onClick={() => setGuide('safari')}
+          >
+            Safari / iPhone
+          </button>
+        </div>
+        {nativeInstallReady ? (
           <p>
             Este navegador pode instalar o EVOTV como aplicativo. Confirme na
             próxima janela para adicioná-lo ao dispositivo.
           </p>
-        ) : (
+        ) : guide === 'safari' ? (
+          <p>
+            No iPhone ou iPad, abra no Safari e toque em <strong>Compartilhar</strong> → <strong>Adicionar à Tela de Início</strong>. No Mac, use <strong>Arquivo</strong> → <strong>Adicionar ao Dock</strong>.
+          </p>
+        ) : !chromeAvailable ? (
           <p>
             {ios
-              ? <>No Safari, toque manualmente no ícone <strong>Compartilhar</strong> da barra do navegador e escolha <strong>Adicionar à Tela de Início</strong>.</>
-              : chrome
-                ? <>O Chrome pode levar alguns segundos para liberar a instalação. Toque em <strong>Preparar instalação</strong>, mantenha esta página aberta e aguarde o botão mudar para <strong>Instalar</strong>.</>
-              : <>No menu do navegador, escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>}
+              ? <>No iPhone ou iPad, o Chrome não oferece instalação PWA nativa. Escolha <strong>Safari / iPhone</strong> acima.</>
+              : <>Abra este mesmo endereço no Google Chrome para preparar a instalação como aplicativo.</>}
+          </p>
+        ) : (
+          <p>
+            {preparationExpired
+              ? <>O Chrome concluiu o tempo de preparação. Toque em <strong>Atualizar para instalar</strong> para verificar novamente.</>
+              : preparing
+                ? <>O Chrome está preparando a instalação. Mantenha esta página aberta; o botão mudará para <strong>Instalar</strong> quando estiver pronto.</>
+                : <>Toque em <strong>Preparar instalação</strong> e mantenha esta página aberta por alguns segundos.</>}
           </p>
         )}
-        {canPrompt ? (
+        {nativeInstallReady ? (
           <button className="button button-primary button-large" onClick={onInstall}>
             Instalar
           </button>
-        ) : chrome ? (
-          <button className="button button-primary button-large" onClick={onInstall}>
-            Preparar instalação
-          </button>
-        ) : (
+        ) : guide === 'safari' || !chromeAvailable ? (
           <button className="button button-primary button-large" onClick={onClose}>
             Fechar
+          </button>
+        ) : preparationExpired ? (
+          <button className="button button-primary button-large" onClick={onReload}>
+            Atualizar para instalar
+          </button>
+        ) : preparing ? (
+          <button className="button button-primary button-large" disabled>
+            <Spinner /> Preparando… {preparationSeconds}s
+          </button>
+        ) : (
+          <button className="button button-primary button-large" onClick={onInstall}>
+            Preparar instalação
           </button>
         )}
       </section>
