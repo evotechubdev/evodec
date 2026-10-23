@@ -1,4 +1,4 @@
-const CACHE_NAME = 'evotv-pwa-v5';
+const CACHE_NAME = 'evotv-pwa-v6';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const APP_SHELL = [

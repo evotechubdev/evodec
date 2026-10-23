@@ -479,7 +479,8 @@ function PlayerApp() {
     if (installPrompt) {
       await installPrompt.prompt();
       const choice = await installPrompt.userChoice;
-      if (choice.outcome === 'accepted') setInstallPrompt(null);
+      setInstallPrompt(null);
+      if (choice.outcome === 'accepted') setShowInstallHelp(false);
       return;
     }
     setShowInstallHelp(true);
@@ -976,13 +977,17 @@ function InstallHelp({
             {ios
               ? <>No Safari, toque manualmente no ícone <strong>Compartilhar</strong> da barra do navegador e escolha <strong>Adicionar à Tela de Início</strong>.</>
               : chrome
-                ? <>No Chrome, abra <strong>Menu</strong> → <strong>Transmitir, guardar e partilhar</strong> → <strong>Instalar página como app</strong>. Se aparecer apenas <strong>Criar atalho</strong>, marque <strong>Abrir como janela</strong> antes de tocar em <strong>Criar</strong>.</>
+                ? <>O Chrome pode levar alguns segundos para liberar a instalação. Toque em <strong>Preparar instalação</strong>, mantenha esta página aberta e aguarde o botão mudar para <strong>Instalar</strong>.</>
               : <>No menu do navegador, escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</>}
           </p>
         )}
         {canPrompt ? (
           <button className="button button-primary button-large" onClick={onInstall}>
             Instalar
+          </button>
+        ) : chrome ? (
+          <button className="button button-primary button-large" onClick={onInstall}>
+            Preparar instalação
           </button>
         ) : (
           <button className="button button-primary button-large" onClick={onClose}>
