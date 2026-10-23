@@ -6,7 +6,7 @@ import {
   useState,
 } from 'react';
 
-import { EvoApi, EvoApiError, buildPlaybackSource } from './api';
+import { EvoApi, EvoApiError } from './api';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
   type Account,
@@ -411,18 +411,27 @@ function PlayerApp() {
     }
   }
 
-  function playItem(item: CatalogItem, returnTo: 'catalog' | 'series') {
-    if (!profileSession) return;
+  async function playItem(item: CatalogItem, returnTo: 'catalog' | 'series') {
+    if (!auth || !profileSession || busy) return;
+    setBusy(true);
     setError('');
     try {
+      const source = await api.playbackSource(
+        auth.idToken,
+        profileSession.sessionToken,
+        selectedProfile,
+        item,
+      );
       setPlayer({
         item,
-        source: buildPlaybackSource(profileSession.playbackGrant, item),
+        source,
         returnTo,
       });
       setScreen('player');
     } catch (reason) {
       setError(readableError(reason));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -545,7 +554,7 @@ function PlayerApp() {
             onOpen={(item) =>
               item.kind === 'series'
                 ? void openSeries(item)
-                : playItem(item, 'catalog')
+                : void playItem(item, 'catalog')
             }
           />
         )}
@@ -562,7 +571,7 @@ function PlayerApp() {
             }}
             onRetry={() => void openSeries(seriesItem)}
             onPlay={(episode) =>
-              playItem(
+              void playItem(
                 episodeAsCatalogItem(
                   episode,
                   seriesDetails?.title || seriesItem.name,

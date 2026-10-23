@@ -191,6 +191,42 @@ export class EvoApi {
     };
   }
 
+  async playbackSource(
+    token: string,
+    sessionToken: string,
+    profile: number,
+    item: CatalogItem,
+  ): Promise<string> {
+    const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const extension = normalized.slice(0, 8) || (item.kind === 'live' ? 'm3u8' : 'mp4');
+    const data = await this.backend('/api/stream-ticket', token, {
+      method: 'POST',
+      headers: sessionHeaders(sessionToken, profile),
+      body: JSON.stringify({
+        kind: item.kind,
+        id: item.id,
+        extension,
+      }),
+    });
+    const source = text(data.url);
+    if (!source) {
+      throw new EvoApiError('O servidor não retornou uma URL de reprodução.');
+    }
+    try {
+      const url = new URL(source);
+      if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
+      if (location.protocol === 'https:' && url.protocol !== 'https:') {
+        throw new EvoApiError(
+          'O servidor não retornou uma conexão HTTPS segura para a mídia.',
+        );
+      }
+      return url.href;
+    } catch (error) {
+      if (error instanceof EvoApiError) throw error;
+      throw new EvoApiError('O servidor retornou uma URL de reprodução inválida.');
+    }
+  }
+
   async releaseProfile(
     token: string,
     sessionToken: string,
@@ -240,29 +276,6 @@ export class EvoApi {
     }
     return data;
   }
-}
-
-export function buildPlaybackSource(
-  grant: PlaybackGrant,
-  item: CatalogItem,
-): string {
-  if (Date.now() >= grant.expiresAt) {
-    throw new EvoApiError('A autorização de reprodução expirou.');
-  }
-  const folder: Record<MediaKind, string> = {
-    live: 'live',
-    movie: 'movie',
-    series: 'series',
-  };
-  const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const extension = normalized.slice(0, 8) || (item.kind === 'live' ? 'ts' : 'mp4');
-  const source = `${grant.server.replace(/\/+$/, '')}/${folder[item.kind]}/${encodeURIComponent(grant.username)}/${encodeURIComponent(grant.password)}/${encodeURIComponent(item.id)}.${extension}`;
-  if (location.protocol === 'https:' && source.startsWith('http:')) {
-    throw new EvoApiError(
-      'Este conteúdo usa HTTP e foi bloqueado pelo navegador. O servidor de mídia precisa oferecer HTTPS.',
-    );
-  }
-  return source;
 }
 
 function sessionHeaders(sessionToken: string, profile: number): HeadersInit {
