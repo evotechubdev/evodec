@@ -9,7 +9,7 @@ mesmo Firebase e o mesmo backend no Render dos aplicativos Android e PC.
 - contas, perfis, catálogo, filmes, séries e episódios;
 - autorização de reprodução com RSA-OAEP e AES-GCM usando Web Crypto;
 - manifesto e service worker para instalação na tela inicial;
-- interface responsiva para iPhone, Android, computador e Smart TV;
+- interface responsiva para celulares, computadores e Smart TVs;
 - navegação por teclado, setas e controles remotos que enviam teclas direcionais;
 - senha mantida apenas na memória da página; somente o login pode ser lembrado.
 
@@ -44,8 +44,14 @@ entrega a aplicação por `/pwa/*` e encaminha `/pwa-api/*` ao backend atual.
 - `VITE_EVO_PLATFORM`: use `android` para compatibilidade temporária; troque para
   `web` depois de cadastrar o canal web no backend.
 
-No Codemagic, as variáveis existentes continuam no grupo `evotv_config` sem o
-prefixo `VITE_`; o workflow faz o mapeamento durante a compilação.
+## GitHub Actions e Pages
+
+O workflow `.github/workflows/pages.yml` valida, compila e publica o PWA no
+GitHub Pages a cada push na branch `main`. A publicação fica disponível em:
+
+```text
+https://evotechubdev.github.io/multimideas-evo-pwa/
+```
 
 ## Ajustes aditivos no backend
 
@@ -65,11 +71,6 @@ Antes de criar um canal próprio para a PWA, o serviço deve:
 
 Enquanto o canal `web` não existir, o build usa `android` somente como modo de
 compatibilidade com o contrato atual. Isso não modifica o aplicativo Android.
-
-## Instalação no iPhone
-
-Abra o endereço no Safari, toque em **Compartilhar**, escolha **Adicionar à Tela
-de Início** e confirme. O iOS não permite instalação silenciosa de PWAs.
 
 ## Android, Smart TVs e outros sistemas
 
@@ -93,10 +94,9 @@ https://www.evotv.com.br/pwa/
 ```
 
 Na primeira visita de cada sessão, a própria página abre o assistente de
-instalação. Navegadores Chromium oferecem a confirmação nativa quando
-disponível. No iPhone, o assistente mostra o caminho obrigatório **Safari >
-Compartilhar > Adicionar à Tela de Início**. Nenhum navegador permite concluir
-a instalação sem uma ação explícita do usuário. O parâmetro opcional
+instalação. Navegadores compatíveis oferecem a confirmação nativa quando
+disponível. Nenhum navegador permite concluir a instalação sem uma ação
+explícita do usuário. O parâmetro opcional
 `?install=1` força a reabertura do assistente e `?install=0` o ignora.
 
 No site principal, mantenha sempre as três opções visíveis, nesta ordem e com

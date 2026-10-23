@@ -689,7 +689,7 @@ function PlayerScreen({ player, onBack }: { player: PlayerState; onBack(): void 
         {failed ? (
           <EmptyState>
             <p>Não foi possível reproduzir este conteúdo no navegador.</p>
-            <small>Confirme se o servidor oferece HTTPS e um formato compatível com o Safari.</small>
+            <small>Confirme se o servidor oferece HTTPS e um formato compatível com o navegador.</small>
             <button className="button button-primary" onClick={onBack}>Voltar</button>
           </EmptyState>
         ) : (
@@ -716,7 +716,6 @@ function InstallHelp({
   onInstall(): void;
   onClose(): void;
 }) {
-  const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={onClose}>
       <section
@@ -735,20 +734,8 @@ function InstallHelp({
             Este navegador pode instalar o EVOTV como aplicativo. Confirme na
             próxima janela para adicioná-lo ao dispositivo.
           </p>
-        ) : ios ? (
-          <ol className="install-steps">
-            <li>Abra este endereço no <strong>Safari</strong>.</li>
-            <li>Toque no botão <strong>Compartilhar</strong>.</li>
-            <li>Escolha <strong>Adicionar à Tela de Início</strong>.</li>
-            <li>Confirme tocando em <strong>Adicionar</strong>.</li>
-          </ol>
         ) : (
           <p>Abra o menu do navegador e escolha <strong>Instalar aplicativo</strong> ou <strong>Adicionar à tela inicial</strong>.</p>
-        )}
-        {ios && (
-          <p className="install-disclaimer">
-            O iPhone exige essa confirmação e não permite instalação silenciosa.
-          </p>
         )}
         {canPrompt ? (
           <button className="button button-primary button-large" onClick={onInstall}>

@@ -926,25 +926,9 @@ input:disabled {
   font-size: 1.8rem;
 }
 
-.install-steps {
-  display: grid;
-  gap: 12px;
-  margin: 24px 0;
-  padding-left: 24px;
-  color: #c9d2e3;
-  line-height: 1.55;
-  text-align: left;
-}
-
 .install-modal > p {
   color: #c9d2e3;
   line-height: 1.65;
-}
-
-.install-modal .install-disclaimer {
-  margin: 20px 0;
-  color: var(--muted);
-  font-size: 0.76rem;
 }
 
 @media (max-width: 900px) {

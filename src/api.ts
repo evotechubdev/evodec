@@ -259,7 +259,7 @@ export function buildPlaybackSource(
   const source = `${grant.server.replace(/\/+$/, '')}/${folder[item.kind]}/${encodeURIComponent(grant.username)}/${encodeURIComponent(grant.password)}/${encodeURIComponent(item.id)}.${extension}`;
   if (location.protocol === 'https:' && source.startsWith('http:')) {
     throw new EvoApiError(
-      'Este conteúdo usa HTTP e foi bloqueado pelo iPhone. O servidor de mídia precisa oferecer HTTPS.',
+      'Este conteúdo usa HTTP e foi bloqueado pelo navegador. O servidor de mídia precisa oferecer HTTPS.',
     );
   }
   return source;
