@@ -77,7 +77,21 @@ export default {
     void ctx;
     const url = new URL(request.url);
     if (url.pathname === "/health") {
-      return Response.json({ ok: true, service: "evotv-web-media-relay" }, { headers: { "cache-control": "no-store" } });
+      let backendStatus = 0;
+      try {
+        const backend = await fetch(`${String(env.AUTH_BACKEND_URL).replace(/\/$/, "")}/health`, {
+          headers: { accept: "application/json" },
+          redirect: "follow",
+        });
+        backendStatus = backend.status;
+        await backend.body?.cancel();
+      } catch {
+        // The public health response exposes only reachability, never URLs or credentials.
+      }
+      return Response.json(
+        { ok: true, service: "evotv-web-media-relay", backendReachable: backendStatus >= 200 && backendStatus < 500, backendStatus },
+        { headers: { "cache-control": "no-store" } },
+      );
     }
     const origin = request.headers.get("origin");
     if (origin !== ALLOWED_ORIGIN) return error(403, "ORIGIN_FORBIDDEN", "Origem não autorizada.", null);
@@ -107,7 +121,7 @@ export default {
     const validationUrl = `${String(env.AUTH_BACKEND_URL).replace(/\/$/, "")}/api/web-stream/${encodeURIComponent(ticket)}/validate?relay=${encodeURIComponent(relayHash)}`;
     let validation;
     try {
-      validation = await fetch(validationUrl, { headers: validationHeaders, redirect: "error" });
+      validation = await fetch(validationUrl, { headers: validationHeaders, redirect: "follow" });
     } catch (reason) {
       console.error("relay_stage=backend", reason instanceof Error ? reason.name : "UnknownError");
       return error(502, "AUTH_BACKEND_UNREACHABLE", "O relay não conseguiu validar a sessão no backend.", origin);
