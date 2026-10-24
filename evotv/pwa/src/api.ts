@@ -203,11 +203,10 @@ export class EvoApi {
     item: CatalogItem,
   ): Promise<string> {
     const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
-    // Browsers cannot reliably play a continuous MPEG-TS response directly.
-    // Request HLS for live channels so Safari can use it natively and Chromium
-    // can attach it through hls.js.
+    // The configured IPTV provider exposes live channels as continuous MPEG-TS.
+    // The browser player transmuxes this stream through mpegts.js.
     const extension = item.kind === 'live'
-      ? 'm3u8'
+      ? 'ts'
       : normalized.slice(0, 8) || 'mp4';
     const data = await this.backend('/api/stream-ticket', token, {
       method: 'POST',

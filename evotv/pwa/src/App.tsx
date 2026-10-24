@@ -6,7 +6,6 @@ import {
   useRef,
   useState,
 } from 'react';
-import type HlsType from 'hls.js';
 
 import { EvoApi, EvoApiError } from './api';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
@@ -916,38 +915,45 @@ function PlayerScreen({
     failureReported.current = false;
     setFailure('');
 
-    const nativeHls = video.canPlayType('application/vnd.apple.mpegurl');
-    if (player.item.kind === 'live' && !nativeHls) {
+    if (player.item.kind === 'live') {
       let disposed = false;
-      let hls: HlsType | null = null;
-      void import('hls.js')
-        .then(({ default: Hls }) => {
+      let destroyPlayer: (() => void) | null = null;
+      void import('mpegts.js')
+        .then(({ default: mpegts }) => {
           if (disposed) return;
-          if (!Hls.isSupported()) {
-            reportPlaybackFailure('Este navegador não oferece suporte à transmissão HLS.');
+          if (!mpegts.getFeatureList().mseLivePlayback) {
+            video.src = player.source;
+            void video.play().catch(() => {});
             return;
           }
-          hls = new Hls({ enableWorker: true, lowLatencyMode: true });
-          hls.attachMedia(video);
-          hls.on(Hls.Events.MEDIA_ATTACHED, () => hls?.loadSource(player.source));
-          hls.on(Hls.Events.MANIFEST_PARSED, () => {
-            void video.play().catch(() => {});
-          });
-          hls.on(Hls.Events.ERROR, (_event, data) => {
-            if (!data.fatal) return;
-            hls?.destroy();
-            hls = null;
+          const livePlayer = mpegts.createPlayer(
+            { type: 'mse', isLive: true, cors: true, url: player.source },
+            { isLive: true, liveBufferLatencyChasing: true },
+          );
+          const destroy = () => {
+            try { livePlayer.pause(); } catch { /* best effort */ }
+            try { livePlayer.unload(); } catch { /* best effort */ }
+            try { livePlayer.detachMediaElement(); } catch { /* best effort */ }
+            livePlayer.destroy();
+          };
+          destroyPlayer = destroy;
+          livePlayer.on(mpegts.Events.ERROR, (errorType: string) => {
+            destroy();
+            destroyPlayer = null;
             reportPlaybackFailure(
-              data.type === Hls.ErrorTypes.NETWORK_ERROR
+              errorType === mpegts.ErrorTypes.NETWORK_ERROR
                 ? 'Não foi possível carregar a transmissão ao vivo.'
                 : 'O navegador não conseguiu decodificar esta transmissão.',
             );
           });
+          livePlayer.attachMediaElement(video);
+          livePlayer.load();
+          void livePlayer.play()?.catch(() => {});
         })
         .catch(() => reportPlaybackFailure('Não foi possível iniciar o player de transmissão ao vivo.'));
       return () => {
         disposed = true;
-        hls?.destroy();
+        destroyPlayer?.();
       };
     }
 
