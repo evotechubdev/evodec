@@ -5,6 +5,8 @@ Relay HTTPS exclusivo do PWA. Ele recebe do backend uma origem IPTV criptografad
 - A chave privada fica somente no ambiente hospedado.
 - URLs e credenciais do provedor não aparecem no código ou na resposta da API.
 - O relay aceita somente autorizações vinculadas a tickets emitidos pelo backend.
+- A reprodução exige a origem oficial do GitHub Pages e a sessão ativa do mesmo perfil.
+- Copiar o endereço do relay não permite reutilizar a mídia fora do PWA.
 - PC e Android não utilizam este serviço.
 
 Validação local:

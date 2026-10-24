@@ -1,7 +1,19 @@
-const CACHE_NAME = 'evotv-pwa-v11';
+const CACHE_NAME = 'evotv-pwa-v12';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
+const MEDIA_PATH = new URL('__media/', PWA_ROOT).pathname;
+const RELAY_ORIGIN = 'https://evotv-web-media-relay.bonnystork8.chatgpt.site';
+const MEDIA_SESSION_MS = 12 * 60 * 60 * 1000;
+const MEDIA_ID = /^[a-f0-9-]{32,40}$/i;
+const REQUIRED_MEDIA_HEADERS = [
+  'x-evo-session',
+  'x-evo-profile',
+  'x-evo-platform',
+  'x-evo-version',
+  'x-evo-version-code',
+];
+const mediaSources = new Map();
 const APP_SHELL = [
   PWA_ROOT,
   PWA_INDEX,
@@ -22,6 +34,56 @@ self.addEventListener('activate', (event) => {
       .then(() => self.clients.claim()),
   );
 });
+
+self.addEventListener('message', (event) => {
+  const data = event.data;
+  const reply = (value) => event.ports[0]?.postMessage(value);
+  if (!isPwaClient(event.source) || !data || typeof data !== 'object') {
+    reply({ ok: false, error: 'Solicitação de mídia não autorizada.' });
+    return;
+  }
+  if (data.type === 'EVOTV_MEDIA_REMOVE') {
+    if (MEDIA_ID.test(String(data.id || ''))) mediaSources.delete(data.id);
+    reply({ ok: true });
+    return;
+  }
+  if (data.type !== 'EVOTV_MEDIA_REGISTER') return;
+  try {
+    const id = String(data.id || '');
+    const relayUrl = new URL(String(data.url || ''));
+    if (!MEDIA_ID.test(id) || relayUrl.origin !== RELAY_ORIGIN || !relayUrl.pathname.startsWith('/stream/')) {
+      throw new Error('Endereço de mídia inválido.');
+    }
+    const inputHeaders = new Headers(data.headers || {});
+    const headers = {};
+    for (const name of REQUIRED_MEDIA_HEADERS) {
+      const value = inputHeaders.get(name);
+      if (!value || value.length > 8192) throw new Error('A sessão do perfil está incompleta.');
+      headers[name] = value;
+    }
+    pruneMediaSources();
+    if (mediaSources.size >= 12) mediaSources.delete(mediaSources.keys().next().value);
+    mediaSources.set(id, { url: relayUrl.href, headers, expiresAt: Date.now() + MEDIA_SESSION_MS });
+    reply({ ok: true });
+  } catch (error) {
+    reply({ ok: false, error: error instanceof Error ? error.message : 'Não foi possível proteger a mídia.' });
+  }
+});
+
+function isPwaClient(source) {
+  try {
+    return source && new URL(source.url).pathname.startsWith(new URL(PWA_ROOT).pathname);
+  } catch {
+    return false;
+  }
+}
+
+function pruneMediaSources() {
+  const now = Date.now();
+  for (const [id, source] of mediaSources) {
+    if (source.expiresAt <= now) mediaSources.delete(id);
+  }
+}
 
 async function cacheApplicationShell() {
   const cache = await caches.open(CACHE_NAME);
@@ -46,10 +108,16 @@ async function cacheApplicationShell() {
 
 self.addEventListener('fetch', (event) => {
   const request = event.request;
-  if (request.method !== 'GET') return;
   const url = new URL(request.url);
   if (url.origin !== self.location.origin) return;
 
+  if (url.pathname.startsWith(MEDIA_PATH)) {
+    const id = url.pathname.slice(MEDIA_PATH.length).split('/')[0];
+    event.respondWith(fetchProtectedMedia(request, id));
+    return;
+  }
+
+  if (request.method !== 'GET') return;
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
@@ -83,3 +151,42 @@ self.addEventListener('fetch', (event) => {
     }),
   );
 });
+
+async function fetchProtectedMedia(request, id) {
+  pruneMediaSources();
+  const source = mediaSources.get(id);
+  if (!source || !['GET', 'HEAD'].includes(request.method)) {
+    return Response.json(
+      { code: 'MEDIA_LINK_EXPIRED', error: 'Este endereço temporário não pode ser reutilizado. Abra a mídia pelo EVOTV.' },
+      { status: 410, headers: { 'cache-control': 'no-store' } },
+    );
+  }
+  const headers = new Headers(source.headers);
+  for (const name of ['range', 'if-range', 'accept']) {
+    const value = request.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  try {
+    const response = await fetch(source.url, {
+      method: request.method,
+      headers,
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      redirect: 'follow',
+      signal: request.signal,
+    });
+    const responseHeaders = new Headers(response.headers);
+    responseHeaders.set('cache-control', 'private, no-store');
+    return new Response(request.method === 'HEAD' ? null : response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers: responseHeaders,
+    });
+  } catch {
+    return Response.json(
+      { code: 'MEDIA_RELAY_UNAVAILABLE', error: 'Não foi possível conectar ao servidor seguro de mídia.' },
+      { status: 502, headers: { 'cache-control': 'no-store' } },
+    );
+  }
+}

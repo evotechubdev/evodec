@@ -1,10 +1,23 @@
-const CORS = {
-  "access-control-allow-origin": "*",
-  "access-control-allow-methods": "GET, HEAD, OPTIONS",
-  "access-control-allow-headers": "Range, If-Range, Accept",
-  "access-control-expose-headers": "Content-Length, Content-Range, Accept-Ranges, Content-Type",
-  "cache-control": "private, no-store",
-};
+const ALLOWED_ORIGIN = "https://evotechubdev.github.io";
+const SESSION_HEADERS = [
+  "x-evo-session",
+  "x-evo-profile",
+  "x-evo-platform",
+  "x-evo-version",
+  "x-evo-version-code",
+];
+
+function corsHeaders(origin) {
+  const headers = new Headers({
+    "access-control-allow-methods": "GET, HEAD, OPTIONS",
+    "access-control-allow-headers": "Range, If-Range, Accept, X-Evo-Session, X-Evo-Profile, X-Evo-Platform, X-Evo-Version, X-Evo-Version-Code",
+    "access-control-expose-headers": "Content-Length, Content-Range, Accept-Ranges, Content-Type",
+    "cache-control": "private, no-store",
+    vary: "Origin",
+  });
+  if (origin === ALLOWED_ORIGIN) headers.set("access-control-allow-origin", origin);
+  return headers;
+}
 
 function base64Bytes(value, url = false) {
   let input = String(value || "");
@@ -17,8 +30,8 @@ function decodeJson(value) {
   return JSON.parse(new TextDecoder().decode(base64Bytes(value, true)));
 }
 
-function error(status, code, message) {
-  return Response.json({ code, error: message }, { status, headers: CORS });
+function error(status, code, message, origin) {
+  return Response.json({ code, error: message }, { status, headers: corsHeaders(origin) });
 }
 
 async function decryptSource(packed, privateKey) {
@@ -50,8 +63,8 @@ async function digest(value) {
   return [...bytes].map((byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function mediaHeaders(upstream) {
-  const headers = new Headers(CORS);
+function mediaHeaders(upstream, origin) {
+  const headers = corsHeaders(origin);
   for (const name of ["content-type", "content-length", "content-range", "accept-ranges", "etag", "last-modified"]) {
     const value = upstream.headers.get(name);
     if (value) headers.set(name, value);
@@ -62,39 +75,54 @@ function mediaHeaders(upstream) {
 export default {
   async fetch(request, env, ctx) {
     void ctx;
-    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
-    if (!["GET", "HEAD"].includes(request.method)) return error(405, "METHOD_NOT_ALLOWED", "Método não permitido.");
     const url = new URL(request.url);
-    if (url.pathname === "/health") return Response.json({ ok: true, service: "evotv-web-media-relay" }, { headers: CORS });
+    if (url.pathname === "/health") {
+      return Response.json({ ok: true, service: "evotv-web-media-relay" }, { headers: { "cache-control": "no-store" } });
+    }
+    const origin = request.headers.get("origin");
+    if (origin !== ALLOWED_ORIGIN) return error(403, "ORIGIN_FORBIDDEN", "Origem não autorizada.", null);
+    if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    if (!["GET", "HEAD"].includes(request.method)) return error(405, "METHOD_NOT_ALLOWED", "Método não permitido.", origin);
     const parts = url.pathname.split("/").filter(Boolean);
-    if (parts.length !== 4 || parts[0] !== "stream") return error(404, "NOT_FOUND", "Rota não encontrada.");
+    if (parts.length !== 4 || parts[0] !== "stream") return error(404, "NOT_FOUND", "Rota não encontrada.", origin);
     const [, ticket, packed, file] = parts;
     try {
+      const validationHeaders = new Headers({ accept: "application/json" });
+      for (const name of SESSION_HEADERS) {
+        const value = request.headers.get(name);
+        if (!value) return error(401, "SESSION_REQUIRED", "Abra a mídia pelo perfil ativo no EVOTV.", origin);
+        validationHeaders.set(name, value);
+      }
       const source = await decryptSource(packed, env.WEB_RELAY_PRIVATE_KEY);
       if (source?.expiresAt <= Date.now() || !["http:", "https:"].includes(new URL(source.target).protocol)
         || `${source.id}.${source.extension}` !== file) {
-        return error(401, "STREAM_TICKET_INVALID", "A autorização do vídeo expirou. Abra a mídia novamente.");
+        return error(401, "STREAM_TICKET_INVALID", "A autorização do vídeo expirou. Abra a mídia novamente.", origin);
       }
       const relayHash = await digest(packed);
       const validationUrl = `${String(env.AUTH_BACKEND_URL).replace(/\/$/, "")}/api/web-stream/${encodeURIComponent(ticket)}/validate?relay=${encodeURIComponent(relayHash)}`;
-      const validation = await fetch(validationUrl, { headers: { accept: "application/json" } });
+      const validation = await fetch(validationUrl, { headers: validationHeaders, redirect: "error" });
       if (validation.status !== 204) {
         const body = await validation.text();
-        const headers = new Headers(CORS); headers.set("content-type", validation.headers.get("content-type") || "application/json; charset=utf-8");
+        const headers = corsHeaders(origin);
+        headers.set("content-type", validation.headers.get("content-type") || "application/json; charset=utf-8");
         return new Response(body, { status: validation.status, headers });
       }
       const headers = new Headers({ "user-agent": "VLC/3.0.23 LibVLC/3.0.23", "accept-encoding": "identity" });
       for (const name of ["range", "if-range", "accept"]) {
-        const value = request.headers.get(name); if (value) headers.set(name, value);
+        const value = request.headers.get(name);
+        if (value) headers.set(name, value);
       }
       const upstream = await fetch(source.target, { method: request.method, headers, redirect: "follow" });
       if (!upstream.ok && upstream.status !== 206) {
         await upstream.body?.cancel();
-        return error(502, "IPTV_UPSTREAM_FAILED", `O provedor recusou a mídia (HTTP ${upstream.status}).`);
+        return error(502, "IPTV_UPSTREAM_FAILED", `O provedor recusou a mídia (HTTP ${upstream.status}).`, origin);
       }
-      return new Response(request.method === "HEAD" ? null : upstream.body, { status: upstream.status, headers: mediaHeaders(upstream) });
+      return new Response(request.method === "HEAD" ? null : upstream.body, {
+        status: upstream.status,
+        headers: mediaHeaders(upstream, origin),
+      });
     } catch {
-      return error(502, "IPTV_UPSTREAM_UNREACHABLE", "O relay não conseguiu abrir a conexão com o servidor IPTV.");
+      return error(502, "IPTV_UPSTREAM_UNREACHABLE", "O relay não conseguiu abrir a conexão com o servidor IPTV.", origin);
     }
   },
 };

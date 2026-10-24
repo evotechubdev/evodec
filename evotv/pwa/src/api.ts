@@ -20,6 +20,11 @@ export interface SessionEnd {
   message: string;
 }
 
+export interface SecurePlaybackSource {
+  url: string;
+  headers: Record<string, string>;
+}
+
 export class EvoApiError extends Error {
   constructor(message: string) {
     super(message);
@@ -201,7 +206,7 @@ export class EvoApi {
     sessionToken: string,
     profile: number,
     item: CatalogItem,
-  ): Promise<string> {
+  ): Promise<SecurePlaybackSource> {
     const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
     // The configured IPTV provider exposes live channels as continuous MPEG-TS.
     // The browser player transmuxes this stream through mpegts.js.
@@ -230,7 +235,16 @@ export class EvoApi {
           'O servidor não retornou uma conexão HTTPS segura para a mídia.',
         );
       }
-      return url.href;
+      return {
+        url: url.href,
+        headers: {
+          'x-evo-session': sessionToken,
+          'x-evo-profile': String(profile),
+          'x-evo-platform': appConfig.clientPlatform,
+          'x-evo-version': appConfig.clientVersion,
+          'x-evo-version-code': appConfig.clientVersionCode,
+        },
+      };
     } catch (error) {
       if (error instanceof EvoApiError) throw error;
       throw new EvoApiError('O servidor retornou uma URL de reprodução inválida.');

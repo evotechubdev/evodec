@@ -3,6 +3,15 @@ import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import relay from '../worker/index.js';
 
+const clientHeaders = {
+  origin: 'https://evotechubdev.github.io',
+  'x-evo-session': 'signed-profile-session',
+  'x-evo-profile': '1',
+  'x-evo-platform': 'pc',
+  'x-evo-version': '1.0.6',
+  'x-evo-version-code': 'release-code',
+};
+
 function packSource(publicKey, payload) {
   const key = crypto.randomBytes(32);
   const iv = crypto.randomBytes(12);
@@ -28,19 +37,26 @@ test('relay validates the session and streams an encrypted HTTP target', async (
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const calls = [];
-  globalThis.fetch = async (input) => {
+  globalThis.fetch = async (input, init) => {
     const url = String(input); calls.push(url);
-    if (url.includes('/validate?relay=')) return new Response(null, { status: 204 });
+    if (url.includes('/validate?relay=')) {
+      const headers = new Headers(init?.headers);
+      for (const [name, value] of Object.entries(clientHeaders)) {
+        if (name !== 'origin') assert.equal(headers.get(name), value);
+      }
+      return new Response(null, { status: 204 });
+    }
     assert.equal(url, 'http://provider.example/live/user/pass/42.ts');
     return new Response('mpeg-ts', { headers: { 'content-type': 'video/mp2t' } });
   };
   const response = await relay.fetch(
-    new Request(`https://relay.example/stream/session-ticket/${packed}/42.ts`),
+    new Request(`https://relay.example/stream/session-ticket/${packed}/42.ts`, { headers: clientHeaders }),
     { WEB_RELAY_PRIVATE_KEY: privateKey, AUTH_BACKEND_URL: 'https://backend.example' },
     {},
   );
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('content-type'), 'video/mp2t');
+  assert.equal(response.headers.get('access-control-allow-origin'), clientHeaders.origin);
   assert.equal(await response.text(), 'mpeg-ts');
   assert.equal(calls.length, 2);
 });
@@ -53,9 +69,28 @@ test('relay refuses a source envelope that does not match the requested file', a
     kind: 'live', id: '42', extension: 'ts', profile: 1, expiresAt: Date.now() + 60_000,
   });
   const response = await relay.fetch(
-    new Request(`https://relay.example/stream/session-ticket/${packed}/99.ts`),
+    new Request(`https://relay.example/stream/session-ticket/${packed}/99.ts`, { headers: clientHeaders }),
     { WEB_RELAY_PRIVATE_KEY: privateKey, AUTH_BACKEND_URL: 'https://backend.example' },
     {},
   );
   assert.equal(response.status, 401);
+});
+
+test('relay rejects copied links without the official origin and active profile session', async () => {
+  const noOrigin = await relay.fetch(
+    new Request('https://relay.example/stream/ticket/source/42.ts'),
+    {},
+    {},
+  );
+  assert.equal(noOrigin.status, 403);
+  assert.equal(noOrigin.headers.get('access-control-allow-origin'), null);
+
+  const noSession = await relay.fetch(
+    new Request('https://relay.example/stream/ticket/source/42.ts', {
+      headers: { origin: clientHeaders.origin },
+    }),
+    {},
+    {},
+  );
+  assert.equal(noSession.status, 401);
 });

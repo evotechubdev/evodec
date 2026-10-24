@@ -8,6 +8,7 @@ import {
 } from 'react';
 
 import { EvoApi, EvoApiError } from './api';
+import { registerSecureMedia, unregisterSecureMedia } from './secure-media';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
   type Account,
@@ -28,6 +29,7 @@ type Screen = 'login' | 'profiles' | 'catalog' | 'series' | 'player';
 interface PlayerState {
   item: CatalogItem;
   source: string;
+  sourceId: string;
   returnTo: 'catalog' | 'series';
 }
 
@@ -417,15 +419,17 @@ function PlayerApp() {
     setBusy(true);
     setError('');
     try {
-      const source = await api.playbackSource(
+      const protectedSource = await api.playbackSource(
         auth.idToken,
         profileSession.sessionToken,
         selectedProfile,
         item,
       );
+      const source = await registerSecureMedia(protectedSource);
       setPlayer({
         item,
-        source,
+        source: source.url,
+        sourceId: source.id,
         returnTo,
       });
       setScreen('player');
@@ -901,6 +905,8 @@ function PlayerScreen({
   const [failure, setFailure] = useState('');
   const videoRef = useRef<HTMLVideoElement>(null);
   const failureReported = useRef(false);
+
+  useEffect(() => () => unregisterSecureMedia(player.sourceId), [player.sourceId]);
 
   function reportPlaybackFailure(fallback: string) {
     if (failureReported.current) return;
