@@ -617,14 +617,15 @@ function usesNativeDirectPlayback(): boolean {
   const agent = navigator.userAgent;
   const windows = /Windows/i.test(agent);
   const android = /Android/i.test(agent);
+  const windowsChrome = windows && /Chrome\//i.test(agent) && !/(Edg|OPR)\//i.test(agent);
   const ios = /iPhone|iPad|iPod/i.test(agent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const nonAndroidTv = !android
     && /(SMART[ -]?TV|Tizen|Web0S|WebOS|NetCast|HbbTV|VIDAA|Hisense|Viera|BRAVIA|Vewd|Opera TV|Roku|AppleTV)/i.test(agent);
   const forcedTest = new URLSearchParams(window.location.search).get('direct-player') === '1';
   // Sistemas proprietários de TV normalmente se identificam apenas como Linux.
-  // Windows permanece no player web e Android mantém seu aplicativo dedicado.
-  return ios || nonAndroidTv || (!windows && !android) || forcedTest;
+  // O Chrome do Windows usa o fluxo HLS já validado; Android mantém seu aplicativo dedicado.
+  return ios || nonAndroidTv || windowsChrome || (!windows && !android) || forcedTest;
 }
 
 function Header({
