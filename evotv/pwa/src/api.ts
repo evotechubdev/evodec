@@ -251,6 +251,38 @@ export class EvoApi {
     }
   }
 
+  async directPlaybackUrl(
+    token: string,
+    sessionToken: string,
+    profile: number,
+    item: CatalogItem,
+  ): Promise<string> {
+    const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
+    const extension = item.kind === 'live' ? 'm3u8' : normalized.slice(0, 8) || 'mp4';
+    const data = await this.backend('/api/stream-ticket', token, {
+      method: 'POST',
+      headers: sessionHeaders(sessionToken, profile),
+      body: JSON.stringify({
+        kind: item.kind,
+        id: item.id,
+        extension,
+        transport: 'direct',
+      }),
+    });
+    const source = text(data.url);
+    if (text(data.transport) !== 'direct' || !source) {
+      throw new EvoApiError('O servidor não retornou uma abertura compatível com este dispositivo.');
+    }
+    try {
+      const url = new URL(source);
+      const backend = new URL(appConfig.backendUrl);
+      if (url.origin !== backend.origin || !url.pathname.startsWith('/open-stream/')) throw new Error();
+      return url.href;
+    } catch {
+      throw new EvoApiError('O servidor retornou uma abertura de mídia inválida.');
+    }
+  }
+
   async watchSession(
     token: string,
     sessionToken: string,

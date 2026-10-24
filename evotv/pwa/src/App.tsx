@@ -419,6 +419,16 @@ function PlayerApp() {
     setBusy(true);
     setError('');
     try {
+      if (usesNativeDirectPlayback()) {
+        const source = await api.directPlaybackUrl(
+          auth.idToken,
+          profileSession.sessionToken,
+          selectedProfile,
+          item,
+        );
+        window.location.assign(source);
+        return;
+      }
       const protectedSource = await api.playbackSource(
         auth.idToken,
         profileSession.sessionToken,
@@ -601,6 +611,16 @@ function PlayerApp() {
       )}
     </div>
   );
+}
+
+function usesNativeDirectPlayback(): boolean {
+  const agent = navigator.userAgent;
+  const ios = /iPhone|iPad|iPod/i.test(agent)
+    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const nonAndroidTv = !/Android/i.test(agent)
+    && /(SMART[ -]?TV|Tizen|Web0S|WebOS|NetCast|HbbTV|VIDAA|Hisense|Viera|BRAVIA|Vewd|Opera TV|Roku|AppleTV)/i.test(agent);
+  const forcedTest = new URLSearchParams(window.location.search).get('direct-player') === '1';
+  return ios || nonAndroidTv || forcedTest;
 }
 
 function Header({
