@@ -72,6 +72,60 @@ function mediaHeaders(upstream, origin) {
   return headers;
 }
 
+async function openProvider(target, request, headers, timeoutMs) {
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  request.signal?.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const cleanup = () => {
+    clearTimeout(timer);
+    request.signal?.removeEventListener("abort", abort);
+  };
+  try {
+    const response = await fetch(target, {
+      method: request.method,
+      headers,
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    if (!response.ok || response.status === 416 || request.method === "HEAD") {
+      cleanup();
+      return { response, body: null, firstBytes: 0 };
+    }
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("missing media body");
+    const first = await reader.read();
+    if (first.done || !first.value?.byteLength) {
+      await reader.cancel().catch(() => {});
+      throw new Error("empty media body");
+    }
+    clearTimeout(timer);
+    const body = new ReadableStream({
+      start(stream) { stream.enqueue(first.value); },
+      async pull(stream) {
+        try {
+          const chunk = await reader.read();
+          if (chunk.done) {
+            cleanup();
+            stream.close();
+          } else stream.enqueue(chunk.value);
+        } catch (reason) {
+          cleanup();
+          stream.error(reason);
+        }
+      },
+      async cancel(reason) {
+        cleanup();
+        await reader.cancel(reason).catch(() => {});
+      },
+    });
+    return { response, body, firstBytes: first.value.byteLength };
+  } catch (reason) {
+    cleanup();
+    throw reason;
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     void ctx;
@@ -140,54 +194,59 @@ export default {
       headers.set("content-type", validation.headers.get("content-type") || "application/json; charset=utf-8");
       return new Response(body, { status: validation.status, headers });
     }
-    const agents = source.kind === "live"
-      ? [
-        "VLC/3.0.21 LibVLC/3.0.21",
-        "VLC/3.0.23 LibVLC/3.0.23",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36",
-      ]
-      : [
-        "VLC/3.0.23 LibVLC/3.0.23",
-        "VLC/3.0.21 LibVLC/3.0.21",
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36",
-      ];
+    const vlc21 = "VLC/3.0.21 LibVLC/3.0.21";
+    const vlc23 = "VLC/3.0.23 LibVLC/3.0.23";
+    const browser = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36";
     let upstream;
+    let upstreamBody;
     let providerError;
     let attemptCount = 0;
     const incomingRange = request.headers.get("range");
-    for (const target of sourceTargets) {
-      for (const userAgent of agents) {
-        const ranges = source.kind === "live" && !incomingRange ? ["bytes=0-", null] : [incomingRange];
-        for (const range of ranges) {
-          attemptCount++;
-          const headers = new Headers({ "user-agent": userAgent, "accept-encoding": "identity", accept: "*/*" });
-          if (range) headers.set("range", range);
-          const ifRange = request.headers.get("if-range");
-          if (ifRange) headers.set("if-range", ifRange);
-          if (source.kind === "live") headers.set("icy-metadata", "1");
-          try {
-            const response = await fetch(target, { method: request.method, headers, redirect: "follow" });
-            if (response.ok || response.status === 206) {
-              upstream = response;
-              break;
-            }
-            providerError = response.status;
-            await response.body?.cancel();
-            if (![401, 403, 416].includes(response.status)) break;
-          } catch (reason) {
-            console.error("relay_stage=provider", reason instanceof Error ? reason.name : "UnknownError");
+    const attempts = source.kind === "live"
+      ? [
+        { userAgent: vlc21, range: incomingRange || "bytes=0-" },
+        { userAgent: vlc21, range: incomingRange },
+        { userAgent: vlc23, range: incomingRange || "bytes=0-" },
+        { userAgent: browser, range: incomingRange },
+      ]
+      : [
+        { userAgent: vlc23, range: incomingRange },
+        { userAgent: vlc21, range: incomingRange },
+        { userAgent: browser, range: incomingRange },
+      ];
+    const deadline = Date.now() + 22_000;
+    playback: for (const attempt of attempts) {
+      for (let targetIndex = 0; targetIndex < sourceTargets.length; targetIndex++) {
+        const remaining = deadline - Date.now();
+        if (remaining < 750) break playback;
+        attemptCount++;
+        const headers = new Headers({ "user-agent": attempt.userAgent, "accept-encoding": "identity", accept: "*/*" });
+        if (attempt.range) headers.set("range", attempt.range);
+        const ifRange = request.headers.get("if-range");
+        if (ifRange) headers.set("if-range", ifRange);
+        if (source.kind === "live") headers.set("icy-metadata", "1");
+        try {
+          const opened = await openProvider(sourceTargets[targetIndex], request, headers, Math.min(6_500, remaining));
+          const response = opened.response;
+          if (response.ok && response.status !== 416 && (request.method === "HEAD" || opened.firstBytes > 0)) {
+            upstream = response;
+            upstreamBody = opened.body;
+            console.log("relay_stage=provider_open", `target=${targetIndex + 1}/${sourceTargets.length} attempt=${attemptCount} status=${response.status} bytes=${opened.firstBytes} type=${response.headers.get("content-type") || "unknown"}`);
+            break playback;
           }
+          providerError = response.status;
+          await response.body?.cancel();
+        } catch (reason) {
+          console.warn("relay_stage=provider_timeout", `target=${targetIndex + 1}/${sourceTargets.length} attempt=${attemptCount} error=${reason instanceof Error ? reason.name : "UnknownError"}`);
         }
-        if (upstream) break;
       }
-      if (upstream) break;
     }
     if (!upstream) {
       console.warn("relay_stage=provider_denied", `status=${providerError || 0} targets=${sourceTargets.length} attempts=${attemptCount}`);
       if (providerError) return error(502, "IPTV_UPSTREAM_FAILED", `O provedor recusou a mídia (HTTP ${providerError}).`, origin);
       return error(502, "IPTV_UPSTREAM_UNREACHABLE", "O relay não conseguiu abrir a conexão com o servidor IPTV.", origin);
     }
-    return new Response(request.method === "HEAD" ? null : upstream.body, {
+    return new Response(request.method === "HEAD" ? null : upstreamBody, {
       status: upstream.status,
       headers: mediaHeaders(upstream, origin),
     });
