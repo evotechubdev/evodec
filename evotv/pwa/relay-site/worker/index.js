@@ -113,8 +113,16 @@ export default {
       console.error("relay_stage=decrypt", reason instanceof Error ? reason.name : "UnknownError");
       return error(502, "RELAY_DECRYPT_FAILED", "O relay não conseguiu validar a autorização criptografada da mídia.", origin);
     }
-    if (source?.expiresAt <= Date.now() || !["http:", "https:"].includes(new URL(source.target).protocol)
-      || `${source.id}.${source.extension}` !== file) {
+    const sourceTargets = [...new Set(
+      (Array.isArray(source?.targets) ? source.targets : [source?.target])
+        .filter((target) => typeof target === "string")
+        .slice(0, 4),
+    )];
+    let validTargets = sourceTargets.length > 0;
+    try {
+      validTargets = validTargets && sourceTargets.every((target) => ["http:", "https:"].includes(new URL(target).protocol));
+    } catch { validTargets = false; }
+    if (source?.expiresAt <= Date.now() || !validTargets || `${source.id}.${source.extension}` !== file) {
       return error(401, "STREAM_TICKET_INVALID", "A autorização do vídeo expirou. Abra a mídia novamente.", origin);
     }
     const relayHash = await digest(packed);
@@ -145,26 +153,37 @@ export default {
       ];
     let upstream;
     let providerError;
-    for (const userAgent of agents) {
-      const headers = new Headers({ "user-agent": userAgent, "accept-encoding": "identity", accept: "*/*" });
-      for (const name of ["range", "if-range"]) {
-        const value = request.headers.get(name);
-        if (value) headers.set(name, value);
-      }
-      try {
-        const response = await fetch(source.target, { method: request.method, headers, redirect: "follow" });
-        if (response.ok || response.status === 206) {
-          upstream = response;
-          break;
+    let attemptCount = 0;
+    const incomingRange = request.headers.get("range");
+    for (const target of sourceTargets) {
+      for (const userAgent of agents) {
+        const ranges = source.kind === "live" && !incomingRange ? ["bytes=0-", null] : [incomingRange];
+        for (const range of ranges) {
+          attemptCount++;
+          const headers = new Headers({ "user-agent": userAgent, "accept-encoding": "identity", accept: "*/*" });
+          if (range) headers.set("range", range);
+          const ifRange = request.headers.get("if-range");
+          if (ifRange) headers.set("if-range", ifRange);
+          if (source.kind === "live") headers.set("icy-metadata", "1");
+          try {
+            const response = await fetch(target, { method: request.method, headers, redirect: "follow" });
+            if (response.ok || response.status === 206) {
+              upstream = response;
+              break;
+            }
+            providerError = response.status;
+            await response.body?.cancel();
+            if (![401, 403, 416].includes(response.status)) break;
+          } catch (reason) {
+            console.error("relay_stage=provider", reason instanceof Error ? reason.name : "UnknownError");
+          }
         }
-        providerError = response.status;
-        await response.body?.cancel();
-        if (![401, 403].includes(response.status)) break;
-      } catch (reason) {
-        console.error("relay_stage=provider", reason instanceof Error ? reason.name : "UnknownError");
+        if (upstream) break;
       }
+      if (upstream) break;
     }
     if (!upstream) {
+      console.warn("relay_stage=provider_denied", `status=${providerError || 0} targets=${sourceTargets.length} attempts=${attemptCount}`);
       if (providerError) return error(502, "IPTV_UPSTREAM_FAILED", `O provedor recusou a mídia (HTTP ${providerError}).`, origin);
       return error(502, "IPTV_UPSTREAM_UNREACHABLE", "O relay não conseguiu abrir a conexão com o servidor IPTV.", origin);
     }

@@ -47,7 +47,10 @@ test('relay validates the session and streams an encrypted HTTP target', async (
       return new Response(null, { status: 204 });
     }
     assert.equal(url, 'http://provider.example/live/user/pass/42.ts');
-    assert.equal(new Headers(init?.headers).get('user-agent'), 'VLC/3.0.21 LibVLC/3.0.21');
+    const headers = new Headers(init?.headers);
+    assert.equal(headers.get('user-agent'), 'VLC/3.0.21 LibVLC/3.0.21');
+    assert.equal(headers.get('range'), 'bytes=0-');
+    assert.equal(headers.get('icy-metadata'), '1');
     return new Response('mpeg-ts', { headers: { 'content-type': 'video/mp2t' } });
   };
   const response = await relay.fetch(
