@@ -416,17 +416,24 @@ function PlayerApp() {
 
   async function playItem(item: CatalogItem, returnTo: 'catalog' | 'series') {
     if (!auth || !profileSession || busy) return;
+    const directPlayback = usesNativeDirectPlayback();
+    const nativePlayerWindow = directPlayback ? openNativePlayerWindow() : null;
     setBusy(true);
     setError('');
     try {
-      if (usesNativeDirectPlayback()) {
+      if (directPlayback) {
         const source = await api.directPlaybackUrl(
           auth.idToken,
           profileSession.sessionToken,
           selectedProfile,
           item,
         );
-        window.location.assign(source);
+        if (nativePlayerWindow && !nativePlayerWindow.closed) {
+          nativePlayerWindow.opener = null;
+          nativePlayerWindow.location.replace(source);
+        } else {
+          window.location.assign(source);
+        }
         return;
       }
       const protectedSource = await api.playbackSource(
@@ -444,6 +451,7 @@ function PlayerApp() {
       });
       setScreen('player');
     } catch (reason) {
+      nativePlayerWindow?.close();
       setError(readableError(reason));
     } finally {
       setBusy(false);
@@ -611,6 +619,30 @@ function PlayerApp() {
       )}
     </div>
   );
+}
+
+function openNativePlayerWindow(): Window | null {
+  const playerWindow = window.open(
+    '',
+    'evotv-native-player',
+    'popup=yes,width=1280,height=720,resizable=yes,scrollbars=no',
+  );
+  if (!playerWindow) return null;
+  playerWindow.document.title = 'EVOTV';
+  playerWindow.document.body.replaceChildren();
+  Object.assign(playerWindow.document.body.style, {
+    margin: '0',
+    minHeight: '100vh',
+    display: 'grid',
+    placeItems: 'center',
+    background: '#020617',
+    color: '#e2e8f0',
+    fontFamily: 'system-ui, sans-serif',
+  });
+  const message = playerWindow.document.createElement('p');
+  message.textContent = 'Abrindo no player do dispositivo…';
+  playerWindow.document.body.append(message);
+  return playerWindow;
 }
 
 function usesNativeDirectPlayback(): boolean {
