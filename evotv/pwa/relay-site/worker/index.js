@@ -132,21 +132,41 @@ export default {
       headers.set("content-type", validation.headers.get("content-type") || "application/json; charset=utf-8");
       return new Response(body, { status: validation.status, headers });
     }
-    const headers = new Headers({ "user-agent": "VLC/3.0.23 LibVLC/3.0.23", "accept-encoding": "identity" });
-    for (const name of ["range", "if-range", "accept"]) {
-      const value = request.headers.get(name);
-      if (value) headers.set(name, value);
-    }
+    const agents = source.kind === "live"
+      ? [
+        "VLC/3.0.21 LibVLC/3.0.21",
+        "VLC/3.0.23 LibVLC/3.0.23",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36",
+      ]
+      : [
+        "VLC/3.0.23 LibVLC/3.0.23",
+        "VLC/3.0.21 LibVLC/3.0.21",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36",
+      ];
     let upstream;
-    try {
-      upstream = await fetch(source.target, { method: request.method, headers, redirect: "follow" });
-    } catch (reason) {
-      console.error("relay_stage=provider", reason instanceof Error ? reason.name : "UnknownError");
-      return error(502, "IPTV_UPSTREAM_UNREACHABLE", "O relay não conseguiu abrir a conexão com o servidor IPTV.", origin);
+    let providerError;
+    for (const userAgent of agents) {
+      const headers = new Headers({ "user-agent": userAgent, "accept-encoding": "identity", accept: "*/*" });
+      for (const name of ["range", "if-range"]) {
+        const value = request.headers.get(name);
+        if (value) headers.set(name, value);
+      }
+      try {
+        const response = await fetch(source.target, { method: request.method, headers, redirect: "follow" });
+        if (response.ok || response.status === 206) {
+          upstream = response;
+          break;
+        }
+        providerError = response.status;
+        await response.body?.cancel();
+        if (![401, 403].includes(response.status)) break;
+      } catch (reason) {
+        console.error("relay_stage=provider", reason instanceof Error ? reason.name : "UnknownError");
+      }
     }
-    if (!upstream.ok && upstream.status !== 206) {
-      await upstream.body?.cancel();
-      return error(502, "IPTV_UPSTREAM_FAILED", `O provedor recusou a mídia (HTTP ${upstream.status}).`, origin);
+    if (!upstream) {
+      if (providerError) return error(502, "IPTV_UPSTREAM_FAILED", `O provedor recusou a mídia (HTTP ${providerError}).`, origin);
+      return error(502, "IPTV_UPSTREAM_UNREACHABLE", "O relay não conseguiu abrir a conexão com o servidor IPTV.", origin);
     }
     return new Response(request.method === "HEAD" ? null : upstream.body, {
       status: upstream.status,
