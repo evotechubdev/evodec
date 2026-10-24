@@ -283,8 +283,11 @@ function PlayerApp() {
 
   useEffect(() => {
     const url = new URL(window.location.href);
-    if (url.searchParams.get('install') !== '1') return;
+    const openGuide = url.searchParams.get('install') === '1';
+    const releaseRefresh = url.searchParams.has('evotv-release');
+    if (!openGuide && !releaseRefresh) return;
     url.searchParams.delete('install');
+    url.searchParams.delete('evotv-release');
     window.history.replaceState(
       window.history.state,
       '',

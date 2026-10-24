@@ -13,8 +13,12 @@ export function registerServiceWorker(): void {
       );
 
       if (!insidePwa) return;
-      const workerUrl = `${import.meta.env.BASE_URL}../sw.js`;
-      await navigator.serviceWorker.register(workerUrl, { scope: pwaScope });
+      const workerUrl = `${import.meta.env.BASE_URL}../sw.js?v=10`;
+      const registration = await navigator.serviceWorker.register(workerUrl, {
+        scope: pwaScope,
+        updateViaCache: 'none',
+      });
+      await registration.update();
     }).catch(() => {
       // A aplicação continua utilizável mesmo sem o cache offline.
     });
