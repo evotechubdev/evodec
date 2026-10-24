@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: evotv-media-relay-evotechubdev
+    runtime: node
+    region: virginia
+    plan: free
+    rootDir: evotv/render-media-relay
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: ALLOWED_ORIGIN
+        value: https://evotechubdev.github.io
+      - key: AUTH_BACKEND_ORIGIN
+        value: https://multimideas-evo-backend.onrender.com
