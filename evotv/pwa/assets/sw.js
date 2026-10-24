@@ -1,4 +1,5 @@
-const CACHE_NAME = 'evotv-pwa-v12';
+const CACHE_NAME = 'evotv-pwa-v13';
+const SERVICE_WORKER_VERSION = '13';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
@@ -40,6 +41,10 @@ self.addEventListener('message', (event) => {
   const reply = (value) => event.ports[0]?.postMessage(value);
   if (!isPwaClient(event.source) || !data || typeof data !== 'object') {
     reply({ ok: false, error: 'Solicitação de mídia não autorizada.' });
+    return;
+  }
+  if (data.type === 'EVOTV_PING') {
+    reply({ ok: true, version: SERVICE_WORKER_VERSION });
     return;
   }
   if (data.type === 'EVOTV_MEDIA_REMOVE') {

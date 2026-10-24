@@ -1,4 +1,5 @@
 import type { SecurePlaybackSource } from './api';
+import { requireSecureServiceWorker } from './pwa';
 
 const RELAY_ORIGIN = 'https://evotv-web-media-relay.bonnystork8.chatgpt.site';
 const REGISTER_TIMEOUT_MS = 8_000;
@@ -15,12 +16,7 @@ export async function registerSecureMedia(
   if (relayUrl.origin !== RELAY_ORIGIN || !relayUrl.pathname.startsWith('/stream/')) {
     throw new Error('O servidor retornou uma origem de mídia não autorizada.');
   }
-  if (!('serviceWorker' in navigator)) {
-    throw new Error('Este navegador não oferece o modo seguro necessário para reproduzir esta mídia.');
-  }
-
-  await navigator.serviceWorker.ready;
-  const controller = await activeController();
+  const controller = await requireSecureServiceWorker();
   const id = randomId();
   const channel = new MessageChannel();
 
@@ -49,24 +45,6 @@ export async function registerSecureMedia(
 
 export function unregisterSecureMedia(id: string): void {
   navigator.serviceWorker?.controller?.postMessage({ type: 'EVOTV_MEDIA_REMOVE', id });
-}
-
-async function activeController(): Promise<ServiceWorker> {
-  if (navigator.serviceWorker.controller) return navigator.serviceWorker.controller;
-  return new Promise<ServiceWorker>((resolve, reject) => {
-    const timeout = window.setTimeout(() => {
-      navigator.serviceWorker.removeEventListener('controllerchange', changed);
-      reject(new Error('Atualize ou reabra o PWA para ativar a reprodução segura.'));
-    }, REGISTER_TIMEOUT_MS);
-    function changed() {
-      const controller = navigator.serviceWorker.controller;
-      if (!controller) return;
-      window.clearTimeout(timeout);
-      navigator.serviceWorker.removeEventListener('controllerchange', changed);
-      resolve(controller);
-    }
-    navigator.serviceWorker.addEventListener('controllerchange', changed);
-  });
 }
 
 function pwaBaseUrl(): URL {
