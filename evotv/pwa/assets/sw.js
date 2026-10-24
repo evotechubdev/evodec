@@ -1,5 +1,5 @@
-const CACHE_NAME = 'evotv-pwa-v13';
-const SERVICE_WORKER_VERSION = '13';
+const CACHE_NAME = 'evotv-pwa-v14';
+const SERVICE_WORKER_VERSION = '14';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
@@ -171,6 +171,9 @@ async function fetchProtectedMedia(request, id) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
+  if (source.lastFailure && Date.now() - source.lastFailure.at < 30_000) {
+    return mediaFailureResponse(source.lastFailure);
+  }
   try {
     const response = await fetch(source.url, {
       method: request.method,
@@ -181,6 +184,19 @@ async function fetchProtectedMedia(request, id) {
       redirect: 'follow',
       signal: request.signal,
     });
+    if (!response.ok) {
+      const body = await response.clone().text();
+      let message = `O proxy de mídia respondeu com HTTP ${response.status}.`;
+      try {
+        const data = JSON.parse(body);
+        if (typeof data?.error === 'string' && data.error.trim()) message = data.error;
+      } catch {
+        // Respostas não JSON usam a mensagem segura acima.
+      }
+      source.lastFailure = { status: response.status, message, at: Date.now() };
+    } else {
+      delete source.lastFailure;
+    }
     const responseHeaders = new Headers(response.headers);
     responseHeaders.set('cache-control', 'private, no-store');
     return new Response(request.method === 'HEAD' ? null : response.body, {
@@ -189,9 +205,18 @@ async function fetchProtectedMedia(request, id) {
       headers: responseHeaders,
     });
   } catch {
-    return Response.json(
-      { code: 'MEDIA_RELAY_UNAVAILABLE', error: 'Não foi possível conectar ao servidor seguro de mídia.' },
-      { status: 502, headers: { 'cache-control': 'no-store' } },
-    );
+    source.lastFailure = {
+      status: 502,
+      message: 'Não foi possível conectar ao servidor seguro de mídia.',
+      at: Date.now(),
+    };
+    return mediaFailureResponse(source.lastFailure);
   }
+}
+
+function mediaFailureResponse(failure) {
+  return Response.json(
+    { code: 'MEDIA_RELAY_FAILED', error: failure.message },
+    { status: failure.status, headers: { 'cache-control': 'no-store' } },
+  );
 }
