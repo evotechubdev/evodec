@@ -126,6 +126,42 @@ async function openProvider(target, request, headers, timeoutMs) {
   }
 }
 
+function providerAccountUrl(target) {
+  try {
+    const url = new URL(target);
+    const match = /\/(?:live|movie|series)\/([^/]+)\/([^/]+)\/[^/]+$/.exec(url.pathname);
+    if (!match) return null;
+    const basePath = url.pathname.slice(0, match.index).replace(/\/$/, "");
+    const account = new URL(`${basePath}/player_api.php`, url.origin);
+    account.searchParams.set("username", decodeURIComponent(match[1]));
+    account.searchParams.set("password", decodeURIComponent(match[2]));
+    return account.href;
+  } catch {
+    return null;
+  }
+}
+
+async function authorizeProvider(target, request, userAgent) {
+  const accountUrl = providerAccountUrl(target);
+  if (!accountUrl) return 0;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  request.signal?.addEventListener("abort", abort, { once: true });
+  const timer = setTimeout(() => controller.abort(), 6_500);
+  try {
+    const response = await fetch(accountUrl, {
+      headers: { "user-agent": userAgent, "accept-encoding": "identity", accept: "application/json" },
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    await response.body?.cancel().catch(() => {});
+    return response.status;
+  } finally {
+    clearTimeout(timer);
+    request.signal?.removeEventListener("abort", abort);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     void ctx;
@@ -201,6 +237,12 @@ export default {
     let upstreamBody;
     let providerError;
     let attemptCount = 0;
+    try {
+      const providerAuthStatus = await authorizeProvider(source.target, request, vlc21);
+      console.log("relay_stage=provider_auth", `status=${providerAuthStatus || 0}`);
+    } catch (reason) {
+      console.warn("relay_stage=provider_auth_failed", reason instanceof Error ? reason.name : "UnknownError");
+    }
     const incomingRange = request.headers.get("range");
     const attempts = source.kind === "live"
       ? [

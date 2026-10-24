@@ -46,6 +46,14 @@ test('relay validates the session and streams an encrypted HTTP target', async (
       }
       return new Response(null, { status: 204 });
     }
+    if (url.includes('/player_api.php?')) {
+      const account = new URL(url);
+      assert.equal(account.origin, 'http://provider.example');
+      assert.equal(account.searchParams.get('username'), 'user');
+      assert.equal(account.searchParams.get('password'), 'pass');
+      assert.equal(new Headers(init?.headers).get('user-agent'), 'VLC/3.0.21 LibVLC/3.0.21');
+      return Response.json({ user_info: { auth: 1 } });
+    }
     assert.equal(url, 'http://provider.example/live/user/pass/42.ts');
     const headers = new Headers(init?.headers);
     assert.equal(headers.get('user-agent'), 'VLC/3.0.21 LibVLC/3.0.21');
@@ -62,7 +70,7 @@ test('relay validates the session and streams an encrypted HTTP target', async (
   assert.equal(response.headers.get('content-type'), 'video/mp2t');
   assert.equal(response.headers.get('access-control-allow-origin'), clientHeaders.origin);
   assert.equal(await response.text(), 'mpeg-ts');
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 3);
 });
 
 test('relay refuses a source envelope that does not match the requested file', async () => {
