@@ -203,7 +203,12 @@ export class EvoApi {
     item: CatalogItem,
   ): Promise<string> {
     const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const extension = normalized.slice(0, 8) || (item.kind === 'live' ? 'm3u8' : 'mp4');
+    // Browsers cannot reliably play a continuous MPEG-TS response directly.
+    // Request HLS for live channels so Safari can use it natively and Chromium
+    // can attach it through hls.js.
+    const extension = item.kind === 'live'
+      ? 'm3u8'
+      : normalized.slice(0, 8) || 'mp4';
     const data = await this.backend('/api/stream-ticket', token, {
       method: 'POST',
       headers: sessionHeaders(sessionToken, profile),

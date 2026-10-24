@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import type HlsType from 'hls.js';
 
 import { EvoApi, EvoApiError } from './api';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
@@ -896,6 +897,68 @@ function PlayerScreen({
   onSessionEnded(message: string): void;
 }) {
   const [failure, setFailure] = useState('');
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const failureReported = useRef(false);
+
+  function reportPlaybackFailure(fallback: string) {
+    if (failureReported.current) return;
+    failureReported.current = true;
+    setFailure(fallback);
+    void inspectPlaybackFailure(player.source, fallback).then((result) => {
+      setFailure(result.message);
+      if (result.status === 409) onSessionEnded(result.message);
+    });
+  }
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    failureReported.current = false;
+    setFailure('');
+
+    const nativeHls = video.canPlayType('application/vnd.apple.mpegurl');
+    if (player.item.kind === 'live' && !nativeHls) {
+      let disposed = false;
+      let hls: HlsType | null = null;
+      void import('hls.js')
+        .then(({ default: Hls }) => {
+          if (disposed) return;
+          if (!Hls.isSupported()) {
+            reportPlaybackFailure('Este navegador não oferece suporte à transmissão HLS.');
+            return;
+          }
+          hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MEDIA_ATTACHED, () => hls?.loadSource(player.source));
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            void video.play().catch(() => {});
+          });
+          hls.on(Hls.Events.ERROR, (_event, data) => {
+            if (!data.fatal) return;
+            hls?.destroy();
+            hls = null;
+            reportPlaybackFailure(
+              data.type === Hls.ErrorTypes.NETWORK_ERROR
+                ? 'Não foi possível carregar a transmissão ao vivo.'
+                : 'O navegador não conseguiu decodificar esta transmissão.',
+            );
+          });
+        })
+        .catch(() => reportPlaybackFailure('Não foi possível iniciar o player de transmissão ao vivo.'));
+      return () => {
+        disposed = true;
+        hls?.destroy();
+      };
+    }
+
+    video.src = player.source;
+    void video.play().catch(() => {});
+    return () => {
+      video.removeAttribute('src');
+      video.load();
+    };
+  }, [player.source]);
+
   return (
     <section className="player-screen">
       <div className="player-toolbar">
@@ -913,18 +976,13 @@ function PlayerScreen({
           </EmptyState>
         ) : (
           <video
-            key={player.source}
-            src={player.source}
+            ref={videoRef}
             controls
             autoPlay
             playsInline
             onError={(event) => {
               const fallback = browserMediaError(event.currentTarget.error);
-              setFailure(fallback);
-              void inspectPlaybackFailure(player.source, fallback).then((result) => {
-                setFailure(result.message);
-                if (result.status === 409) onSessionEnded(result.message);
-              });
+              reportPlaybackFailure(fallback);
             }}
           />
         )}
