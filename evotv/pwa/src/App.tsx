@@ -615,12 +615,16 @@ function PlayerApp() {
 
 function usesNativeDirectPlayback(): boolean {
   const agent = navigator.userAgent;
+  const windows = /Windows/i.test(agent);
+  const android = /Android/i.test(agent);
   const ios = /iPhone|iPad|iPod/i.test(agent)
     || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const nonAndroidTv = !/Android/i.test(agent)
+  const nonAndroidTv = !android
     && /(SMART[ -]?TV|Tizen|Web0S|WebOS|NetCast|HbbTV|VIDAA|Hisense|Viera|BRAVIA|Vewd|Opera TV|Roku|AppleTV)/i.test(agent);
   const forcedTest = new URLSearchParams(window.location.search).get('direct-player') === '1';
-  return ios || nonAndroidTv || forcedTest;
+  // Sistemas proprietários de TV normalmente se identificam apenas como Linux.
+  // Windows permanece no player web e Android mantém seu aplicativo dedicado.
+  return ios || nonAndroidTv || (!windows && !android) || forcedTest;
 }
 
 function Header({
