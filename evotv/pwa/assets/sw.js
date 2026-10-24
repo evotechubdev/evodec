@@ -1,5 +1,4 @@
-const CACHE_NAME = 'evotv-pwa-v10';
-const RELEASE = '10';
+const CACHE_NAME = 'evotv-pwa-v11';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
@@ -20,16 +19,7 @@ self.addEventListener('activate', (event) => {
     caches
       .keys()
       .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim())
-      .then(async () => {
-        const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-        await Promise.all(clients.map((client) => {
-          const url = new URL(client.url);
-          if (!url.pathname.startsWith(new URL(PWA_ROOT).pathname)) return undefined;
-          url.searchParams.set('evotv-release', RELEASE);
-          return client.navigate(url.href);
-        }));
-      }),
+      .then(() => self.clients.claim()),
   );
 });
 

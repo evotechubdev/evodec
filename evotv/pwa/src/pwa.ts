@@ -13,7 +13,7 @@ export function registerServiceWorker(): void {
       );
 
       if (!insidePwa) return;
-      const workerUrl = `${import.meta.env.BASE_URL}../sw.js?v=10`;
+      const workerUrl = `${import.meta.env.BASE_URL}../sw.js?v=11`;
       const registration = await navigator.serviceWorker.register(workerUrl, {
         scope: pwaScope,
         updateViaCache: 'none',
