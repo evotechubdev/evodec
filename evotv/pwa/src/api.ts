@@ -215,6 +215,7 @@ export class EvoApi {
         kind: item.kind,
         id: item.id,
         extension,
+        transport: 'web',
       }),
     });
     const source = text(data.url);

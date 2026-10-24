@@ -1,0 +1,61 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
+import relay from '../worker/index.js';
+
+function packSource(publicKey, payload) {
+  const key = crypto.randomBytes(32);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv);
+  const data = Buffer.concat([cipher.update(JSON.stringify(payload), 'utf8'), cipher.final()]);
+  const envelope = {
+    version: 1,
+    key: crypto.publicEncrypt({ key: publicKey, oaepHash: 'sha256', padding: crypto.constants.RSA_PKCS1_OAEP_PADDING }, key).toString('base64url'),
+    iv: iv.toString('base64url'),
+    tag: cipher.getAuthTag().toString('base64url'),
+    data: data.toString('base64url'),
+  };
+  return Buffer.from(JSON.stringify(envelope)).toString('base64url');
+}
+
+test('relay validates the session and streams an encrypted HTTP target', async (t) => {
+  const keys = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const privateKey = keys.privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64');
+  const packed = packSource(keys.publicKey, {
+    target: 'http://provider.example/live/user/pass/42.ts',
+    kind: 'live', id: '42', extension: 'ts', profile: 1, expiresAt: Date.now() + 60_000,
+  });
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const calls = [];
+  globalThis.fetch = async (input) => {
+    const url = String(input); calls.push(url);
+    if (url.includes('/validate?relay=')) return new Response(null, { status: 204 });
+    assert.equal(url, 'http://provider.example/live/user/pass/42.ts');
+    return new Response('mpeg-ts', { headers: { 'content-type': 'video/mp2t' } });
+  };
+  const response = await relay.fetch(
+    new Request(`https://relay.example/stream/session-ticket/${packed}/42.ts`),
+    { WEB_RELAY_PRIVATE_KEY: privateKey, AUTH_BACKEND_URL: 'https://backend.example' },
+    {},
+  );
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'video/mp2t');
+  assert.equal(await response.text(), 'mpeg-ts');
+  assert.equal(calls.length, 2);
+});
+
+test('relay refuses a source envelope that does not match the requested file', async () => {
+  const keys = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const privateKey = keys.privateKey.export({ type: 'pkcs8', format: 'der' }).toString('base64');
+  const packed = packSource(keys.publicKey, {
+    target: 'http://provider.example/live/user/pass/42.ts',
+    kind: 'live', id: '42', extension: 'ts', profile: 1, expiresAt: Date.now() + 60_000,
+  });
+  const response = await relay.fetch(
+    new Request(`https://relay.example/stream/session-ticket/${packed}/99.ts`),
+    { WEB_RELAY_PRIVATE_KEY: privateKey, AUTH_BACKEND_URL: 'https://backend.example' },
+    {},
+  );
+  assert.equal(response.status, 401);
+});
