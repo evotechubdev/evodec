@@ -1,13 +1,14 @@
 import crypto from 'node:crypto';
 import dns from 'node:dns/promises';
 import http from 'node:http';
+import https from 'node:https';
 import net from 'node:net';
 import { once } from 'node:events';
 import { pathToFileURL } from 'node:url';
 
 const DEFAULT_ALLOWED_ORIGIN = 'https://evotechubdev.github.io';
 const DEFAULT_BACKEND_ORIGIN = 'https://multimideas-evo-backend.onrender.com';
-const RELAY_RELEASE = '5';
+const RELAY_RELEASE = '6';
 const SESSION_HEADERS = [
   'x-evo-session',
   'x-evo-profile',
@@ -42,6 +43,7 @@ export function createRelayServer(options = {}) {
   const backendOrigin = normalizeOrigin(options.backendOrigin || process.env.AUTH_BACKEND_ORIGIN || DEFAULT_BACKEND_ORIGIN);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   const assertTarget = options.assertTarget || assertPublicHttpUrl;
+  const nativeStreamer = options.nativeStreamer || streamNativeHttp;
   const resolvedTargets = new Map();
 
   return http.createServer(async (request, response) => {
@@ -84,7 +86,7 @@ export function createRelayServer(options = {}) {
         while (resolvedTargets.size > MEDIA_CACHE_MAX) resolvedTargets.delete(resolvedTargets.keys().next().value);
       }
 
-      await streamProvider(request, response, cached.target, fetchImpl, assertTarget);
+      await streamProvider(request, response, cached.target, fetchImpl, assertTarget, nativeStreamer);
     } catch (reason) {
       if (response.headersSent) {
         response.destroy();
@@ -160,7 +162,7 @@ async function resolveSignedTarget(openUrl, fetchImpl, assertTarget) {
   return target.href;
 }
 
-async function streamProvider(request, response, target, fetchImpl, assertTarget) {
+async function streamProvider(request, response, target, fetchImpl, assertTarget, nativeStreamer) {
   let lastStatus = 0;
   let lastError;
   try {
@@ -204,6 +206,19 @@ async function streamProvider(request, response, target, fetchImpl, assertTarget
     }
   }
   try {
+    const native = await nativeStreamer(request, response, target, assertTarget);
+    if (native.started) {
+      console.log('provider_native_http', `status=started upstream=${native.status}`);
+      return;
+    }
+    if (native.status) lastStatus = native.status;
+    console.warn('provider_native_http_rejected', `status=${native.status}`);
+  } catch (reason) {
+    console.warn('provider_native_http_failed', `error=${reason instanceof Error ? reason.name : 'UnknownError'}`);
+    if (response.headersSent) throw reason;
+    lastError = reason;
+  }
+  try {
     const hls = await streamHlsFallback(request, response, target, fetchImpl, assertTarget);
     if (hls.started) {
       console.log('provider_hls_fallback', `status=started segments=${hls.segments}`);
@@ -243,6 +258,104 @@ async function authorizeProvider(target, fetchImpl, assertTarget) {
   const status = result.status;
   await result.body?.cancel().catch(() => {});
   return status;
+}
+
+export async function streamNativeHttp(request, response, target, assertTarget) {
+  if (request.method !== 'GET') return { started: false, status: 0 };
+  let current = new URL(target);
+  for (let redirects = 0; redirects <= REDIRECT_LIMIT; redirects++) {
+    await assertTarget(current);
+    const opened = await openNativeHttp(current);
+    const status = opened.upstream.statusCode || 0;
+    if (REDIRECT_STATUSES.has(status)) {
+      const location = opened.upstream.headers.location;
+      opened.upstream.resume();
+      opened.cleanup();
+      if (!location || redirects === REDIRECT_LIMIT) return { started: false, status };
+      current = new URL(location, current);
+      continue;
+    }
+    if (status < 200 || status >= 300 || !opened.first?.length) {
+      opened.upstream.resume();
+      opened.cleanup();
+      return { started: false, status };
+    }
+
+    const cancel = () => opened.cancel();
+    response.once('close', cancel);
+    response.setHeader('content-type', opened.upstream.headers['content-type'] || 'video/mp2t');
+    response.setHeader('cache-control', 'private, no-store');
+    for (const name of ['content-range', 'accept-ranges', 'etag', 'last-modified']) {
+      const value = opened.upstream.headers[name];
+      if (value) response.setHeader(name, value);
+    }
+    response.writeHead(status);
+    try {
+      if (!response.write(opened.first)) await once(response, 'drain');
+      opened.upstream.resume();
+      for await (const chunk of opened.upstream) {
+        if (!response.write(chunk)) await once(response, 'drain');
+      }
+      response.end();
+    } finally {
+      response.off('close', cancel);
+      opened.cleanup();
+    }
+    return { started: true, status };
+  }
+  return { started: false, status: 0 };
+}
+
+function openNativeHttp(target) {
+  return new Promise((resolve, reject) => {
+    const transport = target.protocol === 'https:' ? https : http;
+    let settled = false;
+    let upstream;
+    const outgoing = transport.request(target, {
+      method: 'GET',
+      headers: {
+        Accept: '*/*',
+        Connection: 'close',
+        'User-Agent': PLAYER_ATTEMPTS[0].userAgent,
+      },
+    });
+    const finish = (callback, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      callback(value);
+    };
+    const timer = setTimeout(() => outgoing.destroy(Object.assign(new Error('native HTTP timeout'), { name: 'TimeoutError' })), OPEN_TIMEOUT_MS);
+    outgoing.once('error', (reason) => finish(reject, reason));
+    outgoing.once('response', (value) => {
+      upstream = value;
+      const status = upstream.statusCode || 0;
+      if (REDIRECT_STATUSES.has(status) || status < 200 || status >= 300) {
+        finish(resolve, nativeResult(outgoing, upstream, null));
+        return;
+      }
+      upstream.once('error', (reason) => finish(reject, reason));
+      upstream.once('end', () => finish(reject, new Error('native HTTP body empty')));
+      upstream.once('data', (first) => {
+        upstream.pause();
+        outgoing.setTimeout(0);
+        finish(resolve, nativeResult(outgoing, upstream, first));
+      });
+    });
+    outgoing.end();
+  });
+}
+
+function nativeResult(outgoing, upstream, first) {
+  return {
+    upstream,
+    first,
+    cancel: () => {
+      upstream.destroy();
+      outgoing.destroy();
+    },
+    cleanup: () => outgoing.setTimeout(0),
+  };
 }
 
 async function streamHlsFallback(request, response, target, fetchImpl, assertTarget) {

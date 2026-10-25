@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { afterEach, test } from 'node:test';
-import { createRelayServer } from '../src/server.mjs';
+import { createRelayServer, streamNativeHttp } from '../src/server.mjs';
 
 const servers = [];
 const sessionHeaders = {
@@ -21,6 +22,7 @@ async function start(options = {}) {
     backendOrigin: 'https://backend.example',
     allowedOrigin: 'https://evotechubdev.github.io',
     assertTarget: async () => {},
+    nativeStreamer: async () => ({ started: false, status: 500 }),
     ...options,
   });
   servers.push(server);
@@ -40,7 +42,7 @@ test('health is public and reveals no provider data', async () => {
   assert.deepEqual(await response.json(), {
     ok: true,
     service: 'evotv-render-media-relay',
-    release: '5',
+    release: '6',
     region: 'configured-by-render',
   });
 });
@@ -145,6 +147,37 @@ test('falls back from a rejected TS stream to HLS segments', async () => {
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('content-type'), 'video/mp2t');
   assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [0x47, 0x40, 0x00, 0x10]);
+});
+
+test('uses a minimal native HTTP request when fetch is rejected', async () => {
+  let receivedHeaders;
+  const provider = http.createServer((request, response) => {
+    receivedHeaders = request.headers;
+    response.writeHead(200, { 'content-type': 'video/mp2t' });
+    response.end(Buffer.from([0x47, 0x40, 0x00, 0x10]));
+  });
+  servers.push(provider);
+  await new Promise((resolve) => provider.listen(0, '127.0.0.1', resolve));
+  const providerPort = provider.address().port;
+  const openUrl = 'https://backend.example/open-stream/native-ticket/88.ts';
+  const providerUrl = `http://127.0.0.1:${providerPort}/live/user/password/88.ts`;
+  const fetchImpl = async (input) => {
+    const url = String(input);
+    if (url === openUrl) return new Response(null, { status: 302, headers: { location: providerUrl } });
+    if (url.startsWith(`http://127.0.0.1:${providerPort}/player_api.php?`)) {
+      return Response.json({ user_info: { auth: 1 } });
+    }
+    if (url === providerUrl) return new Response(null, { status: 500 });
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  const relay = await start({ fetchImpl, nativeStreamer: streamNativeHttp });
+  const response = await fetch(`${relay}${relayPath(openUrl, '88.ts')}`, { headers: sessionHeaders });
+  assert.equal(response.status, 200);
+  assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [0x47, 0x40, 0x00, 0x10]);
+  assert.equal(receivedHeaders['user-agent'], 'VLC/3.0.21 LibVLC/3.0.21');
+  assert.equal(receivedHeaders['sec-fetch-mode'], undefined);
+  assert.equal(receivedHeaders['accept-language'], undefined);
+  assert.equal(receivedHeaders.range, undefined);
 });
 
 test('rejects a URL that is not an exact backend open-stream ticket', async () => {
