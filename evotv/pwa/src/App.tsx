@@ -8,7 +8,6 @@ import {
 } from 'react';
 
 import { EvoApi, EvoApiError } from './api';
-import { appConfig } from './config';
 import { registerSecureMedia, unregisterSecureMedia } from './secure-media';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
@@ -417,7 +416,8 @@ function PlayerApp() {
 
   async function playItem(item: CatalogItem, returnTo: 'catalog' | 'series') {
     if (!auth || !profileSession || busy) return;
-    const directPlayback = !appConfig.mediaRelayUrl && usesNativeDirectPlayback();
+    const relayTest = new URLSearchParams(window.location.search).get('relay-player') === '1';
+    const directPlayback = usesNativeDirectPlayback() && !relayTest;
     const nativePlayerWindow = directPlayback ? openNativePlayerWindow() : null;
     setBusy(true);
     setError('');
