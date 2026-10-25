@@ -7,6 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 const DEFAULT_ALLOWED_ORIGIN = 'https://evotechubdev.github.io';
 const DEFAULT_BACKEND_ORIGIN = 'https://multimideas-evo-backend.onrender.com';
+const RELAY_RELEASE = '4';
 const SESSION_HEADERS = [
   'x-evo-session',
   'x-evo-profile',
@@ -50,6 +51,7 @@ export function createRelayServer(options = {}) {
         return sendJson(response, 200, {
           ok: true,
           service: 'evotv-render-media-relay',
+          release: RELAY_RELEASE,
           region: process.env.RENDER_REGION || 'configured-by-render',
         });
       }
@@ -160,6 +162,12 @@ async function resolveSignedTarget(openUrl, fetchImpl, assertTarget) {
 async function streamProvider(request, response, target, fetchImpl, assertTarget) {
   let lastStatus = 0;
   let lastError;
+  try {
+    const authStatus = await authorizeProvider(target, fetchImpl, assertTarget);
+    console.log('provider_account_check', `status=${authStatus}`);
+  } catch (reason) {
+    console.warn('provider_account_check_failed', `error=${reason instanceof Error ? reason.name : 'UnknownError'}`);
+  }
   for (let index = 0; index < PLAYER_ATTEMPTS.length; index++) {
     const attempt = PLAYER_ATTEMPTS[index];
     try {
@@ -199,6 +207,29 @@ async function streamProvider(request, response, target, fetchImpl, assertTarget
     throw failure(502, 'IPTV_UPSTREAM_TIMEOUT', 'O servidor IPTV não iniciou a transmissão a tempo.');
   }
   throw failure(502, 'IPTV_UPSTREAM_UNREACHABLE', 'O relay não conseguiu abrir a conexão com o servidor IPTV.');
+}
+
+async function authorizeProvider(target, fetchImpl, assertTarget) {
+  const media = new URL(target);
+  const match = /\/(?:live|movie|series)\/([^/]+)\/([^/]+)\/[^/]+$/.exec(media.pathname);
+  if (!match) return 0;
+  const basePath = media.pathname.slice(0, match.index).replace(/\/$/, '');
+  const accountUrl = new URL(`${basePath}/player_api.php`, media.origin);
+  accountUrl.searchParams.set('username', decodeURIComponent(match[1]));
+  accountUrl.searchParams.set('password', decodeURIComponent(match[2]));
+  await assertTarget(accountUrl);
+  const result = await fetchWithTimeout(fetchImpl, accountUrl, {
+    method: 'GET',
+    redirect: 'manual',
+    headers: {
+      accept: 'application/json',
+      'accept-encoding': 'identity',
+      'user-agent': PLAYER_ATTEMPTS[0].userAgent,
+    },
+  }, 8_000);
+  const status = result.status;
+  await result.body?.cancel().catch(() => {});
+  return status;
 }
 
 async function openProvider(initialTarget, request, response, attempt, fetchImpl, assertTarget) {

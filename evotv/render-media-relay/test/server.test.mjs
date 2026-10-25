@@ -40,6 +40,7 @@ test('health is public and reveals no provider data', async () => {
   assert.deepEqual(await response.json(), {
     ok: true,
     service: 'evotv-render-media-relay',
+    release: '4',
     region: 'configured-by-render',
   });
 });
@@ -59,6 +60,9 @@ test('resolves a signed backend ticket and streams media with range support', as
     const url = String(input);
     calls.push({ url, headers: new Headers(init.headers) });
     if (url === openUrl) return new Response(null, { status: 302, headers: { location: providerUrl } });
+    if (url.startsWith('http://provider.example/player_api.php?')) {
+      return Response.json({ user_info: { auth: 1 } });
+    }
     if (url === providerUrl) {
       return new Response(new Uint8Array([0x47, 0x40, 0x00, 0x10]), {
         status: 206,
@@ -72,13 +76,15 @@ test('resolves a signed backend ticket and streams media with range support', as
   assert.equal(first.status, 206);
   assert.equal(first.headers.get('content-type'), 'video/mp2t');
   assert.deepEqual([...new Uint8Array(await first.arrayBuffer())], [0x47, 0x40, 0x00, 0x10]);
-  assert.equal(calls[1].headers.get('range'), 'bytes=0-');
+  const firstProviderCall = calls.find((call) => call.url === providerUrl);
+  assert.equal(firstProviderCall.headers.get('range'), 'bytes=0-');
 
   const second = await fetch(`${relay}${relayPath(openUrl)}`, { headers: { ...sessionHeaders, range: 'bytes=2-' } });
   assert.equal(second.status, 206);
   await second.body.cancel();
   assert.equal(calls.filter((call) => call.url === openUrl).length, 1, 'the one-use backend ticket must only be resolved once');
-  assert.equal(calls.at(-1).headers.get('range'), 'bytes=2-');
+  assert.equal(calls.filter((call) => call.url === providerUrl).at(-1).headers.get('range'), 'bytes=2-');
+  assert.ok(calls.some((call) => call.url.startsWith('http://provider.example/player_api.php?')));
 });
 
 test('opens a live stream without forcing Range on the first attempt', async () => {
@@ -89,6 +95,9 @@ test('opens a live stream without forcing Range on the first attempt', async () 
     const url = String(input);
     calls.push({ url, headers: new Headers(init.headers) });
     if (url === openUrl) return new Response(null, { status: 302, headers: { location: providerUrl } });
+    if (url.startsWith('http://provider.example/player_api.php?')) {
+      return Response.json({ user_info: { auth: 1 } });
+    }
     if (url === providerUrl && !new Headers(init.headers).has('range')) {
       return new Response(new Uint8Array([0x47, 0x40, 0x00, 0x10]), {
         status: 200,
@@ -101,7 +110,7 @@ test('opens a live stream without forcing Range on the first attempt', async () 
   const response = await fetch(`${relay}${relayPath(openUrl, '55.ts')}`, { headers: sessionHeaders });
   assert.equal(response.status, 200);
   await response.body.cancel();
-  assert.equal(calls[1].headers.get('range'), null);
+  assert.equal(calls.find((call) => call.url === providerUrl).headers.get('range'), null);
   assert.equal(calls.filter((call) => call.url === providerUrl).length, 1);
 });
 
