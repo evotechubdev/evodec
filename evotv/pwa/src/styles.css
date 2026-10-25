@@ -26,6 +26,17 @@
   box-sizing: border-box;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 html {
   min-width: 320px;
   min-height: 100%;
@@ -687,6 +698,124 @@ input:disabled {
   box-shadow: 0 8px 20px rgba(0, 105, 255, 0.22);
 }
 
+.catalog-tools {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 15px;
+}
+
+.catalog-search {
+  display: flex;
+  align-items: center;
+  width: min(100%, 650px);
+  min-height: 48px;
+  padding-left: 15px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(15, 20, 32, 0.88);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+
+.catalog-search:focus-within {
+  border-color: var(--line-bright);
+  box-shadow: 0 0 0 3px rgba(50, 215, 255, 0.07);
+}
+
+.search-icon {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 1.4rem;
+  line-height: 1;
+  transform: rotate(-20deg);
+}
+
+.catalog-search input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 12px;
+  border: 0;
+  outline: 0;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+}
+
+.catalog-search input::placeholder { color: #788398; }
+.catalog-search input::-webkit-search-cancel-button { display: none; }
+
+.clear-search {
+  display: grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  place-items: center;
+  border: 0;
+  border-radius: 9px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 1.45rem;
+  cursor: pointer;
+}
+
+.clear-search:hover,
+.clear-search:focus { color: #fff; background: rgba(255, 255, 255, 0.06); }
+
+.search-button {
+  flex: 0 0 auto;
+  min-height: 46px;
+  border-radius: 11px;
+}
+
+.catalog-summary {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.category-strip {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 25px;
+  padding: 4px 1px 10px;
+  overflow-x: auto;
+  scrollbar-color: #52627b #151922;
+  scrollbar-width: thin;
+}
+
+.category-strip::-webkit-scrollbar { height: 7px; }
+.category-strip::-webkit-scrollbar-track { border-radius: 8px; background: #151922; }
+.category-strip::-webkit-scrollbar-thumb { border-radius: 8px; background: #52627b; }
+
+.category-chip {
+  flex: 0 0 auto;
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-radius: 19px;
+  color: var(--muted);
+  background: rgba(15, 20, 32, 0.88);
+  font: inherit;
+  font-size: 0.72rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.category-chip:hover:not(:disabled),
+.category-chip:focus:not(:disabled) { color: #fff; border-color: var(--line-bright); }
+
+.category-chip.active {
+  color: #fff;
+  border-color: rgba(0, 158, 232, 0.65);
+  background: rgba(0, 126, 237, 0.2);
+  box-shadow: 0 7px 18px rgba(0, 105, 255, 0.14);
+}
+
 .catalog-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -710,6 +839,19 @@ input:disabled {
   border-color: var(--line-bright);
   box-shadow: 0 18px 45px rgba(0, 78, 188, 0.2);
   transform: translateY(-5px);
+}
+
+.catalog-card:disabled { cursor: wait; opacity: 0.72; }
+
+.load-more-row {
+  display: flex;
+  justify-content: center;
+  padding: 28px 0 4px;
+}
+
+.load-more-button {
+  min-width: 220px;
+  gap: 9px;
 }
 
 .poster {
@@ -1063,6 +1205,16 @@ input:disabled {
   .media-tabs {
     align-self: flex-start;
   }
+
+  .catalog-tools {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 9px;
+  }
+
+  .catalog-search { width: 100%; }
+
+  .catalog-summary { align-self: flex-end; }
 }
 
 @media (max-width: 640px) {
@@ -1138,6 +1290,20 @@ input:disabled {
     flex: 1;
     padding: 0 10px;
   }
+
+  .catalog-search {
+    flex-wrap: wrap;
+    padding: 7px;
+  }
+
+  .catalog-search input { padding-right: 4px; }
+
+  .search-button {
+    flex-basis: 100%;
+    width: 100%;
+  }
+
+  .category-strip { margin-bottom: 18px; }
 
   .series-hero {
     grid-template-columns: 105px minmax(0, 1fr);

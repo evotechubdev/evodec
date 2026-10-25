@@ -14,6 +14,18 @@ export const mediaSections: Record<MediaKind, string> = {
   series: 'series',
 };
 
+export const mediaCategoryActions: Record<MediaKind, string> = {
+  live: 'get_live_categories',
+  movie: 'get_vod_categories',
+  series: 'get_series_categories',
+};
+
+export const primaryCategories: Record<MediaKind, CatalogCategory> = {
+  live: { id: 'evo_channel_list', name: 'Canais Favoritos' },
+  movie: { id: 'evo_recent', name: 'Recém Adicionados' },
+  series: { id: 'evo_recent', name: 'Recém Adicionados' },
+};
+
 export interface AuthSession {
   idToken: string;
   refreshToken: string;
@@ -46,6 +58,18 @@ export interface CatalogItem {
   extension: string;
   imageUrl: string;
   kind: MediaKind;
+}
+
+export interface CatalogCategory {
+  id: string;
+  name: string;
+}
+
+export interface CatalogRequest {
+  category?: string;
+  query?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface CatalogPage {

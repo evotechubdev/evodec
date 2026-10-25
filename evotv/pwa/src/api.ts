@@ -2,14 +2,17 @@ import { appConfig } from './config';
 import {
   type Account,
   type AuthSession,
+  type CatalogCategory,
   type CatalogItem,
   type CatalogPage,
+  type CatalogRequest,
   type MediaKind,
   type PlaybackGrant,
   type ProfileSession,
   type SeriesDetails,
   type SeriesEpisode,
   type SeriesSeason,
+  mediaCategoryActions,
   mediaSections,
 } from './types';
 
@@ -131,16 +134,17 @@ export class EvoApi {
     sessionToken: string,
     profile: number,
     kind: MediaKind,
+    request: CatalogRequest = {},
   ): Promise<CatalogPage> {
     const data = await this.backend('/api/catalog', token, {
       method: 'POST',
       headers: sessionHeaders(sessionToken, profile),
       body: JSON.stringify({
         section: mediaSections[kind],
-        category: 'all',
-        page: 1,
-        limit: 48,
-        query: '',
+        category: request.category || 'all',
+        page: clamp(request.page ?? 1, 1, 100_000),
+        limit: clamp(request.limit ?? 48, 12, 60),
+        query: (request.query || '').trim().slice(0, 100),
         adult: false,
       }),
     });
@@ -155,6 +159,32 @@ export class EvoApi {
       total: integer(data.total, items.length),
       hasMore: data.hasMore === true,
     };
+  }
+
+  async categories(
+    token: string,
+    sessionToken: string,
+    profile: number,
+    kind: MediaKind,
+  ): Promise<CatalogCategory[]> {
+    const data = await this.backendValue('/api/iptv', token, {
+      method: 'POST',
+      headers: sessionHeaders(sessionToken, profile),
+      body: JSON.stringify({
+        action: mediaCategoryActions[kind],
+        extra: {},
+        adult: false,
+      }),
+    });
+    if (!Array.isArray(data)) return [];
+    const seen = new Set<string>();
+    return data.flatMap((raw) => {
+      const category = object(raw);
+      const id = text(category?.category_id).trim();
+      if (!id || seen.has(id)) return [];
+      seen.add(id);
+      return [{ id, name: text(category?.category_name).trim() || 'Sem nome' }];
+    });
   }
 
   async seriesDetails(
@@ -299,6 +329,19 @@ export class EvoApi {
     token: string,
     init: RequestInit = {},
   ): Promise<JsonObject> {
+    const data = await this.backendValue(path, token, init);
+    const result = object(data);
+    if (!result) {
+      throw new EvoApiError('O serviço retornou uma resposta inválida.');
+    }
+    return result;
+  }
+
+  private async backendValue(
+    path: string,
+    token: string,
+    init: RequestInit = {},
+  ): Promise<unknown> {
     let response: Response;
     try {
       const headers = backendHeaders(token, init.headers);
@@ -314,9 +357,9 @@ export class EvoApi {
         'Não foi possível acessar o servidor. Verifique a conexão e o CORS do backend.',
       );
     }
-    const data = await objectResponse(response);
+    const data = await jsonResponse(response);
     if (!response.ok) {
-      throw new EvoApiError(backendError(data, response.status));
+      throw new EvoApiError(backendError(object(data) ?? {}, response.status));
     }
     return data;
   }
@@ -433,10 +476,14 @@ async function fetchWithTimeout(
 }
 
 async function objectResponse(response: Response): Promise<JsonObject> {
+  return object(await jsonResponse(response)) ?? {};
+}
+
+async function jsonResponse(response: Response): Promise<unknown> {
   const body = await response.text();
   if (!body.trim()) return {};
   try {
-    return object(JSON.parse(body)) ?? {};
+    return JSON.parse(body) as unknown;
   } catch {
     throw new EvoApiError('O serviço retornou uma resposta inválida.');
   }

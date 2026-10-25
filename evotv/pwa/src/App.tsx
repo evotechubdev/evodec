@@ -12,6 +12,7 @@ import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
   type Account,
   type AuthSession,
+  type CatalogCategory,
   type CatalogItem,
   type MediaKind,
   type ProfileSession,
@@ -20,6 +21,7 @@ import {
   episodeAsCatalogItem,
   mediaKinds,
   mediaLabels,
+  primaryCategories,
   profileName,
 } from './types';
 
@@ -264,13 +266,21 @@ function PlayerApp() {
   const [profileSession, setProfileSession] = useState<ProfileSession | null>(null);
   const [selectedProfile, setSelectedProfile] = useState(0);
   const [selectedKind, setSelectedKind] = useState<MediaKind>('live');
+  const [categories, setCategories] = useState<CatalogCategory[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState(primaryCategories.live.id);
+  const [searchQuery, setSearchQuery] = useState('');
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
+  const [catalogPage, setCatalogPage] = useState(1);
+  const [catalogTotal, setCatalogTotal] = useState(0);
+  const [catalogHasMore, setCatalogHasMore] = useState(false);
+  const [catalogLoadingMore, setCatalogLoadingMore] = useState(false);
   const [seriesItem, setSeriesItem] = useState<CatalogItem | null>(null);
   const [seriesDetails, setSeriesDetails] = useState<SeriesDetails | null>(null);
   const [showInstallHelp, setShowInstallHelp] = useState(
     shouldShowInstallHelpFromRedirect,
   );
   const profileSelectionInFlight = useRef(false);
+  const catalogRequestId = useRef(0);
 
   useTvSpatialNavigation();
 
@@ -341,16 +351,23 @@ function PlayerApp() {
     setError('');
     try {
       const nextSession = await api.selectProfile(auth.idToken, profile);
-      const page = await api.catalog(
-        auth.idToken,
-        nextSession.sessionToken,
-        profile,
-        'live',
-      );
+      const category = primaryCategories.live.id;
+      const [nextCategories, page] = await Promise.all([
+        api.categories(auth.idToken, nextSession.sessionToken, profile, 'live'),
+        api.catalog(auth.idToken, nextSession.sessionToken, profile, 'live', {
+          category,
+        }),
+      ]);
       setProfileSession(nextSession);
       setSelectedProfile(profile);
       setSelectedKind('live');
+      setCategories(nextCategories);
+      setSelectedCategory(category);
+      setSearchQuery('');
       setCatalog(page.items);
+      setCatalogPage(page.page);
+      setCatalogTotal(page.total);
+      setCatalogHasMore(page.hasMore);
       setScreen('catalog');
     } catch (reason) {
       setProfileSession(null);
@@ -364,8 +381,58 @@ function PlayerApp() {
 
   async function changeKind(kind: MediaKind) {
     if (!auth || !profileSession || busy || kind === selectedKind) return;
+    const requestId = ++catalogRequestId.current;
+    const category = primaryCategories[kind].id;
     setSelectedKind(kind);
+    setCategories([]);
+    setSelectedCategory(category);
+    setSearchQuery('');
     setCatalog([]);
+    setCatalogTotal(0);
+    setCatalogHasMore(false);
+    setCatalogLoadingMore(false);
+    setBusy(true);
+    setError('');
+    try {
+      const [nextCategories, page] = await Promise.all([
+        api.categories(
+          auth.idToken,
+          profileSession.sessionToken,
+          selectedProfile,
+          kind,
+        ),
+        api.catalog(
+          auth.idToken,
+          profileSession.sessionToken,
+          selectedProfile,
+          kind,
+          { category },
+        ),
+      ]);
+      if (requestId !== catalogRequestId.current) return;
+      setCategories(nextCategories);
+      setCatalog(page.items);
+      setCatalogPage(page.page);
+      setCatalogTotal(page.total);
+      setCatalogHasMore(page.hasMore);
+    } catch (reason) {
+      if (requestId !== catalogRequestId.current) return;
+      setError(readableError(reason));
+    } finally {
+      if (requestId === catalogRequestId.current) setBusy(false);
+    }
+  }
+
+  async function filterCatalog(category: string, query: string) {
+    if (!auth || !profileSession || busy) return;
+    const requestId = ++catalogRequestId.current;
+    const normalizedQuery = query.trim().slice(0, 100);
+    setSelectedCategory(category);
+    setSearchQuery(normalizedQuery);
+    setCatalog([]);
+    setCatalogTotal(0);
+    setCatalogHasMore(false);
+    setCatalogLoadingMore(false);
     setBusy(true);
     setError('');
     try {
@@ -373,13 +440,62 @@ function PlayerApp() {
         auth.idToken,
         profileSession.sessionToken,
         selectedProfile,
-        kind,
+        selectedKind,
+        { category, query: normalizedQuery },
       );
+      if (requestId !== catalogRequestId.current) return;
       setCatalog(page.items);
+      setCatalogPage(page.page);
+      setCatalogTotal(page.total);
+      setCatalogHasMore(page.hasMore);
     } catch (reason) {
+      if (requestId !== catalogRequestId.current) return;
       setError(readableError(reason));
     } finally {
-      setBusy(false);
+      if (requestId === catalogRequestId.current) setBusy(false);
+    }
+  }
+
+  async function loadMoreCatalog() {
+    if (
+      !auth ||
+      !profileSession ||
+      busy ||
+      catalogLoadingMore ||
+      !catalogHasMore
+    ) return;
+    const requestId = catalogRequestId.current;
+    const nextPage = catalogPage + 1;
+    setCatalogLoadingMore(true);
+    setError('');
+    try {
+      const page = await api.catalog(
+        auth.idToken,
+        profileSession.sessionToken,
+        selectedProfile,
+        selectedKind,
+        {
+          category: selectedCategory,
+          query: searchQuery,
+          page: nextPage,
+        },
+      );
+      if (requestId !== catalogRequestId.current) return;
+      setCatalog((current) => {
+        const known = new Set(current.map((item) => `${item.kind}:${item.id}`));
+        return [
+          ...current,
+          ...page.items.filter((item) => !known.has(`${item.kind}:${item.id}`)),
+        ];
+      });
+      setCatalogPage(page.page);
+      setCatalogTotal(page.total);
+      setCatalogHasMore(page.hasMore);
+    } catch (reason) {
+      if (requestId !== catalogRequestId.current) return;
+      setError(readableError(reason));
+    } finally {
+      if (requestId === catalogRequestId.current) setCatalogLoadingMore(false);
     }
   }
 
@@ -437,7 +553,14 @@ function PlayerApp() {
     const currentProfile = selectedProfile;
     setProfileSession(null);
     setSelectedProfile(0);
+    catalogRequestId.current += 1;
+    setCategories([]);
+    setSelectedCategory(primaryCategories.live.id);
+    setSearchQuery('');
     setCatalog([]);
+    setCatalogTotal(0);
+    setCatalogHasMore(false);
+    setCatalogLoadingMore(false);
     setSeriesItem(null);
     setSeriesDetails(null);
     if (currentAuth && currentSession && currentProfile > 0) {
@@ -482,6 +605,9 @@ function PlayerApp() {
     setError(message);
     setProfileSession(null);
     setSelectedProfile(0);
+    catalogRequestId.current += 1;
+    setCategories([]);
+    setSearchQuery('');
     setCatalog([]);
     setSeriesItem(null);
     setSeriesDetails(null);
@@ -536,11 +662,20 @@ function PlayerApp() {
         {screen === 'catalog' && (
           <CatalogScreen
             kind={selectedKind}
+            categories={categories}
+            selectedCategory={selectedCategory}
+            searchQuery={searchQuery}
             catalog={catalog}
+            total={catalogTotal}
+            hasMore={catalogHasMore}
+            loadingMore={catalogLoadingMore}
             busy={busy}
             error={error}
             onBack={backToProfiles}
             onChangeKind={changeKind}
+            onChangeCategory={(category) => void filterCatalog(category, searchQuery)}
+            onSearch={(query) => void filterCatalog(selectedCategory, query)}
+            onLoadMore={() => void loadMoreCatalog()}
             onOpen={(item) =>
               item.kind === 'series'
                 ? void openSeries(item)
@@ -745,21 +880,78 @@ function ProfilesScreen({ account, busy, error, onSelect }: {
 
 function CatalogScreen({
   kind,
+  categories,
+  selectedCategory,
+  searchQuery,
   catalog,
+  total,
+  hasMore,
+  loadingMore,
   busy,
   error,
   onBack,
   onChangeKind,
+  onChangeCategory,
+  onSearch,
+  onLoadMore,
   onOpen,
 }: {
   kind: MediaKind;
+  categories: CatalogCategory[];
+  selectedCategory: string;
+  searchQuery: string;
   catalog: CatalogItem[];
+  total: number;
+  hasMore: boolean;
+  loadingMore: boolean;
   busy: boolean;
   error: string;
   onBack(): void;
   onChangeKind(kind: MediaKind): void;
+  onChangeCategory(category: string): void;
+  onSearch(query: string): void;
+  onLoadMore(): void;
   onOpen(item: CatalogItem): void;
 }) {
+  const [searchText, setSearchText] = useState(searchQuery);
+  const loadMoreTarget = useRef<HTMLDivElement>(null);
+  const visibleCategories = useMemo(() => {
+    const primary = primaryCategories[kind];
+    const configuredPrimary = categories.find((category) => category.id === primary.id);
+    return [
+      configuredPrimary ?? primary,
+      { id: 'all', name: 'Todos' },
+      ...categories.filter(
+        (category) => category.id !== primary.id && category.id !== 'all',
+      ),
+    ];
+  }, [categories, kind]);
+
+  useEffect(() => setSearchText(searchQuery), [kind, searchQuery]);
+
+  useEffect(() => {
+    const target = loadMoreTarget.current;
+    if (!target || !hasMore || busy || loadingMore || !('IntersectionObserver' in window)) {
+      return;
+    }
+    let requested = false;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting || requested) return;
+        requested = true;
+        onLoadMore();
+      },
+      { rootMargin: '600px 0px' },
+    );
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [busy, hasMore, loadingMore, onLoadMore]);
+
+  function submitSearch(event: FormEvent) {
+    event.preventDefault();
+    onSearch(searchText);
+  }
+
   return (
     <section className="page-section catalog-section">
       <div className="section-heading">
@@ -782,27 +974,100 @@ function CatalogScreen({
           ))}
         </div>
       </div>
+
+      <div className="catalog-tools">
+        <form className="catalog-search" role="search" onSubmit={submitSearch}>
+          <label htmlFor="catalog-search-input" className="sr-only">Pesquisar mídias</label>
+          <span className="search-icon" aria-hidden="true">⌕</span>
+          <input
+            id="catalog-search-input"
+            type="search"
+            value={searchText}
+            maxLength={100}
+            placeholder={`Pesquisar ${mediaLabels[kind].toLowerCase()}...`}
+            disabled={busy}
+            onChange={(event) => setSearchText(event.currentTarget.value)}
+          />
+          {(searchText || searchQuery) && (
+            <button
+              type="button"
+              className="clear-search"
+              disabled={busy}
+              onClick={() => {
+                setSearchText('');
+                onSearch('');
+              }}
+              aria-label="Limpar pesquisa"
+            >
+              ×
+            </button>
+          )}
+          <button type="submit" className="button button-primary search-button" disabled={busy}>
+            Pesquisar mídias
+          </button>
+        </form>
+        <div className="catalog-summary" aria-live="polite">
+          {busy && !catalog.length
+            ? 'Carregando catálogo…'
+            : `${catalog.length} de ${total} ${total === 1 ? 'item' : 'itens'}`}
+        </div>
+      </div>
+
+      <div className="category-strip" aria-label="Categorias">
+        {visibleCategories.map((category) => (
+          <button
+            key={category.id}
+            type="button"
+            className={category.id === selectedCategory ? 'category-chip active' : 'category-chip'}
+            aria-pressed={category.id === selectedCategory}
+            disabled={busy}
+            onClick={() => onChangeCategory(category.id)}
+          >
+            {category.name}
+          </button>
+        ))}
+      </div>
+
       {error && <Notice tone="error">{error}</Notice>}
-      {busy ? (
+      {busy && !catalog.length ? (
         <div className="catalog-loading"><Spinner /> Carregando {mediaLabels[kind].toLowerCase()}…</div>
       ) : catalog.length ? (
-        <div className="catalog-grid">
-          {catalog.map((item) => (
-            <button
-              key={`${item.kind}-${item.id}`}
-              className="catalog-card"
-              onClick={() => onOpen(item)}
-            >
-              <Poster item={item} />
-              <span className="catalog-card-copy">
-                <strong>{item.name}</strong>
-                <small>{item.kind === 'live' ? 'AO VIVO' : mediaLabels[item.kind]}</small>
-              </span>
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="catalog-grid">
+            {catalog.map((item) => (
+              <button
+                key={`${item.kind}-${item.id}`}
+                className="catalog-card"
+                disabled={busy}
+                onClick={() => onOpen(item)}
+              >
+                <Poster item={item} />
+                <span className="catalog-card-copy">
+                  <strong>{item.name}</strong>
+                  <small>{item.kind === 'live' ? 'AO VIVO' : mediaLabels[item.kind]}</small>
+                </span>
+              </button>
+            ))}
+          </div>
+          {hasMore && (
+            <div ref={loadMoreTarget} className="load-more-row">
+              <button
+                type="button"
+                className="button button-ghost load-more-button"
+                disabled={busy || loadingMore}
+                onClick={onLoadMore}
+              >
+                {loadingMore ? <><Spinner /> Carregando mais…</> : 'Carregar mais mídias'}
+              </button>
+            </div>
+          )}
+        </>
       ) : (
-        <EmptyState>Nenhum conteúdo encontrado em {mediaLabels[kind]}.</EmptyState>
+        <EmptyState>
+          {searchQuery
+            ? `Nenhum resultado para “${searchQuery}”.`
+            : `Nenhum conteúdo encontrado em ${mediaLabels[kind]}.`}
+        </EmptyState>
       )}
     </section>
   );
