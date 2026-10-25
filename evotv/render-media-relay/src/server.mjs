@@ -20,10 +20,11 @@ const BACKEND_TIMEOUT_MS = 30_000;
 const OPEN_TIMEOUT_MS = 10_000;
 const REDIRECT_LIMIT = 3;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const PLAYER_IDENTITIES = [
-  'VLC/3.0.21 LibVLC/3.0.21',
-  'VLC/3.0.23 LibVLC/3.0.23',
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36',
+const PLAYER_ATTEMPTS = [
+  { userAgent: 'VLC/3.0.21 LibVLC/3.0.21', forceRange: false },
+  { userAgent: 'VLC/3.0.21 LibVLC/3.0.21', forceRange: true },
+  { userAgent: 'VLC/3.0.23 LibVLC/3.0.23', forceRange: false },
+  { userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/149.0.0.0 Safari/537.36', forceRange: false },
 ];
 const EXPOSED_HEADERS = [
   'content-type',
@@ -140,7 +141,7 @@ async function resolveSignedTarget(openUrl, fetchImpl, assertTarget) {
     response = await fetchWithTimeout(fetchImpl, openUrl, {
       method: 'GET',
       redirect: 'manual',
-      headers: { accept: '*/*', 'user-agent': PLAYER_IDENTITIES[0] },
+      headers: { accept: '*/*', 'user-agent': PLAYER_ATTEMPTS[0].userAgent },
     }, BACKEND_TIMEOUT_MS);
   } catch {
     throw failure(502, 'AUTH_BACKEND_UNREACHABLE', 'O relay não conseguiu validar a autorização no backend.');
@@ -159,11 +160,13 @@ async function resolveSignedTarget(openUrl, fetchImpl, assertTarget) {
 async function streamProvider(request, response, target, fetchImpl, assertTarget) {
   let lastStatus = 0;
   let lastError;
-  for (const userAgent of PLAYER_IDENTITIES) {
+  for (let index = 0; index < PLAYER_ATTEMPTS.length; index++) {
+    const attempt = PLAYER_ATTEMPTS[index];
     try {
-      const opened = await openProvider(target, request, response, userAgent, fetchImpl, assertTarget);
+      const opened = await openProvider(target, request, response, attempt, fetchImpl, assertTarget);
       lastStatus = opened.upstream.status;
       if (!opened.upstream.ok || opened.upstream.status === 416) {
+        console.warn('provider_attempt_rejected', `attempt=${index + 1} status=${opened.upstream.status} range=${attempt.forceRange ? 'forced' : request.headers.range ? 'client' : 'none'}`);
         await opened.reader?.cancel().catch(() => {});
         opened.cleanup();
         continue;
@@ -187,6 +190,7 @@ async function streamProvider(request, response, target, fetchImpl, assertTarget
       }
       return;
     } catch (reason) {
+      console.warn('provider_attempt_failed', `attempt=${index + 1} error=${reason instanceof Error ? reason.name : 'UnknownError'}`);
       lastError = reason;
     }
   }
@@ -197,7 +201,7 @@ async function streamProvider(request, response, target, fetchImpl, assertTarget
   throw failure(502, 'IPTV_UPSTREAM_UNREACHABLE', 'O relay não conseguiu abrir a conexão com o servidor IPTV.');
 }
 
-async function openProvider(initialTarget, request, response, userAgent, fetchImpl, assertTarget) {
+async function openProvider(initialTarget, request, response, attempt, fetchImpl, assertTarget) {
   const controller = new AbortController();
   const close = () => controller.abort();
   request.once('aborted', close);
@@ -215,10 +219,10 @@ async function openProvider(initialTarget, request, response, userAgent, fetchIm
       const headers = {
         accept: '*/*',
         'accept-encoding': 'identity',
-        'user-agent': userAgent,
+        'user-agent': attempt.userAgent,
       };
       if (request.headers.range) headers.range = String(request.headers.range);
-      else headers.range = 'bytes=0-';
+      else if (attempt.forceRange) headers.range = 'bytes=0-';
       if (request.headers['if-range']) headers['if-range'] = String(request.headers['if-range']);
       const upstream = await fetchImpl(current, {
         method: request.method,

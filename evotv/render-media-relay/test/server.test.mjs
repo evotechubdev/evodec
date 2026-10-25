@@ -81,6 +81,30 @@ test('resolves a signed backend ticket and streams media with range support', as
   assert.equal(calls.at(-1).headers.get('range'), 'bytes=2-');
 });
 
+test('opens a live stream without forcing Range on the first attempt', async () => {
+  const calls = [];
+  const openUrl = 'https://backend.example/open-stream/live-ticket/55.ts';
+  const providerUrl = 'http://provider.example/live/user/password/55.ts';
+  const fetchImpl = async (input, init) => {
+    const url = String(input);
+    calls.push({ url, headers: new Headers(init.headers) });
+    if (url === openUrl) return new Response(null, { status: 302, headers: { location: providerUrl } });
+    if (url === providerUrl && !new Headers(init.headers).has('range')) {
+      return new Response(new Uint8Array([0x47, 0x40, 0x00, 0x10]), {
+        status: 200,
+        headers: { 'content-type': 'video/mp2t' },
+      });
+    }
+    return new Response(null, { status: 500 });
+  };
+  const relay = await start({ fetchImpl });
+  const response = await fetch(`${relay}${relayPath(openUrl, '55.ts')}`, { headers: sessionHeaders });
+  assert.equal(response.status, 200);
+  await response.body.cancel();
+  assert.equal(calls[1].headers.get('range'), null);
+  assert.equal(calls.filter((call) => call.url === providerUrl).length, 1);
+});
+
 test('rejects a URL that is not an exact backend open-stream ticket', async () => {
   const relay = await start();
   const forged = 'https://attacker.example/open-stream/ticket/194567.ts';
