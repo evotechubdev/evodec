@@ -40,7 +40,7 @@ test('health is public and reveals no provider data', async () => {
   assert.deepEqual(await response.json(), {
     ok: true,
     service: 'evotv-render-media-relay',
-    release: '4',
+    release: '5',
     region: 'configured-by-render',
   });
 });
@@ -112,6 +112,39 @@ test('opens a live stream without forcing Range on the first attempt', async () 
   await response.body.cancel();
   assert.equal(calls.find((call) => call.url === providerUrl).headers.get('range'), null);
   assert.equal(calls.filter((call) => call.url === providerUrl).length, 1);
+});
+
+test('falls back from a rejected TS stream to HLS segments', async () => {
+  const openUrl = 'https://backend.example/open-stream/hls-ticket/77.ts';
+  const providerUrl = 'http://provider.example/live/user/password/77.ts';
+  const playlistUrl = 'http://provider.example/live/user/password/77.m3u8';
+  const segmentUrl = 'http://provider.example/live/user/password/segment-1.ts';
+  const fetchImpl = async (input) => {
+    const url = String(input);
+    if (url === openUrl) return new Response(null, { status: 302, headers: { location: providerUrl } });
+    if (url.startsWith('http://provider.example/player_api.php?')) {
+      return Response.json({ user_info: { auth: 1 } });
+    }
+    if (url === providerUrl) return new Response(null, { status: 500 });
+    if (url === playlistUrl) {
+      return new Response('#EXTM3U\n#EXT-X-TARGETDURATION:1\n#EXTINF:1,\nsegment-1.ts\n#EXT-X-ENDLIST\n', {
+        status: 200,
+        headers: { 'content-type': 'application/vnd.apple.mpegurl' },
+      });
+    }
+    if (url === segmentUrl) {
+      return new Response(new Uint8Array([0x47, 0x40, 0x00, 0x10]), {
+        status: 200,
+        headers: { 'content-type': 'video/mp2t' },
+      });
+    }
+    throw new Error(`unexpected URL: ${url}`);
+  };
+  const relay = await start({ fetchImpl });
+  const response = await fetch(`${relay}${relayPath(openUrl, '77.ts')}`, { headers: sessionHeaders });
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('content-type'), 'video/mp2t');
+  assert.deepEqual([...new Uint8Array(await response.arrayBuffer())], [0x47, 0x40, 0x00, 0x10]);
 });
 
 test('rejects a URL that is not an exact backend open-stream ticket', async () => {

@@ -7,7 +7,7 @@ import { pathToFileURL } from 'node:url';
 
 const DEFAULT_ALLOWED_ORIGIN = 'https://evotechubdev.github.io';
 const DEFAULT_BACKEND_ORIGIN = 'https://multimideas-evo-backend.onrender.com';
-const RELAY_RELEASE = '4';
+const RELAY_RELEASE = '5';
 const SESSION_HEADERS = [
   'x-evo-session',
   'x-evo-profile',
@@ -20,6 +20,7 @@ const MEDIA_CACHE_MAX = 1_000;
 const BACKEND_TIMEOUT_MS = 30_000;
 const OPEN_TIMEOUT_MS = 10_000;
 const REDIRECT_LIMIT = 3;
+const PLAYLIST_LIMIT = 1024 * 1024;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 const PLAYER_ATTEMPTS = [
   { userAgent: 'VLC/3.0.21 LibVLC/3.0.21', forceRange: false },
@@ -202,6 +203,18 @@ async function streamProvider(request, response, target, fetchImpl, assertTarget
       lastError = reason;
     }
   }
+  try {
+    const hls = await streamHlsFallback(request, response, target, fetchImpl, assertTarget);
+    if (hls.started) {
+      console.log('provider_hls_fallback', `status=started segments=${hls.segments}`);
+      return;
+    }
+    console.warn('provider_hls_fallback_rejected', `status=${hls.status}`);
+  } catch (reason) {
+    console.warn('provider_hls_fallback_failed', `error=${reason instanceof Error ? reason.name : 'UnknownError'}`);
+    if (response.headersSent) throw reason;
+    lastError = reason;
+  }
   if (lastStatus) throw failure(502, 'IPTV_UPSTREAM_FAILED', `O provedor recusou a mídia (HTTP ${lastStatus}).`);
   if (lastError?.name === 'AbortError' || lastError?.name === 'TimeoutError') {
     throw failure(502, 'IPTV_UPSTREAM_TIMEOUT', 'O servidor IPTV não iniciou a transmissão a tempo.');
@@ -232,6 +245,159 @@ async function authorizeProvider(target, fetchImpl, assertTarget) {
   return status;
 }
 
+async function streamHlsFallback(request, response, target, fetchImpl, assertTarget) {
+  if (request.method !== 'GET') return { started: false, status: 0, segments: 0 };
+  const hlsTarget = new URL(target);
+  if (!/\.ts$/i.test(hlsTarget.pathname)) return { started: false, status: 0, segments: 0 };
+  hlsTarget.pathname = hlsTarget.pathname.replace(/\.ts$/i, '.m3u8');
+
+  let playlistUrl = hlsTarget.href;
+  let playlist;
+  for (let depth = 0; depth < 3; depth++) {
+    playlist = await fetchPlaylist(playlistUrl, fetchImpl, assertTarget);
+    if (!playlist.ok) return { started: false, status: playlist.status, segments: 0 };
+    const parsed = parsePlaylist(playlist.text, playlist.url);
+    if (!parsed.master) break;
+    if (!parsed.resources.length) return { started: false, status: 502, segments: 0 };
+    playlistUrl = parsed.resources[0];
+  }
+
+  const seen = new Set();
+  let started = false;
+  let segmentCount = 0;
+  let firstPlaylist = true;
+  while (!response.destroyed && !response.writableEnded) {
+    if (!playlist?.ok) playlist = await fetchPlaylist(playlistUrl, fetchImpl, assertTarget);
+    if (!playlist.ok) {
+      if (!started) return { started: false, status: playlist.status, segments: 0 };
+      throw new Error(`HLS playlist failed with ${playlist.status}`);
+    }
+    const parsed = parsePlaylist(playlist.text, playlist.url);
+    if (parsed.master) {
+      if (!parsed.resources.length) throw new Error('HLS master playlist is empty');
+      playlistUrl = parsed.resources[0];
+      playlist = null;
+      continue;
+    }
+    const pending = parsed.resources.filter((resource) => !seen.has(resource));
+    const selected = firstPlaylist && !parsed.endList ? pending.slice(-2) : pending;
+    firstPlaylist = false;
+    for (const resource of selected) {
+      const opened = await openProvider(
+        resource,
+        request,
+        response,
+        { ...PLAYER_ATTEMPTS[0], ignoreClientRange: true },
+        fetchImpl,
+        assertTarget,
+      );
+      if (!opened.upstream.ok || !opened.first) {
+        const status = opened.upstream.status;
+        await opened.reader?.cancel().catch(() => {});
+        opened.cleanup();
+        if (!started) return { started: false, status, segments: 0 };
+        throw new Error(`HLS segment failed with ${status}`);
+      }
+      if (!started) {
+        response.setHeader('content-type', 'video/mp2t');
+        response.setHeader('cache-control', 'private, no-store');
+        response.writeHead(200);
+        started = true;
+      }
+      try {
+        if (!response.write(opened.first)) await once(response, 'drain');
+        while (true) {
+          const chunk = await opened.reader.read();
+          if (chunk.done) break;
+          if (!response.write(chunk.value)) await once(response, 'drain');
+        }
+      } finally {
+        opened.cleanup();
+      }
+      seen.add(resource);
+      segmentCount++;
+      while (seen.size > 500) seen.delete(seen.values().next().value);
+    }
+    if (parsed.endList) {
+      if (started) response.end();
+      return { started, status: started ? 200 : 502, segments: segmentCount };
+    }
+    await waitForPlaylist(Math.max(800, Math.min(4_000, parsed.targetDuration * 500)), response);
+    playlist = null;
+  }
+  return { started, status: started ? 200 : 499, segments: segmentCount };
+}
+
+async function fetchPlaylist(initialTarget, fetchImpl, assertTarget) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), OPEN_TIMEOUT_MS);
+  try {
+    let current = new URL(initialTarget);
+    for (let redirects = 0; redirects <= REDIRECT_LIMIT; redirects++) {
+      await assertTarget(current);
+      const response = await fetchImpl(current, {
+        method: 'GET',
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: {
+          accept: 'application/vnd.apple.mpegurl, application/x-mpegURL, */*',
+          'accept-encoding': 'identity',
+          'user-agent': PLAYER_ATTEMPTS[0].userAgent,
+        },
+      });
+      if (REDIRECT_STATUSES.has(response.status)) {
+        const location = response.headers.get('location');
+        await response.body?.cancel().catch(() => {});
+        if (!location || redirects === REDIRECT_LIMIT) throw new Error('HLS redirect rejected');
+        current = new URL(location, current);
+        continue;
+      }
+      if (!response.ok) {
+        await response.body?.cancel().catch(() => {});
+        return { ok: false, status: response.status, url: current.href, text: '' };
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      if (bytes.byteLength > PLAYLIST_LIMIT) throw new Error('HLS playlist too large');
+      const text = new TextDecoder().decode(bytes);
+      if (!text.trimStart().startsWith('#EXTM3U')) throw new Error('HLS playlist invalid');
+      return { ok: true, status: response.status, url: current.href, text };
+    }
+    throw new Error('HLS redirects exceeded');
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function parsePlaylist(text, baseUrl) {
+  const lines = text.split(/\r?\n/);
+  const resources = [];
+  let targetDuration = 4;
+  let master = false;
+  let endList = false;
+  for (const line of lines) {
+    const value = line.trim();
+    if (!value) continue;
+    if (value.startsWith('#EXT-X-STREAM-INF')) master = true;
+    else if (value.startsWith('#EXT-X-ENDLIST')) endList = true;
+    else if (value.startsWith('#EXT-X-TARGETDURATION:')) {
+      targetDuration = Number.parseFloat(value.slice(value.indexOf(':') + 1)) || targetDuration;
+    } else if (!value.startsWith('#')) resources.push(new URL(value, baseUrl).href);
+  }
+  return { resources, targetDuration, master, endList };
+}
+
+function waitForPlaylist(milliseconds, response) {
+  return new Promise((resolve) => {
+    const timer = setTimeout(done, milliseconds);
+    function done() {
+      clearTimeout(timer);
+      response.off('close', done);
+      resolve();
+    }
+    response.once('close', done);
+  });
+}
+
 async function openProvider(initialTarget, request, response, attempt, fetchImpl, assertTarget) {
   const controller = new AbortController();
   const close = () => controller.abort();
@@ -252,7 +418,7 @@ async function openProvider(initialTarget, request, response, attempt, fetchImpl
         'accept-encoding': 'identity',
         'user-agent': attempt.userAgent,
       };
-      if (request.headers.range) headers.range = String(request.headers.range);
+      if (!attempt.ignoreClientRange && request.headers.range) headers.range = String(request.headers.range);
       else if (attempt.forceRange) headers.range = 'bytes=0-';
       if (request.headers['if-range']) headers['if-range'] = String(request.headers['if-range']);
       const upstream = await fetchImpl(current, {
