@@ -34,7 +34,6 @@ jobs:
         working-directory: evotv/pwa
         env:
           VITE_EVO_BACKEND_URL: https://multimideas-evo-backend.onrender.com
-          VITE_EVO_MEDIA_RELAY_URL: https://evodec.onrender.com
         run: npm run build:pages
 
       - name: Configure GitHub Pages

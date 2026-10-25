@@ -8,7 +8,6 @@ import {
 } from 'react';
 
 import { EvoApi, EvoApiError } from './api';
-import { registerSecureMedia, unregisterSecureMedia } from './secure-media';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
   type Account,
@@ -24,14 +23,7 @@ import {
   profileName,
 } from './types';
 
-type Screen = 'login' | 'profiles' | 'catalog' | 'series' | 'player';
-
-interface PlayerState {
-  item: CatalogItem;
-  source: string;
-  sourceId: string;
-  returnTo: 'catalog' | 'series';
-}
+type Screen = 'login' | 'profiles' | 'catalog' | 'series';
 
 const api = new EvoApi();
 const isPwaPath = /\/pwa(?:\/|$)/.test(window.location.pathname);
@@ -275,7 +267,6 @@ function PlayerApp() {
   const [catalog, setCatalog] = useState<CatalogItem[]>([]);
   const [seriesItem, setSeriesItem] = useState<CatalogItem | null>(null);
   const [seriesDetails, setSeriesDetails] = useState<SeriesDetails | null>(null);
-  const [player, setPlayer] = useState<PlayerState | null>(null);
   const [showInstallHelp, setShowInstallHelp] = useState(
     shouldShowInstallHelpFromRedirect,
   );
@@ -414,43 +405,24 @@ function PlayerApp() {
     }
   }
 
-  async function playItem(item: CatalogItem, returnTo: 'catalog' | 'series') {
+  async function playItem(item: CatalogItem) {
     if (!auth || !profileSession || busy) return;
-    const relayTest = new URLSearchParams(window.location.search).get('relay-player') === '1';
-    const directPlayback = usesNativeDirectPlayback() && !relayTest;
-    const nativePlayerWindow = directPlayback ? openNativePlayerWindow() : null;
+    const nativePlayerWindow = openNativePlayerWindow();
     setBusy(true);
     setError('');
     try {
-      if (directPlayback) {
-        const source = await api.directPlaybackUrl(
-          auth.idToken,
-          profileSession.sessionToken,
-          selectedProfile,
-          item,
-        );
-        if (nativePlayerWindow && !nativePlayerWindow.closed) {
-          nativePlayerWindow.opener = null;
-          nativePlayerWindow.location.replace(source);
-        } else {
-          window.location.assign(source);
-        }
-        return;
-      }
-      const protectedSource = await api.playbackSource(
+      const source = await api.directPlaybackUrl(
         auth.idToken,
         profileSession.sessionToken,
         selectedProfile,
         item,
       );
-      const source = await registerSecureMedia(protectedSource);
-      setPlayer({
-        item,
-        source: source.url,
-        sourceId: source.id,
-        returnTo,
-      });
-      setScreen('player');
+      if (nativePlayerWindow && !nativePlayerWindow.closed) {
+        nativePlayerWindow.opener = null;
+        nativePlayerWindow.location.replace(source);
+      } else {
+        window.location.assign(source);
+      }
     } catch (reason) {
       nativePlayerWindow?.close();
       setError(readableError(reason));
@@ -468,7 +440,6 @@ function PlayerApp() {
     setCatalog([]);
     setSeriesItem(null);
     setSeriesDetails(null);
-    setPlayer(null);
     if (currentAuth && currentSession && currentProfile > 0) {
       await api.releaseProfile(
         currentAuth.idToken,
@@ -509,7 +480,6 @@ function PlayerApp() {
 
   function endProfileSession(message: string) {
     setError(message);
-    setPlayer(null);
     setProfileSession(null);
     setSelectedProfile(0);
     setCatalog([]);
@@ -535,7 +505,7 @@ function PlayerApp() {
         />
       )}
 
-      <main className={screen === 'player' ? 'main-player' : 'main-content'}>
+      <main className="main-content">
         {screen === 'login' && (
           <LoginScreen
             login={login}
@@ -574,7 +544,7 @@ function PlayerApp() {
             onOpen={(item) =>
               item.kind === 'series'
                 ? void openSeries(item)
-                : void playItem(item, 'catalog')
+                : void playItem(item)
             }
           />
         )}
@@ -596,23 +566,11 @@ function PlayerApp() {
                   episode,
                   seriesDetails?.title || seriesItem.name,
                 ),
-                'series',
               )
             }
           />
         )}
 
-        {screen === 'player' && player && (
-          <PlayerScreen
-            player={player}
-            onBack={() => {
-              setError('');
-              setScreen(player.returnTo);
-              setPlayer(null);
-            }}
-            onSessionEnded={endProfileSession}
-          />
-        )}
       </main>
 
       {showInstallHelp && (
@@ -644,21 +602,6 @@ function openNativePlayerWindow(): Window | null {
   message.textContent = 'Abrindo no player do dispositivo…';
   playerWindow.document.body.append(message);
   return playerWindow;
-}
-
-function usesNativeDirectPlayback(): boolean {
-  const agent = navigator.userAgent;
-  const windows = /Windows/i.test(agent);
-  const android = /Android/i.test(agent);
-  const windowsChrome = windows && /Chrome\//i.test(agent) && !/(Edg|OPR)\//i.test(agent);
-  const ios = /iPhone|iPad|iPod/i.test(agent)
-    || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  const nonAndroidTv = !android
-    && /(SMART[ -]?TV|Tizen|Web0S|WebOS|NetCast|HbbTV|VIDAA|Hisense|Viera|BRAVIA|Vewd|Opera TV|Roku|AppleTV)/i.test(agent);
-  const forcedTest = new URLSearchParams(window.location.search).get('direct-player') === '1';
-  // Sistemas proprietários de TV normalmente se identificam apenas como Linux.
-  // O Chrome do Windows usa o fluxo HLS já validado; Android mantém seu aplicativo dedicado.
-  return ios || nonAndroidTv || windowsChrome || (!windows && !android) || forcedTest;
 }
 
 function Header({
@@ -949,164 +892,6 @@ function SeriesScreen({
       ) : null}
     </section>
   );
-}
-
-function PlayerScreen({
-  player,
-  onBack,
-  onSessionEnded,
-}: {
-  player: PlayerState;
-  onBack(): void;
-  onSessionEnded(message: string): void;
-}) {
-  const [failure, setFailure] = useState('');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const failureReported = useRef(false);
-
-  useEffect(() => () => unregisterSecureMedia(player.sourceId), [player.sourceId]);
-
-  function reportPlaybackFailure(fallback: string) {
-    if (failureReported.current) return;
-    failureReported.current = true;
-    setFailure(fallback);
-    void inspectPlaybackFailure(player.source, fallback).then((result) => {
-      setFailure(result.message);
-      if (result.status === 409) onSessionEnded(result.message);
-    });
-  }
-
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video) return;
-    failureReported.current = false;
-    setFailure('');
-
-    if (player.item.kind === 'live') {
-      let disposed = false;
-      let destroyPlayer: (() => void) | null = null;
-      void import('mpegts.js')
-        .then(({ default: mpegts }) => {
-          if (disposed) return;
-          if (!mpegts.getFeatureList().mseLivePlayback) {
-            video.src = player.source;
-            void video.play().catch(() => {});
-            return;
-          }
-          const livePlayer = mpegts.createPlayer(
-            { type: 'mse', isLive: true, cors: true, url: player.source },
-            { isLive: true, liveBufferLatencyChasing: true },
-          );
-          const destroy = () => {
-            try { livePlayer.pause(); } catch { /* best effort */ }
-            try { livePlayer.unload(); } catch { /* best effort */ }
-            try { livePlayer.detachMediaElement(); } catch { /* best effort */ }
-            livePlayer.destroy();
-          };
-          destroyPlayer = destroy;
-          livePlayer.on(mpegts.Events.ERROR, (errorType: string) => {
-            destroy();
-            destroyPlayer = null;
-            reportPlaybackFailure(
-              errorType === mpegts.ErrorTypes.NETWORK_ERROR
-                ? 'Não foi possível carregar a transmissão ao vivo.'
-                : 'O navegador não conseguiu decodificar esta transmissão.',
-            );
-          });
-          livePlayer.attachMediaElement(video);
-          livePlayer.load();
-          void livePlayer.play()?.catch(() => {});
-        })
-        .catch(() => reportPlaybackFailure('Não foi possível iniciar o player de transmissão ao vivo.'));
-      return () => {
-        disposed = true;
-        destroyPlayer?.();
-      };
-    }
-
-    video.src = player.source;
-    void video.play().catch(() => {});
-    return () => {
-      video.removeAttribute('src');
-      video.load();
-    };
-  }, [player.source]);
-
-  return (
-    <section className="player-screen">
-      <div className="player-toolbar">
-        <button className="back-link" onClick={onBack}>← Voltar</button>
-        <strong>{player.item.name}</strong>
-        {player.item.kind === 'live' && <span className="live-badge static">AO VIVO</span>}
-      </div>
-      <div className="video-stage">
-        {failure ? (
-          <EmptyState>
-            <p>Não foi possível reproduzir este conteúdo no navegador.</p>
-            <small>{failure}</small>
-            <small>A mídia já é acessada pelo proxy HTTPS; este aviso não é um bloqueio de conteúdo HTTP misto.</small>
-            <button className="button button-primary" onClick={onBack}>Voltar</button>
-          </EmptyState>
-        ) : (
-          <video
-            ref={videoRef}
-            controls
-            autoPlay
-            playsInline
-            onError={(event) => {
-              const fallback = browserMediaError(event.currentTarget.error);
-              reportPlaybackFailure(fallback);
-            }}
-          />
-        )}
-      </div>
-    </section>
-  );
-}
-
-function browserMediaError(error: MediaError | null): string {
-  if (error?.code === MediaError.MEDIA_ERR_NETWORK) {
-    return 'A conexão com o servidor de mídia foi interrompida.';
-  }
-  if (error?.code === MediaError.MEDIA_ERR_DECODE) {
-    return 'O navegador não conseguiu decodificar o formato ou codec deste vídeo.';
-  }
-  if (error?.code === MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED) {
-    return 'O navegador não reconheceu o formato ou codec entregue pelo servidor.';
-  }
-  return 'O servidor de mídia não conseguiu iniciar a reprodução.';
-}
-
-async function inspectPlaybackFailure(
-  source: string,
-  fallback: string,
-): Promise<{ message: string; status?: number }> {
-  const controller = new AbortController();
-  const timeout = window.setTimeout(() => controller.abort(), 12_000);
-  try {
-    const response = await fetch(source, { signal: controller.signal });
-    if (response.ok) {
-      await response.body?.cancel();
-      return { message: fallback };
-    }
-    const body = await response.text();
-    try {
-      const data = JSON.parse(body) as { error?: unknown };
-      if (typeof data.error === 'string' && data.error.trim()) {
-        return { message: data.error, status: response.status };
-      }
-    } catch {
-      // Respostas não JSON usam a mensagem segura abaixo.
-    }
-    return {
-      message: `O proxy de mídia respondeu com HTTP ${response.status}.`,
-      status: response.status,
-    };
-  } catch {
-    return { message: 'Não foi possível conectar ao proxy HTTPS de mídia.' };
-  } finally {
-    window.clearTimeout(timeout);
-  }
 }
 
 function InstallHelp({ onClose }: { onClose(): void }) {

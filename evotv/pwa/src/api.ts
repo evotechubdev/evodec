@@ -15,21 +15,9 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
-function base64Url(value: string): string {
-  const bytes = new TextEncoder().encode(value);
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
-}
-
 export interface SessionEnd {
   code: string;
   message: string;
-}
-
-export interface SecurePlaybackSource {
-  url: string;
-  headers: Record<string, string>;
 }
 
 export class EvoApiError extends Error {
@@ -206,72 +194,6 @@ export class EvoApi {
       coverUrl: firstText(info.cover, info.movie_image, series.imageUrl),
       seasons,
     };
-  }
-
-  async playbackSource(
-    token: string,
-    sessionToken: string,
-    profile: number,
-    item: CatalogItem,
-  ): Promise<SecurePlaybackSource> {
-    const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
-    // The configured IPTV provider exposes live channels as continuous MPEG-TS.
-    // The browser player transmuxes this stream through mpegts.js.
-    const extension = item.kind === 'live'
-      ? 'ts'
-      : normalized.slice(0, 8) || 'mp4';
-    const renderRelay = appConfig.mediaRelayUrl;
-    const data = await this.backend('/api/stream-ticket', token, {
-      method: 'POST',
-      headers: sessionHeaders(sessionToken, profile),
-      body: JSON.stringify({
-        kind: item.kind,
-        id: item.id,
-        extension,
-        transport: renderRelay ? 'direct' : 'web',
-      }),
-    });
-    const source = text(data.url);
-    if (!source) {
-      throw new EvoApiError('O servidor não retornou uma URL de reprodução.');
-    }
-    try {
-      const url = new URL(source);
-      if (renderRelay) {
-        const backend = new URL(appConfig.backendUrl, window.location.origin);
-        if (text(data.transport) !== 'direct'
-          || url.origin !== backend.origin
-          || !url.pathname.startsWith('/open-stream/')) {
-          throw new Error();
-        }
-        const relay = new URL(renderRelay);
-        if (relay.protocol !== 'https:' || relay.username || relay.password || relay.search || relay.hash) {
-          throw new Error();
-        }
-        const packed = base64Url(url.href);
-        const file = `${item.id}.${extension}`;
-        url.href = new URL(`/stream/${packed}/${file}`, relay.origin).href;
-      }
-      if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
-      if (location.protocol === 'https:' && url.protocol !== 'https:') {
-        throw new EvoApiError(
-          'O servidor não retornou uma conexão HTTPS segura para a mídia.',
-        );
-      }
-      return {
-        url: url.href,
-        headers: {
-          'x-evo-session': sessionToken,
-          'x-evo-profile': String(profile),
-          'x-evo-platform': appConfig.clientPlatform,
-          'x-evo-version': appConfig.clientVersion,
-          'x-evo-version-code': appConfig.clientVersionCode,
-        },
-      };
-    } catch (error) {
-      if (error instanceof EvoApiError) throw error;
-      throw new EvoApiError('O servidor retornou uma URL de reprodução inválida.');
-    }
   }
 
   async directPlaybackUrl(

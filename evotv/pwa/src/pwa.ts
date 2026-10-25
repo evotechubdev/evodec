@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = '15';
+const SERVICE_WORKER_VERSION = '16';
 const ACTIVATION_TIMEOUT_MS = 15_000;
 const RELOAD_MARKER = `evotv-sw-reload-v${SERVICE_WORKER_VERSION}`;
 
@@ -9,20 +9,8 @@ export function registerServiceWorker(): void {
   if (!/\/pwa(?:\/|$)/.test(window.location.pathname)) return;
   setupPromise ??= prepareServiceWorker();
   void setupPromise.catch(() => {
-    // Login e catálogo continuam disponíveis; a mensagem aparece ao tentar reproduzir.
+    // Login e catálogo continuam disponíveis mesmo se o modo offline falhar.
   });
-}
-
-export async function requireSecureServiceWorker(): Promise<ServiceWorker> {
-  if (!('serviceWorker' in navigator) || import.meta.env.DEV) {
-    throw new Error('Este navegador não oferece o modo seguro necessário para reproduzir esta mídia.');
-  }
-  if (!/\/pwa(?:\/|$)/.test(window.location.pathname)) {
-    throw new Error('Abra a mídia pelo endereço oficial do PWA.');
-  }
-  registerServiceWorker();
-  if (!setupPromise) throw new Error('Não foi possível iniciar a reprodução segura.');
-  return setupPromise;
 }
 
 async function prepareServiceWorker(): Promise<ServiceWorker> {

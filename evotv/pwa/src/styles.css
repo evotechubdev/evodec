@@ -291,10 +291,6 @@ input:disabled {
   margin: 0 auto;
 }
 
-.main-player {
-  min-height: calc(100vh - 76px);
-}
-
 .topbar {
   position: sticky;
   z-index: 20;
@@ -764,11 +760,6 @@ input:disabled {
   letter-spacing: 0.08em;
 }
 
-.live-badge.static {
-  position: static;
-  flex: 0 0 auto;
-}
-
 .catalog-card-copy {
   display: block;
   min-height: 79px;
@@ -967,55 +958,6 @@ input:disabled {
   color: var(--accent);
   font-size: 1.15rem;
   text-align: right;
-}
-
-.player-screen {
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 76px);
-  min-height: calc(100dvh - 76px);
-  background: #000;
-}
-
-.player-toolbar {
-  display: grid;
-  grid-template-columns: minmax(80px, 1fr) minmax(0, 3fr) minmax(80px, 1fr);
-  align-items: center;
-  gap: 16px;
-  min-height: 60px;
-  padding: 10px 20px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
-  background: #06080d;
-}
-
-.player-toolbar strong {
-  overflow: hidden;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.player-toolbar .live-badge {
-  justify-self: end;
-}
-
-.video-stage {
-  display: grid;
-  flex: 1;
-  min-height: 420px;
-  place-items: center;
-}
-
-.video-stage video {
-  width: 100%;
-  max-height: calc(100vh - 136px);
-  max-height: calc(100dvh - 136px);
-  background: #000;
-}
-
-.video-stage .empty-state {
-  width: min(92%, 600px);
-  border-color: rgba(255, 255, 255, 0.14);
 }
 
 .modal-backdrop {
@@ -1219,16 +1161,6 @@ input:disabled {
 
   .episode-row {
     padding: 12px;
-  }
-
-  .player-toolbar {
-    grid-template-columns: 68px minmax(0, 1fr) 58px;
-    padding: 8px 12px;
-    font-size: 0.82rem;
-  }
-
-  .video-stage {
-    min-height: 280px;
   }
 
   .install-modal {
