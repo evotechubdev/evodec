@@ -8,6 +8,9 @@ export const appConfig = Object.freeze({
     import.meta.env.VITE_EVO_BACKEND_URL,
     '/pwa-api',
   ).replace(/\/+$/, ''),
+  mediaRelayUrl: value(
+    import.meta.env.VITE_EVO_MEDIA_RELAY_URL,
+  ).replace(/\/+$/, ''),
   firebaseApiKey: value(
     import.meta.env.VITE_FIREBASE_API_KEY,
     'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo',

@@ -1,10 +1,13 @@
-const CACHE_NAME = 'evotv-pwa-v14';
-const SERVICE_WORKER_VERSION = '14';
+const CACHE_NAME = 'evotv-pwa-v15';
+const SERVICE_WORKER_VERSION = '15';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
 const MEDIA_PATH = new URL('__media/', PWA_ROOT).pathname;
-const RELAY_ORIGIN = 'https://evotv-web-media-relay.bonnystork8.chatgpt.site';
+const RELAY_ORIGINS = new Set([
+  'https://evotv-web-media-relay.bonnystork8.chatgpt.site',
+  'https://evodec.onrender.com',
+]);
 const MEDIA_SESSION_MS = 12 * 60 * 60 * 1000;
 const MEDIA_ID = /^[a-f0-9-]{32,40}$/i;
 const REQUIRED_MEDIA_HEADERS = [
@@ -56,7 +59,7 @@ self.addEventListener('message', (event) => {
   try {
     const id = String(data.id || '');
     const relayUrl = new URL(String(data.url || ''));
-    if (!MEDIA_ID.test(id) || relayUrl.origin !== RELAY_ORIGIN || !relayUrl.pathname.startsWith('/stream/')) {
+    if (!MEDIA_ID.test(id) || !RELAY_ORIGINS.has(relayUrl.origin) || !relayUrl.pathname.startsWith('/stream/')) {
       throw new Error('Endereço de mídia inválido.');
     }
     const inputHeaders = new Headers(data.headers || {});

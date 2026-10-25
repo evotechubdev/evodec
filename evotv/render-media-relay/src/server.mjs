@@ -16,6 +16,7 @@ const SESSION_HEADERS = [
 ];
 const MEDIA_CACHE_MS = 12 * 60 * 60 * 1000;
 const MEDIA_CACHE_MAX = 1_000;
+const BACKEND_TIMEOUT_MS = 30_000;
 const OPEN_TIMEOUT_MS = 10_000;
 const REDIRECT_LIMIT = 3;
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
@@ -134,11 +135,16 @@ function validateBackendTicket(value, backendOrigin, file) {
 }
 
 async function resolveSignedTarget(openUrl, fetchImpl, assertTarget) {
-  const response = await fetchWithTimeout(fetchImpl, openUrl, {
-    method: 'GET',
-    redirect: 'manual',
-    headers: { accept: '*/*', 'user-agent': PLAYER_IDENTITIES[0] },
-  });
+  let response;
+  try {
+    response = await fetchWithTimeout(fetchImpl, openUrl, {
+      method: 'GET',
+      redirect: 'manual',
+      headers: { accept: '*/*', 'user-agent': PLAYER_IDENTITIES[0] },
+    }, BACKEND_TIMEOUT_MS);
+  } catch {
+    throw failure(502, 'AUTH_BACKEND_UNREACHABLE', 'O relay não conseguiu validar a autorização no backend.');
+  }
   await response.body?.cancel().catch(() => {});
   if (!REDIRECT_STATUSES.has(response.status)) {
     throw failure(response.status === 410 ? 410 : 502, 'STREAM_TICKET_REJECTED', 'O backend recusou ou não conseguiu resolver a autorização da mídia.');
@@ -248,9 +254,9 @@ async function openProvider(initialTarget, request, response, userAgent, fetchIm
   }
 }
 
-async function fetchWithTimeout(fetchImpl, url, init) {
+async function fetchWithTimeout(fetchImpl, url, init, timeoutMs = OPEN_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), OPEN_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try { return await fetchImpl(url, { ...init, signal: controller.signal }); }
   finally { clearTimeout(timer); }
 }

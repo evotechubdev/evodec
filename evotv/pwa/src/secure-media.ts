@@ -1,7 +1,11 @@
 import type { SecurePlaybackSource } from './api';
+import { appConfig } from './config';
 import { requireSecureServiceWorker } from './pwa';
 
-const RELAY_ORIGIN = 'https://evotv-web-media-relay.bonnystork8.chatgpt.site';
+const LEGACY_RELAY_ORIGIN = 'https://evotv-web-media-relay.bonnystork8.chatgpt.site';
+const RELAY_ORIGIN = appConfig.mediaRelayUrl
+  ? new URL(appConfig.mediaRelayUrl).origin
+  : LEGACY_RELAY_ORIGIN;
 const REGISTER_TIMEOUT_MS = 8_000;
 
 interface RegisteredMediaSource {

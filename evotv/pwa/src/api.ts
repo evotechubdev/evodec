@@ -15,6 +15,13 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
+function base64Url(value: string): string {
+  const bytes = new TextEncoder().encode(value);
+  let binary = '';
+  for (const byte of bytes) binary += String.fromCharCode(byte);
+  return btoa(binary).replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/, '');
+}
+
 export interface SessionEnd {
   code: string;
   message: string;
@@ -213,6 +220,7 @@ export class EvoApi {
     const extension = item.kind === 'live'
       ? 'ts'
       : normalized.slice(0, 8) || 'mp4';
+    const renderRelay = appConfig.mediaRelayUrl;
     const data = await this.backend('/api/stream-ticket', token, {
       method: 'POST',
       headers: sessionHeaders(sessionToken, profile),
@@ -220,7 +228,7 @@ export class EvoApi {
         kind: item.kind,
         id: item.id,
         extension,
-        transport: 'web',
+        transport: renderRelay ? 'direct' : 'web',
       }),
     });
     const source = text(data.url);
@@ -229,6 +237,21 @@ export class EvoApi {
     }
     try {
       const url = new URL(source);
+      if (renderRelay) {
+        const backend = new URL(appConfig.backendUrl, window.location.origin);
+        if (text(data.transport) !== 'direct'
+          || url.origin !== backend.origin
+          || !url.pathname.startsWith('/open-stream/')) {
+          throw new Error();
+        }
+        const relay = new URL(renderRelay);
+        if (relay.protocol !== 'https:' || relay.username || relay.password || relay.search || relay.hash) {
+          throw new Error();
+        }
+        const packed = base64Url(url.href);
+        const file = `${item.id}.${extension}`;
+        url.href = new URL(`/stream/${packed}/${file}`, relay.origin).href;
+      }
       if (!['http:', 'https:'].includes(url.protocol)) throw new Error();
       if (location.protocol === 'https:' && url.protocol !== 'https:') {
         throw new EvoApiError(
