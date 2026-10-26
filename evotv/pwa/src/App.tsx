@@ -16,6 +16,7 @@ import {
   type CatalogItem,
   type MediaKind,
   type ProfileSession,
+  type ProfileSettings,
   type SeriesDetails,
   type SeriesEpisode,
   episodeAsCatalogItem,
@@ -265,6 +266,11 @@ function PlayerApp() {
   const [auth, setAuth] = useState<AuthSession | null>(null);
   const [profileSession, setProfileSession] = useState<ProfileSession | null>(null);
   const [selectedProfile, setSelectedProfile] = useState(0);
+  const [pendingProfile, setPendingProfile] = useState(0);
+  const [profilePin, setProfilePin] = useState('');
+  const [profilePinError, setProfilePinError] = useState('');
+  const [profileSettings, setProfileSettings] = useState<ProfileSettings | null>(null);
+  const [profileSettingsError, setProfileSettingsError] = useState('');
   const [selectedKind, setSelectedKind] = useState<MediaKind>('live');
   const [categories, setCategories] = useState<CatalogCategory[]>([]);
   const [selectedCategory, setSelectedCategory] = useState(primaryCategories.live.id);
@@ -344,13 +350,27 @@ function PlayerApp() {
     }
   }
 
-  async function chooseProfile(profile: number) {
+  function requestProfilePin(profile: number) {
+    if (busy) return;
+    setPendingProfile(profile);
+    setProfilePin('');
+    setProfilePinError('');
+    setError('');
+  }
+
+  async function chooseProfile(event: FormEvent) {
+    event.preventDefault();
+    const profile = pendingProfile;
     if (!auth || busy || profileSelectionInFlight.current) return;
+    if (profilePin.length < 4) {
+      setProfilePinError('Digite o PIN deste perfil (4 a 128 caracteres).');
+      return;
+    }
     profileSelectionInFlight.current = true;
     setBusy(true);
     setError('');
     try {
-      const nextSession = await api.selectProfile(auth.idToken, profile);
+      const nextSession = await api.selectProfile(auth.idToken, profile, profilePin);
       const category = primaryCategories.live.id;
       const [nextCategories, page] = await Promise.all([
         api.categories(auth.idToken, nextSession.sessionToken, profile, 'live'),
@@ -368,15 +388,41 @@ function PlayerApp() {
       setCatalogPage(page.page);
       setCatalogTotal(page.total);
       setCatalogHasMore(page.hasMore);
+      setPendingProfile(0);
+      setProfilePin('');
       setScreen('catalog');
     } catch (reason) {
       setProfileSession(null);
       setSelectedProfile(0);
-      setError(readableError(reason));
+      setProfilePinError(readableError(reason));
     } finally {
       profileSelectionInFlight.current = false;
       setBusy(false);
     }
+  }
+
+  async function openProfileSettings() {
+    if (!auth || !profileSession || selectedProfile !== 1 || busy) return;
+    setBusy(true); setProfileSettingsError('');
+    try {
+      setProfileSettings(await api.profileSettings(auth.idToken, profileSession.sessionToken, selectedProfile));
+    } catch (reason) { setError(readableError(reason)); }
+    finally { setBusy(false); }
+  }
+
+  async function saveProfileSettings(event: FormEvent) {
+    event.preventDefault();
+    if (!auth || !profileSession || !profileSettings || busy) return;
+    if (profileSettings.profiles.some((item) => !item.name.trim())) { setProfileSettingsError('Defina o nome de todos os perfis.'); return; }
+    if (profileSettings.profiles.some((item) => item.pin && item.pin.length < 4)) { setProfileSettingsError('Use PINs de perfil com 4 a 128 caracteres.'); return; }
+    setBusy(true); setProfileSettingsError('');
+    try {
+      const result = await api.saveProfileSettings(auth.idToken, profileSession.sessionToken, selectedProfile, profileSettings);
+      setAccount((current) => current ? { ...current, profileNames: result.profileNames } : current);
+      setProfileSettings(null); setProfileSession(null); setSelectedProfile(0); setCatalog([]); setScreen('profiles');
+      setError('Perfis atualizados. Digite o PIN do perfil para continuar.');
+    } catch (reason) { setProfileSettingsError(readableError(reason)); }
+    finally { setBusy(false); }
   }
 
   async function changeKind(kind: MediaKind) {
@@ -627,6 +673,7 @@ function PlayerApp() {
       {screen !== 'login' && (
         <Header
           profileName={currentProfileName}
+          onManageProfiles={selectedProfile === 1 ? () => void openProfileSettings() : undefined}
           onLogout={logout}
         />
       )}
@@ -655,7 +702,35 @@ function PlayerApp() {
             account={account}
             busy={busy}
             error={error}
-            onSelect={chooseProfile}
+            onSelect={requestProfilePin}
+          />
+        )}
+
+        {pendingProfile > 0 && account && (
+          <ProfilePinDialog
+            profileName={profileName(account, pendingProfile - 1)}
+            pin={profilePin}
+            busy={busy}
+            error={profilePinError}
+            onPin={setProfilePin}
+            onSubmit={chooseProfile}
+            onClose={() => {
+              if (busy) return;
+              setPendingProfile(0);
+              setProfilePin('');
+              setProfilePinError('');
+            }}
+          />
+        )}
+
+        {profileSettings && (
+          <ProfileSettingsDialog
+            settings={profileSettings}
+            busy={busy}
+            error={profileSettingsError}
+            onChange={setProfileSettings}
+            onSubmit={saveProfileSettings}
+            onClose={() => { if (!busy) { setProfileSettings(null); setProfileSettingsError(''); } }}
           />
         )}
 
@@ -741,9 +816,11 @@ function openNativePlayerWindow(): Window | null {
 
 function Header({
   profileName: currentProfile,
+  onManageProfiles,
   onLogout,
 }: {
   profileName: string;
+  onManageProfiles?: () => void;
   onLogout(): void;
 }) {
   return (
@@ -751,6 +828,7 @@ function Header({
       <img className="topbar-logo" src={assetUrl('images/logo_evotv.png')} alt="EVOTV" />
       <div className="topbar-actions">
         {currentProfile && <span className="profile-pill">{currentProfile}</span>}
+        {onManageProfiles && <button className="button button-ghost compact" onClick={onManageProfiles}>Gerenciar perfis</button>}
         <button className="button button-ghost compact" onClick={onLogout}>
           Sair
         </button>
@@ -782,7 +860,6 @@ function LoginScreen({
   onSubmit(event: FormEvent): void;
   onOpenInstallGuide(): void;
 }) {
-  const [showPassword, setShowPassword] = useState(false);
   return (
     <section className="login-layout">
       <form className="login-card" onSubmit={onSubmit}>
@@ -804,24 +881,14 @@ function LoginScreen({
         </label>
         <label className="field">
           <span>Senha</span>
-          <div className="password-field">
-            <input
-              autoComplete="current-password"
-              type={showPassword ? 'text' : 'password'}
-              value={password}
-              disabled={busy}
-              onChange={(event) => onPassword(event.target.value)}
-              placeholder="Digite sua senha"
-            />
-            <button
-              type="button"
-              className="password-toggle"
-              aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-              onClick={() => setShowPassword((value) => !value)}
-            >
-              {showPassword ? 'Ocultar' : 'Mostrar'}
-            </button>
-          </div>
+          <input
+            autoComplete="current-password"
+            type="password"
+            value={password}
+            disabled={busy}
+            onChange={(event) => onPassword(event.target.value)}
+            placeholder="Digite sua senha"
+          />
         </label>
         <label className="check-row">
           <input
@@ -875,6 +942,67 @@ function ProfilesScreen({ account, busy, error, onSelect }: {
         ))}
       </div>
     </section>
+  );
+}
+
+function ProfilePinDialog({ profileName: name, pin, busy, error, onPin, onSubmit, onClose }: {
+  profileName: string;
+  pin: string;
+  busy: boolean;
+  error: string;
+  onPin(value: string): void;
+  onSubmit(event: FormEvent): void;
+  onClose(): void;
+}) {
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <form className="install-modal profile-pin-modal" role="dialog" aria-modal="true" aria-labelledby="profile-pin-title" onSubmit={onSubmit}>
+        <button type="button" className="modal-close" aria-label="Fechar" onClick={onClose} disabled={busy}>×</button>
+        <span className="eyebrow">PERFIL PROTEGIDO</span>
+        <h2 id="profile-pin-title">Entrar em {name}</h2>
+        <p>Digite o PIN definido pelo perfil principal.</p>
+        <label className="field">
+          <span>PIN DO PERFIL</span>
+          <input autoFocus autoComplete="off" type="password" value={pin} maxLength={128} disabled={busy} onChange={(event) => onPin(event.target.value)} />
+        </label>
+        {error && <Notice tone="error">{error}</Notice>}
+        <button className="button button-primary button-large" disabled={busy}>{busy ? <Spinner /> : 'ENTRAR NO PERFIL'}</button>
+      </form>
+    </div>
+  );
+}
+
+function ProfileSettingsDialog({ settings, busy, error, onChange, onSubmit, onClose }: {
+  settings: ProfileSettings;
+  busy: boolean;
+  error: string;
+  onChange(settings: ProfileSettings): void;
+  onSubmit(event: FormEvent): void;
+  onClose(): void;
+}) {
+  const update = (index: number, field: 'name' | 'pin', value: string) => onChange({
+    ...settings,
+    profiles: settings.profiles.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item),
+  });
+  return (
+    <div className="modal-backdrop" role="presentation">
+      <form className="install-modal profile-settings-modal" role="dialog" aria-modal="true" aria-labelledby="profile-settings-title" onSubmit={onSubmit}>
+        <button type="button" className="modal-close" aria-label="Fechar" onClick={onClose} disabled={busy}>×</button>
+        <span className="eyebrow">PERFIL PRINCIPAL</span>
+        <h2 id="profile-settings-title">Gerenciar perfis</h2>
+        <p>Altere os nomes e informe um novo PIN apenas quando desejar substituí-lo.</p>
+        <div className="profile-settings-list">
+          {settings.profiles.map((item, index) => <div className="profile-settings-row" key={item.profile}>
+            <strong>{item.profile}</strong>
+            <label className="field"><span>Nome</span><input value={item.name} maxLength={60} disabled={busy} onChange={(event) => update(index, 'name', event.target.value)} /></label>
+            <label className="field"><span>Novo PIN · opcional</span><input type="password" autoComplete="new-password" value={item.pin || ''} maxLength={128} disabled={busy} onChange={(event) => update(index, 'pin', event.target.value)} /></label>
+          </div>)}
+        </div>
+        <small className="security-note">PINs em branco permanecem inalterados. Use de 4 a 128 caracteres.</small>
+        {error && <Notice tone="error">{error}</Notice>}
+        <button className="button button-primary button-large" disabled={busy}>{busy ? <Spinner /> : 'SALVAR PERFIS'}</button>
+      </form>
+    </div>
   );
 }
 

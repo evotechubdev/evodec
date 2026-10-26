@@ -9,6 +9,8 @@ import {
   type MediaKind,
   type PlaybackGrant,
   type ProfileSession,
+  type ProfileSetting,
+  type ProfileSettings,
   type SeriesDetails,
   type SeriesEpisode,
   type SeriesSeason,
@@ -24,9 +26,12 @@ export interface SessionEnd {
 }
 
 export class EvoApiError extends Error {
-  constructor(message: string) {
+  readonly code: string;
+
+  constructor(message: string, code = '') {
     super(message);
     this.name = 'EvoApiError';
+    this.code = code;
   }
 }
 
@@ -99,14 +104,14 @@ export class EvoApi {
     };
   }
 
-  async selectProfile(token: string, profile: number): Promise<ProfileSession> {
+  async selectProfile(token: string, profile: number, pin: string): Promise<ProfileSession> {
     const keys = await generatePlaybackKeys();
     const data = await this.backend('/api/profile', token, {
       method: 'POST',
       body: JSON.stringify({
         profile,
         force: true,
-        pin: '',
+        pin,
         playbackPublicKey: keys.publicKey,
       }),
     });
@@ -127,6 +132,23 @@ export class EvoApi {
         'Não foi possível validar a autorização de reprodução.',
       );
     }
+  }
+
+  async profileSettings(token: string, sessionToken: string, profile: number): Promise<ProfileSettings> {
+    const data = await this.backend('/api/profiles/settings', token, { headers: sessionHeaders(sessionToken, profile) });
+    const profiles = Array.isArray(data.profiles) ? data.profiles.map((item) => object(item)).filter((item): item is JsonObject => Boolean(item)).map((item) => ({
+      profile: integer(item.profile, 0), name: text(item.name),
+    })) : [];
+    return { revision: text(data.revision), profiles };
+  }
+
+  async saveProfileSettings(token: string, sessionToken: string, profile: number, settings: ProfileSettings): Promise<{ profileNames: string[] }> {
+    const data = await this.backend('/api/profiles/settings', token, {
+      method: 'POST', headers: sessionHeaders(sessionToken, profile),
+      body: JSON.stringify({ expectedRevision: settings.revision, profiles: settings.profiles as ProfileSetting[] }),
+    });
+    if (data.saved !== true || !Array.isArray(data.profileNames)) throw new EvoApiError('O servidor não confirmou o salvamento dos perfis.');
+    return { profileNames: data.profileNames.map((item) => text(item)) };
   }
 
   async catalog(
@@ -359,7 +381,11 @@ export class EvoApi {
     }
     const data = await jsonResponse(response);
     if (!response.ok) {
-      throw new EvoApiError(backendError(object(data) ?? {}, response.status));
+      const details = object(data) ?? {};
+      throw new EvoApiError(
+        backendError(details, response.status),
+        text(details.code),
+      );
     }
     return data;
   }

@@ -51,6 +51,17 @@ export interface ProfileSession {
   playbackGrant: PlaybackGrant;
 }
 
+export interface ProfileSetting {
+  profile: number;
+  name: string;
+  pin?: string;
+}
+
+export interface ProfileSettings {
+  revision: string;
+  profiles: ProfileSetting[];
+}
+
 export interface CatalogItem {
   id: string;
   name: string;

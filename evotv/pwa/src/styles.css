@@ -438,28 +438,6 @@ input:disabled {
   box-shadow: 0 0 0 3px rgba(50, 215, 255, 0.11);
 }
 
-.password-field {
-  position: relative;
-}
-
-.password-field input {
-  padding-right: 82px;
-}
-
-.password-toggle {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  padding: 6px;
-  border: 0;
-  color: var(--accent);
-  background: transparent;
-  font-size: 0.72rem;
-  font-weight: 800;
-  transform: translateY(-50%);
-  cursor: pointer;
-}
-
 .check-row {
   display: flex;
   align-items: center;
@@ -651,6 +629,39 @@ input:disabled {
 .profile-card small {
   margin-top: 8px;
   color: var(--muted);
+}
+
+.profile-pin-modal {
+  width: min(430px, calc(100vw - 28px));
+}
+
+.profile-pin-modal .field {
+  margin-top: 22px;
+  text-align: left;
+}
+
+.profile-settings-modal {
+  width: min(760px, calc(100vw - 28px));
+  max-height: calc(100vh - 28px);
+  overflow: auto;
+}
+
+.profile-settings-list {
+  display: grid;
+  gap: 14px;
+  margin: 22px 0;
+}
+
+.profile-settings-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr);
+  align-items: end;
+  gap: 12px;
+}
+
+.profile-settings-row > strong {
+  align-self: center;
+  color: var(--accent);
 }
 
 .section-heading {
