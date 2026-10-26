@@ -89,9 +89,6 @@ export class EvoApi {
   }
 
   async account(token: string): Promise<Account> {
-    if (!appConfig.clientVersionCode) {
-      throw new EvoApiError('O código de versão da PWA ainda não foi configurado.');
-    }
     const data = await this.backend('/api/account', token);
     const profileNames = Array.isArray(data.profileNames)
       ? data.profileNames.map((item) => text(item))
@@ -404,8 +401,6 @@ function backendHeaders(token: string, extraHeaders?: HeadersInit): Headers {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
     'x-evo-platform': appConfig.clientPlatform,
-    'x-evo-version': appConfig.clientVersion,
-    'x-evo-version-code': appConfig.clientVersionCode,
   });
   new Headers(extraHeaders).forEach((value, key) => headers.set(key, value));
   return headers;

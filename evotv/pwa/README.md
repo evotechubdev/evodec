@@ -41,10 +41,9 @@ O arquivo `render.yaml` publica `dist/`, mantém o portal na raiz, redireciona
 
 - `VITE_FIREBASE_API_KEY`: Web API Key do Firebase.
 - `VITE_EVO_BACKEND_URL`: padrão `/pwa-api`, no mesmo domínio público.
-- `VITE_EVO_VERSION`: versão exibida ao backend.
-- `VITE_EVO_VERSION_CODE`: código aceito pelo controle de versões do backend.
-- `VITE_EVO_PLATFORM`: use `android` para compatibilidade temporária; troque para
-  `web` depois de cadastrar o canal web no backend.
+
+A PWA usa o canal fixo `web` e não possui versão obrigatória. Os campos de
+versão do Firebase são exclusivos dos aplicativos Android e Windows.
 
 ## GitHub Actions e Pages
 
@@ -62,7 +61,7 @@ https://evotechubdev.github.io/evodec/evotv/index.html
 https://evotechubdev.github.io/evodec/evotv/pwa/index.html
 ```
 
-## Ajustes aditivos no backend
+## Backend
 
 O código do backend não está neste repositório. O encaminhamento `/pwa-api/*`
 mantém as chamadas do navegador no mesmo domínio e envia a requisição ao backend
@@ -71,15 +70,10 @@ usado, o backend precisará permitir por CORS o domínio público e os cabeçalh
 `Authorization`, `Content-Type`, `x-evo-platform`, `x-evo-version`,
 `x-evo-version-code`, `x-evo-session` e `x-evo-profile`.
 
-Antes de criar um canal próprio para a PWA, o serviço deve:
-
-1. cadastrar um canal de versão `web` sem remover ou alterar `android` e `pc`;
-2. manter as respostas atuais de `/api/account`, `/api/profile`, `/api/catalog`,
-   `/api/iptv` e `/api/session`;
-3. fornecer mídia por HTTPS. Páginas HTTPS não podem reproduzir streams HTTP.
-
-Enquanto o canal `web` não existir, o build usa `android` somente como modo de
-compatibilidade com o contrato atual. Isso não modifica o aplicativo Android.
+O backend aceita o canal `web` sem consultar `config/versao`. As respostas de
+`/api/account`, `/api/profile`, `/api/catalog`, `/api/iptv` e `/api/session`
+continuam protegidas por autenticação e sessão. A mídia deve ser fornecida por
+HTTPS, pois páginas HTTPS não podem reproduzir streams HTTP.
 
 ## Android, Smart TVs e outros sistemas
 
@@ -95,7 +89,7 @@ depende dos formatos de vídeo suportados pelo navegador de cada TV.
 
 ## Link no site principal
 
-O cartão **EVOTV - PWA (versão: 1.0.6)** deve apontar diretamente para:
+O cartão **EVOTV - PWA** deve apontar diretamente para:
 
 ```text
 https://evotechubdev.github.io/evodec/evotv/pwa/index.html
@@ -108,9 +102,9 @@ ele apresenta apenas as instruções e um **X** para fechar.
 No site principal, mantenha sempre as três opções visíveis, nesta ordem e com
 estes textos:
 
-1. **EVOTV - Android (versão: 1.0.6)**
-2. **EVOTV - PC Windows (versão: 0.2)**
-3. **EVOTV - PWA (versão: 1.0.6)**
+1. **EVOTV - Android (versão: 1.0.7)**
+2. **EVOTV - PC Windows (versão: 0.3)**
+3. **EVOTV - PWA**
 
 O Android continua sendo a primeira tentativa do representante comercial. A
 PWA permanece disponível como alternativa universal, inclusive no Android e em

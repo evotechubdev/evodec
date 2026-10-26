@@ -33,9 +33,9 @@ const isPwaPath = /\/pwa(?:\/|$)/.test(window.location.pathname);
 const assetUrl = (path: string) =>
   `${import.meta.env.BASE_URL}${isPwaPath ? '../' : ''}${path}`;
 const ANDROID_DOWNLOAD_URL =
-  'https://github.com/evotechubdev/evodec/releases/download/v1.0.6/EVOTV.Android.1.0.6.apk';
+  'https://github.com/evotechubdev/evodec/releases/download/v1.0.7/EVOTV.Android.1.0.7.apk';
 const WINDOWS_DOWNLOAD_URL =
-  'https://github.com/evotechubdev/evodec/releases/download/v1.0.6/programa.de.PC.EVOTV.Setup.0.0.2.exe';
+  'https://github.com/evotechubdev/evodec/releases/download/v1.0.7/programa.de.PC.EVOTV.Setup.0.0.3.exe';
 const PUBLIC_CONTACTS_URL =
   'https://firestore.googleapis.com/v1/projects/multimideas-evotv/databases/(default)/documents/public/contatos';
 
@@ -95,7 +95,7 @@ function SupportPortal() {
             <DownloadCard
               icon="android"
               title="EVOTV - Android"
-              version="1.0.6"
+              version="1.0.7"
               description="Para celulares, tablets, TV Box e Smart TVs com Android."
               href={ANDROID_DOWNLOAD_URL}
               label="Baixar APK"
@@ -103,7 +103,7 @@ function SupportPortal() {
             <DownloadCard
               icon="windows"
               title="EVOTV - PC Windows"
-              version="0.2"
+              version="0.3"
               description="Aplicativo completo para computadores e notebooks Windows."
               href={WINDOWS_DOWNLOAD_URL}
               label="Baixar para Windows"
@@ -111,7 +111,6 @@ function SupportPortal() {
             <DownloadCard
               icon="pwa"
               title="EVOTV - PWA"
-              version="1.0.6"
               description="Indicada para iOS e outros sistemas de TV ou dispositivos."
               label="Instalar PWA"
               href={assetUrl('pwa/index.html?install=1')}
@@ -161,7 +160,7 @@ function DownloadCard({
 }: {
   icon: 'android' | 'windows' | 'pwa';
   title: string;
-  version: string;
+  version?: string;
   description: string;
   href?: string;
   label: string;
@@ -172,7 +171,7 @@ function DownloadCard({
     <>
       <PlatformIcon platform={icon} />
       <span className="download-card-copy">
-        <strong>{title} <small>(versão: {version})</small></strong>
+        <strong>{title} {version && <small>(versão: {version})</small>}</strong>
         <span>{description}</span>
       </span>
       <span className="download-action">{label}<b aria-hidden="true">→</b></span>
