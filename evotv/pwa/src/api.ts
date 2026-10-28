@@ -417,12 +417,11 @@ export class EvoApi {
 }
 
 function supportsWindowsDirectPlayback(grant: PlaybackGrant): boolean {
-  const directTest = new URLSearchParams(window.location.search).get('direct_http') === '1';
-  const agent = navigator.userAgent;
+  const requested = new URLSearchParams(window.location.search).get('direct_http');
+  if (requested === '1') sessionStorage.setItem('evo_direct_http_test', '1');
+  else if (requested === '0') sessionStorage.removeItem('evo_direct_http_test');
+  const directTest = requested === '1' || sessionStorage.getItem('evo_direct_http_test') === '1';
   return directTest
-    && /Windows NT/i.test(agent)
-    && /Chrome\/\d+/i.test(agent)
-    && !/(?:Edg|OPR)\//i.test(agent)
     && grant.expiresAt > Date.now();
 }
 

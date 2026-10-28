@@ -945,7 +945,7 @@ function InternalMediaPlayer({ playback, onClose }: {
       <section ref={panelRef} className="media-player-modal" role="dialog" aria-modal="true" aria-labelledby="media-player-title">
         <header className="media-player-header">
           <div>
-            <span>{playback.item.kind === 'live' ? 'AO VIVO' : mediaLabels[playback.item.kind]}</span>
+            <span>{playback.item.kind === 'live' ? 'AO VIVO' : mediaLabels[playback.item.kind]}{directHttp ? ' - HTTP DIRETO' : ''}</span>
             <strong id="media-player-title">{playback.item.name}</strong>
           </div>
           <div className="media-player-actions">

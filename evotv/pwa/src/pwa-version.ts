@@ -1,1 +1,1 @@
-export const PWA_VERSION = 'jupiter-05';
+export const PWA_VERSION = 'jupiter-06';
