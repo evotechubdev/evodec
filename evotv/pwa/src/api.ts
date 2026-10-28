@@ -253,7 +253,9 @@ export class EvoApi {
   ): Promise<string> {
     const useEdgeProxy = Boolean(appConfig.edgeProxyUrl);
     const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
-    const extension = item.kind === 'live' ? 'm3u8' : normalized.slice(0, 8) || 'mp4';
+    // Xtream catalogs commonly expose live channels as a continuous MPEG-TS
+    // stream. Forcing .m3u8 makes some providers return a non-HLS response.
+    const extension = normalized.slice(0, 8) || (item.kind === 'live' ? 'ts' : 'mp4');
     const data = await this.backend('/api/stream-ticket', token, {
       method: 'POST',
       headers: sessionHeaders(sessionToken, profile),

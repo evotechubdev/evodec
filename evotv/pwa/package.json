@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "hls.js": "^1.7.4",
+    "mpegts.js": "^1.8.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
@@ -23,6 +24,6 @@
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.1.2",
     "typescript": "6.0.3",
-    "vite": "8.2.2"
+    "vite": "^8.3.5"
   }
 }

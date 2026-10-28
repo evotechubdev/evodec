@@ -7,6 +7,7 @@ import {
   useState,
 } from 'react';
 import Hls from 'hls.js';
+import mpegts from 'mpegts.js';
 
 import { EvoApi, EvoApiError } from './api';
 import { PWA_VERSION } from './pwa-version';
@@ -827,6 +828,7 @@ function InternalMediaPlayer({ playback, onClose }: {
     const video = videoRef.current;
     if (!video) return;
     let hls: Hls | null = null;
+    let transportStreamPlayer: ReturnType<typeof mpegts.createPlayer> | null = null;
     let disposed = false;
     setLoading(true);
     setNeedsPlay(false);
@@ -840,8 +842,36 @@ function InternalMediaPlayer({ playback, onClose }: {
       try { return new URL(playback.source).pathname.toLowerCase().endsWith('.m3u8'); }
       catch { return false; }
     })();
+    const isTransportStream = (() => {
+      try {
+        const path = new URL(playback.source).pathname.toLowerCase();
+        return playback.item.kind === 'live' && (path.endsWith('.ts') || path.endsWith('.mpegts'));
+      } catch { return false; }
+    })();
 
-    if (isHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
+    if (isTransportStream && mpegts.isSupported()) {
+      transportStreamPlayer = mpegts.createPlayer({
+        type: 'mpegts',
+        isLive: true,
+        cors: true,
+        withCredentials: false,
+        url: playback.source,
+      }, {
+        enableWorker: true,
+        enableStashBuffer: false,
+        isLive: true,
+        liveBufferLatencyChasing: true,
+      });
+      transportStreamPlayer.attachMediaElement(video);
+      transportStreamPlayer.on(mpegts.Events.MEDIA_INFO, startPlayback);
+      transportStreamPlayer.on(mpegts.Events.ERROR, () => {
+        if (disposed) return;
+        setLoading(false);
+        setPlayerError('A transmissao do canal foi interrompida. Feche o player e tente novamente.');
+      });
+      transportStreamPlayer.load();
+      startPlayback();
+    } else if (isHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
       if (!Hls.isSupported()) {
         setLoading(false);
         setPlayerError('Este navegador não oferece um decodificador compatível com esta transmissão.');
@@ -874,6 +904,7 @@ function InternalMediaPlayer({ playback, onClose }: {
     return () => {
       disposed = true;
       hls?.destroy();
+      transportStreamPlayer?.destroy();
       video.pause();
       video.removeAttribute('src');
       video.load();
