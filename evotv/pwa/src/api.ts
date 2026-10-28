@@ -250,8 +250,10 @@ export class EvoApi {
     sessionToken: string,
     profile: number,
     item: CatalogItem,
+    playbackGrant: PlaybackGrant,
   ): Promise<string> {
     const useEdgeProxy = Boolean(appConfig.edgeProxyUrl);
+    const useWindowsDirect = supportsWindowsDirectPlayback(playbackGrant);
     const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
     // Xtream catalogs commonly expose live channels as a continuous MPEG-TS
     // stream. Forcing .m3u8 makes some providers return a non-HLS response.
@@ -271,6 +273,13 @@ export class EvoApi {
     const source = text(data.url);
     if (!source || text(data.transport) !== 'direct') {
       throw new EvoApiError('O servidor não retornou uma abertura compatível com este dispositivo.');
+    }
+    if (useWindowsDirect) {
+      try {
+        return providerPlaybackUrl(playbackGrant, item, extension);
+      } catch {
+        throw new EvoApiError('A autorizacao direta da midia e invalida. Entre novamente no perfil.');
+      }
     }
     try {
       const url = new URL(source);
@@ -405,6 +414,30 @@ export class EvoApi {
     }
     return data;
   }
+}
+
+function supportsWindowsDirectPlayback(grant: PlaybackGrant): boolean {
+  const directTest = new URLSearchParams(window.location.search).get('direct_http') === '1';
+  const agent = navigator.userAgent;
+  return directTest
+    && /Windows NT/i.test(agent)
+    && /Chrome\/\d+/i.test(agent)
+    && !/(?:Edg|OPR)\//i.test(agent)
+    && grant.expiresAt > Date.now();
+}
+
+function providerPlaybackUrl(grant: PlaybackGrant, item: CatalogItem, extension: string): string {
+  const serverText = grant.server.replace(/\/+$/, '');
+  const server = new URL(serverText);
+  if (!['http:', 'https:'].includes(server.protocol)
+    || server.username || server.password || server.search || server.hash
+    || !/^\d+$/.test(item.id)
+    || !/^[a-z0-9]{1,8}$/i.test(extension)
+    || !grant.username || !grant.password) {
+    throw new Error('invalid_direct_playback');
+  }
+  const folder: Record<MediaKind, string> = { live: 'live', movie: 'movie', series: 'series' };
+  return `${serverText}/${folder[item.kind]}/${encodeURIComponent(grant.username)}/${encodeURIComponent(grant.password)}/${item.id}.${extension}`;
 }
 
 function sessionHeaders(sessionToken: string, profile: number): HeadersInit {

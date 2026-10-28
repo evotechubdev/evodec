@@ -585,6 +585,7 @@ function PlayerApp() {
         profileSession.sessionToken,
         selectedProfile,
         item,
+        profileSession.playbackGrant,
       );
       setActivePlayback({ item, source });
     } catch (reason) {
@@ -813,6 +814,10 @@ function InternalMediaPlayer({ playback, onClose }: {
   const [loading, setLoading] = useState(true);
   const [needsPlay, setNeedsPlay] = useState(false);
   const [playerError, setPlayerError] = useState('');
+  const directHttp = (() => {
+    try { return new URL(playback.source).protocol === 'http:'; }
+    catch { return false; }
+  })();
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -953,7 +958,7 @@ function InternalMediaPlayer({ playback, onClose }: {
             ref={videoRef}
             controls
             playsInline
-            crossOrigin="anonymous"
+            crossOrigin={directHttp ? undefined : 'anonymous'}
             onCanPlay={() => setLoading(false)}
             onPlaying={() => { setLoading(false); setNeedsPlay(false); }}
             onWaiting={() => setLoading(true)}
