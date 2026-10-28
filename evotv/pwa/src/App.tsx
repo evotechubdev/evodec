@@ -866,9 +866,16 @@ function InternalMediaPlayer({ playback, onClose }: {
         // opaque Origin, which the protected edge proxy must reject. Keep IO
         // in the authorized PWA context instead of weakening origin checks.
         enableWorker: false,
-        enableStashBuffer: false,
+        // Favor stable playback over minimum latency for variable IPTV links.
+        enableStashBuffer: true,
+        stashInitialSize: 2 * 1024 * 1024,
         isLive: true,
-        liveBufferLatencyChasing: true,
+        liveBufferLatencyChasing: false,
+        liveSync: false,
+        lazyLoad: false,
+        autoCleanupSourceBuffer: true,
+        autoCleanupMaxBackwardDuration: 120,
+        autoCleanupMinBackwardDuration: 60,
       });
       transportStreamPlayer.attachMediaElement(video);
       transportStreamPlayer.on(mpegts.Events.MEDIA_INFO, startPlayback);
