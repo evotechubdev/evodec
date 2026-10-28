@@ -794,9 +794,11 @@ function PlayerApp() {
           onClose={() => setActivePlayback(null)}
         />
       )}
-      <span className="pwa-version" aria-label={`Versão do PWA: ${PWA_VERSION}`}>
-        Versão: {PWA_VERSION}
-      </span>
+      {screen === 'login' && (
+        <span className="pwa-version" aria-label={`Versão do PWA: ${PWA_VERSION}`}>
+          Versão: {PWA_VERSION}
+        </span>
+      )}
     </div>
   );
 }
