@@ -34,6 +34,7 @@ jobs:
         working-directory: evotv/pwa
         env:
           VITE_EVO_BACKEND_URL: https://multimideas-evo-backend.onrender.com
+          VITE_EVO_EDGE_PROXY_URL: ${{ vars.VITE_EVO_EDGE_PROXY_URL }}
         run: npm run build:pages
 
       - name: Configure GitHub Pages

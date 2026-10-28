@@ -8,6 +8,7 @@ export const appConfig = Object.freeze({
     import.meta.env.VITE_EVO_BACKEND_URL,
     '/pwa-api',
   ).replace(/\/+$/, ''),
+  edgeProxyUrl: value(import.meta.env.VITE_EVO_EDGE_PROXY_URL).replace(/\/+$/, ''),
   firebaseApiKey: value(
     import.meta.env.VITE_FIREBASE_API_KEY,
     'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo',

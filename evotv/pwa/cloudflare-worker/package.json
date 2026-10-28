@@ -1,0 +1,14 @@
+{
+  "name": "evotv-cloudflare-media-proxy",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check worker/index.js",
+    "test": "node --test test/*.test.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.154.0"
+  }
+}

@@ -3,6 +3,7 @@
 interface ImportMetaEnv {
   readonly VITE_FIREBASE_API_KEY?: string;
   readonly VITE_EVO_BACKEND_URL?: string;
+  readonly VITE_EVO_EDGE_PROXY_URL?: string;
   readonly VITE_SUPPORT_CONTACT_URL?: string;
   readonly VITE_COMMERCIAL_CONTACT_URL?: string;
 }

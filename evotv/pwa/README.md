@@ -41,6 +41,8 @@ O arquivo `render.yaml` publica `dist/`, mantém o portal na raiz, redireciona
 
 - `VITE_FIREBASE_API_KEY`: Web API Key do Firebase.
 - `VITE_EVO_BACKEND_URL`: padrão `/pwa-api`, no mesmo domínio público.
+- `VITE_EVO_EDGE_PROXY_URL`: opcional; URL HTTPS do Cloudflare Worker em
+  `cloudflare-worker/`. Vazio mantém a abertura direta atual.
 
 A PWA usa o canal fixo `web` e não possui versão obrigatória. Os campos de
 versão do Firebase são exclusivos dos aplicativos Android e Windows.
@@ -72,8 +74,34 @@ usado, o backend precisará permitir por CORS o domínio público e os cabeçalh
 
 O backend aceita o canal `web` sem consultar `config/versao`. As respostas de
 `/api/account`, `/api/profile`, `/api/catalog`, `/api/tv` e `/api/session`
-continuam protegidas por autenticação e sessão. A mídia deve ser fornecida por
-HTTPS, pois páginas HTTPS não podem reproduzir streams HTTP.
+continuam protegidas por autenticação e sessão. Sem o proxy opcional, a mídia
+deve ser fornecida por HTTPS, pois páginas HTTPS não podem reproduzir streams
+HTTP.
+
+## Teste com Cloudflare Workers
+
+O diretório `cloudflare-worker/` contém um proxy de borda opcional. Quando
+`VITE_EVO_EDGE_PROXY_URL` está definido, o PWA solicita ao backend um ticket
+protegido de `/stream/...` e troca somente a origem pela URL HTTPS do Worker.
+O Worker fala exclusivamente com o backend; somente o backend conhece e acessa
+o domínio, a porta e as credenciais do provedor IPTV. Playlists HLS mantêm seus
+segmentos sob o mesmo proxy sem revelar o destino original.
+
+Antes de publicar, edite `cloudflare-worker/wrangler.jsonc` e inclua em
+`ALLOWED_APP_ORIGINS` cada origem pública usada pelo PWA. Não configure domínio,
+usuário ou senha do IPTV na Cloudflare. Depois execute:
+
+```sh
+cd cloudflare-worker
+npm install
+npm test
+npm run deploy
+```
+
+Defina a URL retornada pelo Wrangler em `VITE_EVO_EDGE_PROXY_URL` e gere um novo
+build do PWA. O endpoint `/health` do Worker informa `configured: true` quando a
+configuração mínima foi aplicada. O tráfego de vídeo consome a cota da conta
+Cloudflare e a transferência do backend.
 
 ## Android, Smart TVs e outros sistemas
 

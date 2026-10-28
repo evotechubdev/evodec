@@ -1,0 +1,11 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "evotv-media-proxy-test",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-10-28",
+  "workers_dev": true,
+  "vars": {
+    "AUTH_BACKEND_ORIGIN": "https://multimideas-evo-backend.onrender.com",
+    "ALLOWED_APP_ORIGINS": "https://evotechubdev.github.io,http://localhost:4173"
+  }
+}

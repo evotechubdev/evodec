@@ -9,6 +9,9 @@ services:
         value: AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo
       - key: VITE_EVO_BACKEND_URL
         value: /pwa-api
+      # Teste opcional. Preencha com a URL HTTPS do Worker após a publicação.
+      - key: VITE_EVO_EDGE_PROXY_URL
+        value: ""
     routes:
       - type: rewrite
         source: /pwa-api/*

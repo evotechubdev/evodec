@@ -251,6 +251,7 @@ export class EvoApi {
     profile: number,
     item: CatalogItem,
   ): Promise<string> {
+    const useEdgeProxy = Boolean(appConfig.edgeProxyUrl);
     const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
     const extension = item.kind === 'live' ? 'm3u8' : normalized.slice(0, 8) || 'mp4';
     const data = await this.backend('/api/stream-ticket', token, {
@@ -260,17 +261,31 @@ export class EvoApi {
         kind: item.kind,
         id: item.id,
         extension,
-        transport: 'direct',
+        transport: useEdgeProxy ? undefined : 'direct',
       }),
     });
     const source = text(data.url);
-    if (text(data.transport) !== 'direct' || !source) {
+    if (!source || (!useEdgeProxy && text(data.transport) !== 'direct')) {
       throw new EvoApiError('O servidor não retornou uma abertura compatível com este dispositivo.');
     }
     try {
       const url = new URL(source);
-      const backend = new URL(appConfig.backendUrl);
-      if (url.origin !== backend.origin || !url.pathname.startsWith('/open-stream/')) throw new Error();
+      if (url.protocol !== 'https:' || url.username || url.password) throw new Error();
+      if (useEdgeProxy) {
+        if (!url.pathname.startsWith('/stream/')) throw new Error();
+        const proxy = new URL(appConfig.edgeProxyUrl, window.location.href);
+        const localProxy = ['localhost', '127.0.0.1', '[::1]'].includes(proxy.hostname);
+        if ((proxy.protocol !== 'https:' && !(import.meta.env.DEV && localProxy))
+          || proxy.username || proxy.password || proxy.search || proxy.hash) {
+          throw new Error();
+        }
+        proxy.pathname = `${proxy.pathname.replace(/\/+$/, '')}${url.pathname}`;
+        proxy.search = url.search;
+        return proxy.href;
+      }
+      if (!url.pathname.startsWith('/open-stream/')) throw new Error();
+      const backend = new URL(appConfig.backendUrl, window.location.href);
+      if (url.origin !== backend.origin) throw new Error();
       return url.href;
     } catch {
       throw new EvoApiError('O servidor retornou uma abertura de mídia inválida.');
