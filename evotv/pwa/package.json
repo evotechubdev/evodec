@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "hls.js": "^1.7.4",
+    "mp4box": "^2.5.0",
     "mpegts.js": "^1.8.2",
     "react": "19.2.8",
     "react-dom": "19.2.8"

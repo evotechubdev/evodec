@@ -1,10 +1,8 @@
-const CACHE_NAME = 'evotv-pwa-v17';
-const SERVICE_WORKER_VERSION = '17';
+const CACHE_NAME = 'evotv-pwa-v18';
+const SERVICE_WORKER_VERSION = '18';
 const APP_ROOT = new URL('./', self.location.href).href;
 const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
 const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
-const DIRECT_MEDIA_PREFIX = new URL('__direct_media/', PWA_ROOT).pathname;
-const directMediaTargets = new Map();
 const APP_SHELL = [
   PWA_ROOT,
   PWA_INDEX,
@@ -34,27 +32,6 @@ self.addEventListener('message', (event) => {
   }
   if (event.data?.type === 'EVOTV_PING') {
     reply({ ok: true, version: SERVICE_WORKER_VERSION });
-    return;
-  }
-  if (event.data?.type === 'EVOTV_DIRECT_MEDIA_REGISTER') {
-    try {
-      const id = String(event.data.id || '');
-      const target = new URL(String(event.data.target || ''));
-      if (!/^[a-f0-9-]{36}$/i.test(id)
-        || !['http:', 'https:'].includes(target.protocol)
-        || target.username || target.password) {
-        throw new Error('invalid_direct_media');
-      }
-      const now = Date.now();
-      for (const [key, value] of directMediaTargets) {
-        if (value.expiresAt <= now) directMediaTargets.delete(key);
-      }
-      while (directMediaTargets.size >= 8) directMediaTargets.delete(directMediaTargets.keys().next().value);
-      directMediaTargets.set(id, { target: target.href, expiresAt: now + 2 * 60 * 60 * 1000 });
-      reply({ ok: true });
-    } catch {
-      reply({ ok: false, error: 'Destino de midia invalido.' });
-    }
     return;
   }
   reply({ ok: false, error: 'Mensagem nao reconhecida.' });
@@ -94,11 +71,6 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url);
   if (url.origin !== self.location.origin || request.method !== 'GET') return;
 
-  if (url.pathname.startsWith(DIRECT_MEDIA_PREFIX)) {
-    event.respondWith(relayDirectMedia(request, url));
-    return;
-  }
-
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request, { cache: 'no-store' })
@@ -132,40 +104,3 @@ self.addEventListener('fetch', (event) => {
     }),
   );
 });
-
-async function relayDirectMedia(request, url) {
-  const relative = url.pathname.slice(DIRECT_MEDIA_PREFIX.length);
-  const id = relative.split('/')[0] || '';
-  const entry = directMediaTargets.get(id);
-  if (!entry || entry.expiresAt <= Date.now()) {
-    directMediaTargets.delete(id);
-    return new Response('Autorizacao de midia expirada.', { status: 410 });
-  }
-  const headers = new Headers({ Accept: request.headers.get('accept') || '*/*' });
-  const range = request.headers.get('range');
-  if (range) headers.set('Range', range);
-  try {
-    const upstream = await fetch(entry.target, {
-      method: 'GET',
-      headers,
-      cache: 'no-store',
-      redirect: 'follow',
-    });
-    const responseHeaders = new Headers({
-      'Cache-Control': 'private, no-store',
-      'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream',
-      'X-Content-Type-Options': 'nosniff',
-    });
-    for (const name of ['accept-ranges', 'content-length', 'content-range', 'etag', 'last-modified']) {
-      const value = upstream.headers.get(name);
-      if (value) responseHeaders.set(name, value);
-    }
-    return new Response(upstream.body, {
-      status: upstream.status,
-      statusText: upstream.statusText,
-      headers: responseHeaders,
-    });
-  } catch {
-    return new Response('O navegador bloqueou a conexao HTTP direta.', { status: 502 });
-  }
-}

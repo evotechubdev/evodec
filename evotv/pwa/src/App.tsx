@@ -10,8 +10,8 @@ import Hls from 'hls.js';
 import mpegts from 'mpegts.js';
 
 import { EvoApi, EvoApiError } from './api';
+import { attachDirectHttpMp4 } from './direct-http-mp4';
 import { PWA_VERSION } from './pwa-version';
-import { registerDirectMediaTarget } from './pwa';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
   type Account,
@@ -593,12 +593,7 @@ function PlayerApp() {
         try { return new URL(source).protocol === 'http:'; }
         catch { return false; }
       })();
-      const extension = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8)
-        || (item.kind === 'live' ? 'ts' : 'mp4');
-      const playerSource = directHttp && item.kind !== 'live'
-        ? await registerDirectMediaTarget(source, `${item.id}.${extension}`)
-        : source;
-      setActivePlayback({ item, source: playerSource, directHttp });
+      setActivePlayback({ item, source, directHttp });
     } catch (reason) {
       setError(readableError(reason));
     } finally {
@@ -842,6 +837,7 @@ function InternalMediaPlayer({ playback, onClose }: {
     if (!video) return;
     let hls: Hls | null = null;
     let transportStreamPlayer: ReturnType<typeof mpegts.createPlayer> | null = null;
+    let stopDirectMp4: (() => void) | null = null;
     let disposed = false;
     setLoading(true);
     setNeedsPlay(false);
@@ -859,6 +855,13 @@ function InternalMediaPlayer({ playback, onClose }: {
       try {
         const path = new URL(playback.source).pathname.toLowerCase();
         return playback.item.kind === 'live' && (path.endsWith('.ts') || path.endsWith('.mpegts'));
+      } catch { return false; }
+    })();
+    const isDirectMp4 = (() => {
+      try {
+        return directHttp
+          && playback.item.kind !== 'live'
+          && new URL(playback.source).pathname.toLowerCase().endsWith('.mp4');
       } catch { return false; }
     })();
 
@@ -894,6 +897,15 @@ function InternalMediaPlayer({ playback, onClose }: {
       });
       transportStreamPlayer.load();
       startPlayback();
+    } else if (isDirectMp4) {
+      video.addEventListener('canplay', startPlayback, { once: true });
+      stopDirectMp4 = attachDirectHttpMp4(video, playback.source, {
+        onError: (message) => {
+          if (disposed) return;
+          setLoading(false);
+          setPlayerError(message);
+        },
+      });
     } else if (isHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
       if (!Hls.isSupported()) {
         setLoading(false);
@@ -928,11 +940,13 @@ function InternalMediaPlayer({ playback, onClose }: {
       disposed = true;
       hls?.destroy();
       transportStreamPlayer?.destroy();
+      stopDirectMp4?.();
+      video.removeEventListener('canplay', startPlayback);
       video.pause();
       video.removeAttribute('src');
       video.load();
     };
-  }, [playback.source]);
+  }, [directHttp, playback.item.kind, playback.source]);
 
   async function toggleFullscreen() {
     if (document.fullscreenElement) {
@@ -979,7 +993,7 @@ function InternalMediaPlayer({ playback, onClose }: {
             onWaiting={() => setLoading(true)}
             onError={() => {
               setLoading(false);
-              setPlayerError('Não foi possível reproduzir esta mídia neste navegador.');
+              setPlayerError((current) => current || 'Não foi possível reproduzir esta mídia neste navegador.');
             }}
           />
           {loading && !playerError && <div className="media-player-status"><Spinner /> Preparando mídia…</div>}
