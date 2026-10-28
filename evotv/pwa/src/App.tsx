@@ -857,7 +857,10 @@ function InternalMediaPlayer({ playback, onClose }: {
         withCredentials: false,
         url: playback.source,
       }, {
-        enableWorker: true,
+        // A blob-based transmuxing worker may send the media request with an
+        // opaque Origin, which the protected edge proxy must reject. Keep IO
+        // in the authorized PWA context instead of weakening origin checks.
+        enableWorker: false,
         enableStashBuffer: false,
         isLive: true,
         liveBufferLatencyChasing: true,
