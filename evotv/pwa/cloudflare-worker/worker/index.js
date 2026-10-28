@@ -107,7 +107,10 @@ async function backendRedirect(request, backendOrigin, backendPath, search) {
   const response = await fetchWithHeaderTimeout(new URL(`${backendPath}${search}`, backendOrigin), {
     method: 'GET', headers: backendRequestHeaders(request), redirect: 'manual',
   }, request);
-  if (!REDIRECT_STATUSES.has(response.status)) return { response };
+  if (!REDIRECT_STATUSES.has(response.status)) {
+    if (!response.ok) console.warn('media_backend_status', response.status);
+    return { response };
+  }
   const location = response.headers.get('location');
   await response.body?.cancel().catch(() => {});
   if (!location) throw new Error('backend_redirect_missing');
@@ -120,7 +123,10 @@ async function openProvider(request, initialTarget) {
     const response = await fetchWithHeaderTimeout(target, {
       method: request.method, headers: providerRequestHeaders(request), redirect: 'manual',
     }, request);
-    if (!REDIRECT_STATUSES.has(response.status)) return response;
+    if (!REDIRECT_STATUSES.has(response.status)) {
+      if (!response.ok) console.warn('media_provider_status', response.status, response.headers.get('content-type') || 'unknown');
+      return response;
+    }
     const location = response.headers.get('location');
     await response.body?.cancel().catch(() => {});
     if (!location || redirects === 4) throw new Error('provider_redirect_invalid');
@@ -233,6 +239,7 @@ export default {
 
     const origin = requestAppOrigin(request);
     if (!allowedOrigins(env).has(origin)) {
+      console.warn('media_origin_rejected', origin || 'missing', url.pathname.startsWith(BACKEND_PREFIX) ? 'open-stream' : 'other');
       return jsonError(403, 'ORIGIN_FORBIDDEN', 'Origem do aplicativo nao autorizada.', '', env);
     }
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(origin, env) });
