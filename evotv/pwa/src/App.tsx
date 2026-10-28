@@ -846,14 +846,23 @@ function InternalMediaPlayer({ playback, onClose }: {
         setLoading(false);
         setPlayerError('Este navegador não oferece um decodificador compatível com esta transmissão.');
       } else {
-        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hls = new Hls({
+          enableWorker: true,
+          lowLatencyMode: true,
+          manifestLoadingTimeOut: 60_000,
+          levelLoadingTimeOut: 60_000,
+          fragLoadingTimeOut: 60_000,
+        });
         hls.attachMedia(video);
         hls.on(Hls.Events.MEDIA_ATTACHED, () => hls?.loadSource(playback.source));
         hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
         hls.on(Hls.Events.ERROR, (_event, data) => {
           if (!data.fatal || disposed) return;
           setLoading(false);
-          setPlayerError('A transmissão foi interrompida. Feche o player e tente novamente.');
+          setPlayerError(
+            mediaProxyErrorMessage(data.response?.text) ||
+            'A transmissão foi interrompida. Feche o player e tente novamente.',
+          );
         });
       }
     } else {
@@ -1469,6 +1478,16 @@ function Spinner() {
 function readableError(reason: unknown): string {
   if (reason instanceof EvoApiError || reason instanceof Error) return reason.message;
   return 'Não foi possível concluir a operação.';
+}
+
+function mediaProxyErrorMessage(raw: string | undefined): string {
+  if (!raw) return '';
+  try {
+    const value = JSON.parse(raw) as { error?: unknown };
+    return typeof value.error === 'string' ? value.error : '';
+  } catch {
+    return '';
+  }
 }
 
 function durationLabel(raw: string): string {

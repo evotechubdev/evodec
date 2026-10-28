@@ -83,7 +83,8 @@ async function fetchWithHeaderTimeout(target, init, request) {
   const controller = new AbortController();
   const abort = () => controller.abort();
   request.signal.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(() => controller.abort(), 20_000);
+  // O Render pode precisar de mais de 20 segundos para sair do estado ocioso.
+  const timer = setTimeout(() => controller.abort(), 60_000);
   try {
     return await fetch(target, { ...init, signal: controller.signal });
   } finally {
