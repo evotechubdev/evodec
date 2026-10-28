@@ -15,5 +15,5 @@ export const appConfig = Object.freeze({
   // A PWA usa um canal web próprio e não participa do versionamento obrigatório
   // dos aplicativos Android e Windows.
   clientPlatform: 'web',
-  loginDomain: 'evoiptv.com.br',
+  loginDomain: 'evotv.com.br',
 });
