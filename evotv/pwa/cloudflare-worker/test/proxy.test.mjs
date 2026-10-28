@@ -5,15 +5,21 @@ import worker from '../worker/index.js';
 const env = {
   AUTH_BACKEND_ORIGIN: 'https://backend.example',
   ALLOWED_APP_ORIGINS: 'https://app.example,http://localhost:4173',
+  MEDIA_TOKEN_KEY: 'test-only-media-token-key-with-at-least-32-characters',
 };
 
-test('transmite a mídia pelo backend sem revelar nem acessar o provedor no Worker', async (t) => {
+test('usa o backend somente para autorizar e transmite a midia direto pelo Worker', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
   const calls = [];
   globalThis.fetch = async (input, init) => {
     calls.push({ target: String(input), init });
-    assert.equal(String(input), 'https://backend.example/stream/ticket/42.mp4');
+    if (calls.length === 1) {
+      assert.equal(String(input), 'https://backend.example/open-stream/ticket/42.mp4');
+      assert.equal(init.redirect, 'manual');
+      return new Response(null, { status: 302, headers: { location: 'http://provider.example/movie/user/pass/42.mp4' } });
+    }
+    assert.equal(String(input), 'http://provider.example/movie/user/pass/42.mp4');
     assert.equal(new Headers(init.headers).get('range'), 'bytes=0-99');
     return new Response('video-bytes', {
       status: 206,
@@ -21,46 +27,61 @@ test('transmite a mídia pelo backend sem revelar nem acessar o provedor no Work
     });
   };
 
-  const response = await worker.fetch(new Request('https://proxy.example/stream/ticket/42.mp4', {
+  const response = await worker.fetch(new Request('https://proxy.example/open-stream/ticket/42.mp4', {
     headers: { origin: 'https://app.example', range: 'bytes=0-99' },
   }), env);
   assert.equal(response.status, 206);
   assert.equal(response.headers.get('access-control-allow-origin'), 'https://app.example');
-  assert.equal(response.headers.get('content-type'), 'video/mp4');
   assert.equal(await response.text(), 'video-bytes');
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
 });
 
-test('mantém os segmentos HLS sob a origem HTTPS do Worker', async (t) => {
+test('criptografa destinos HLS e mantem playlist e segmentos no HTTPS do Worker', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
-  globalThis.fetch = async () => new Response([
-    '#EXTM3U',
-    '#EXT-X-KEY:METHOD=AES-128,URI="https://backend.example/segment/ticket/key"',
-    'https://backend.example/segment/ticket/part',
-  ].join('\n'), { headers: { 'content-type': 'application/vnd.apple.mpegurl' } });
-  const response = await worker.fetch(new Request('https://proxy.example/stream/ticket/7.m3u8', {
+  const calls = [];
+  globalThis.fetch = async (input) => {
+    calls.push(String(input));
+    if (calls.length === 1) {
+      return new Response(null, { status: 302, headers: { location: 'http://provider.example/live/u/p/7.m3u8' } });
+    }
+    if (calls.length === 2) {
+      return new Response([
+        '#EXTM3U',
+        '#EXT-X-KEY:METHOD=AES-128,URI="keys/key.bin"',
+        'parts/one.ts',
+      ].join('\n'), { headers: { 'content-type': 'application/vnd.apple.mpegurl' } });
+    }
+    assert.equal(String(input), 'http://provider.example/live/u/p/parts/one.ts');
+    return new Response('segment-bytes', { headers: { 'content-type': 'video/mp2t' } });
+  };
+
+  const playlistResponse = await worker.fetch(new Request('https://proxy.example/open-stream/ticket/7.m3u8', {
     headers: { origin: 'https://app.example' },
   }), env);
-  const manifest = await response.text();
-  assert.match(manifest, /https:\/\/proxy\.example\/segment\/ticket\/key/);
-  assert.match(manifest, /https:\/\/proxy\.example\/segment\/ticket\/part/);
-  assert.doesNotMatch(manifest, /backend\.example/);
+  const manifest = await playlistResponse.text();
+  assert.match(manifest, /https:\/\/proxy\.example\/segment\/[A-Za-z0-9_-]+/);
+  assert.doesNotMatch(manifest, /provider\.example|\/live\/u\/p/);
+  const segmentUrl = manifest.split('\n').find(line => line.startsWith('https://proxy.example/segment/'));
+  const segmentResponse = await worker.fetch(new Request(segmentUrl, {
+    headers: { origin: 'https://app.example' },
+  }), env);
+  assert.equal(segmentResponse.status, 200);
+  assert.equal(await segmentResponse.text(), 'segment-bytes');
 });
 
-test('aceita navegação do player pelo Referer quando Origin não existe', async (t) => {
+test('aceita navegacao do player pelo Referer quando Origin nao existe', async (t) => {
   const originalFetch = globalThis.fetch;
   t.after(() => { globalThis.fetch = originalFetch; });
-  globalThis.fetch = async () => new Response('media', { headers: { 'content-type': 'video/mp2t' } });
-  const response = await worker.fetch(new Request('https://proxy.example/segment/ticket/sealed-target', {
+  globalThis.fetch = async () => new Response(null, { status: 401, headers: { 'content-type': 'application/json' } });
+  const response = await worker.fetch(new Request('https://proxy.example/open-stream/ticket/7.mp4', {
     headers: { referer: 'https://app.example/pwa/' },
   }), env);
-  assert.equal(response.status, 200);
-  assert.equal(await response.text(), 'media');
+  assert.equal(response.status, 401);
 });
 
-test('recusa uso fora do PWA e rotas arbitrárias', async () => {
-  const noOrigin = await worker.fetch(new Request('https://proxy.example/stream/ticket/42.mp4'), env);
+test('recusa uso fora do PWA e rotas arbitrarias', async () => {
+  const noOrigin = await worker.fetch(new Request('https://proxy.example/open-stream/ticket/42.mp4'), env);
   assert.equal(noOrigin.status, 403);
   const arbitrary = await worker.fetch(new Request('https://proxy.example/arbitrary-target', {
     headers: { origin: 'https://app.example' },
@@ -68,21 +89,29 @@ test('recusa uso fora do PWA e rotas arbitrárias', async () => {
   assert.equal(arbitrary.status, 404);
 });
 
-test('responde ao preflight apenas para uma origem autorizada', async () => {
-  const response = await worker.fetch(new Request('https://proxy.example/stream/ticket/42.mp4', {
-    method: 'OPTIONS',
-    headers: { origin: 'https://app.example' },
+test('responde ao preflight apenas para origem autorizada', async () => {
+  const response = await worker.fetch(new Request('https://proxy.example/open-stream/ticket/42.mp4', {
+    method: 'OPTIONS', headers: { origin: 'https://app.example' },
   }), env);
   assert.equal(response.status, 204);
   assert.equal(response.headers.get('access-control-allow-origin'), 'https://app.example');
 });
 
-test('health confirma que o provedor está oculto pelo backend', async () => {
+test('exige o segredo que protege os segmentos', async () => {
+  const response = await worker.fetch(new Request('https://proxy.example/open-stream/ticket/42.mp4', {
+    headers: { origin: 'https://app.example' },
+  }), { ...env, MEDIA_TOKEN_KEY: '' });
+  assert.equal(response.status, 503);
+  assert.equal((await response.json()).code, 'PROXY_NOT_CONFIGURED');
+});
+
+test('health confirma rota direta na borda sem expor o provedor', async () => {
   const response = await worker.fetch(new Request('https://proxy.example/health'), env);
   assert.deepEqual(await response.json(), {
     ok: true,
     service: 'evotv-cloudflare-media-proxy',
     configured: true,
     providerHiddenByBackend: true,
+    mediaRoute: 'direct-edge',
   });
 });

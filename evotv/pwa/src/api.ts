@@ -261,18 +261,20 @@ export class EvoApi {
         kind: item.kind,
         id: item.id,
         extension,
-        transport: useEdgeProxy ? undefined : 'direct',
+        // The edge proxy consumes the backend's one-use redirect and opens the
+        // HTTP provider itself. The browser only sees the Worker HTTPS address.
+        transport: 'direct',
       }),
     });
     const source = text(data.url);
-    if (!source || (!useEdgeProxy && text(data.transport) !== 'direct')) {
+    if (!source || text(data.transport) !== 'direct') {
       throw new EvoApiError('O servidor não retornou uma abertura compatível com este dispositivo.');
     }
     try {
       const url = new URL(source);
       if (url.protocol !== 'https:' || url.username || url.password) throw new Error();
       if (useEdgeProxy) {
-        if (!url.pathname.startsWith('/stream/')) throw new Error();
+        if (!url.pathname.startsWith('/open-stream/')) throw new Error();
         const proxy = new URL(appConfig.edgeProxyUrl, window.location.href);
         const localProxy = ['localhost', '127.0.0.1', '[::1]'].includes(proxy.hostname);
         if ((proxy.protocol !== 'https:' && !(import.meta.env.DEV && localProxy))

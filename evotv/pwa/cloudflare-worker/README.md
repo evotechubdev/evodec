@@ -1,16 +1,19 @@
-# EVOTV Cloudflare Media Proxy — teste
+# EVOTV Cloudflare Media Proxy
 
-Worker opcional para retransmitir por HTTPS uma mídia autorizada pelo backend.
-O navegador envia somente os caminhos temporários `/stream/...` e `/segment/...`.
-O Worker nunca recebe o domínio, a porta, o usuário ou a senha do provedor IPTV:
-somente o backend abre a conexão com ele.
+Worker para retransmitir por HTTPS uma midia HTTP autorizada pelo backend.
+O navegador envia somente caminhos temporarios `/open-stream/...` e
+`/segment/...`. O backend valida a conta e emite uma abertura de uso unico; o
+Worker segue essa abertura internamente e entrega os bytes por HTTPS, sem passar
+o arquivo de video pelo Render.
 
-## Configuração
+## Configuracao
 
-1. Em `wrangler.jsonc`, mantenha `AUTH_BACKEND_ORIGIN` apontando para o backend.
-2. Em `ALLOWED_APP_ORIGINS`, liste as origens exatas do PWA, separadas por vírgula.
-3. Execute `npm install`, `npm test` e `npm run deploy`.
-4. Copie a URL HTTPS publicada e defina `VITE_EVO_EDGE_PROXY_URL` no build do PWA.
+1. Mantenha `AUTH_BACKEND_ORIGIN` apontando para o backend HTTPS.
+2. Liste em `ALLOWED_APP_ORIGINS` as origens exatas do PWA, separadas por virgula.
+3. Crie o segredo `MEDIA_TOKEN_KEY` com pelo menos 32 caracteres. Ele criptografa
+   internamente os enderecos de playlists, chaves e segmentos HLS.
+4. Execute `npm install`, `npm test` e `npm run deploy`.
+5. Defina a URL HTTPS publicada em `VITE_EVO_EDGE_PROXY_URL` no build do PWA.
 
 Para desenvolvimento local, use `npm run dev` e configure no PWA:
 
@@ -18,17 +21,18 @@ Para desenvolvimento local, use `npm run dev` e configure no PWA:
 VITE_EVO_EDGE_PROXY_URL=http://localhost:8787
 ```
 
-O endereço HTTP local só é aceito pelo PWA durante o modo de desenvolvimento.
-Em produção, o endereço do Worker precisa usar HTTPS.
+O endereco HTTP local so e aceito pelo PWA em desenvolvimento. Em producao, o
+Worker sempre precisa usar HTTPS.
 
-## Segurança e limites
+## Seguranca e limites
 
 - aceita apenas `GET`, `HEAD` e `OPTIONS`;
-- restringe a origem do PWA e aceita somente tickets opacos do backend;
-- faz requisições apenas ao backend HTTPS configurado;
-- mantém endereço, porta e credenciais do provedor exclusivamente no backend;
-- preserva `Range`/`If-Range` e transmite o corpo como stream, sem carregar o
-  vídeo inteiro na memória;
-- não usa cache para tickets ou mídia.
+- restringe a origem do PWA e aceita somente tickets opacos e de uso unico;
+- nunca devolve o redirecionamento do provedor ao navegador;
+- criptografa os destinos HLS usando `MEDIA_TOKEN_KEY`;
+- mantem endereco, porta e credenciais fora do codigo e das respostas do PWA;
+- preserva `Range`/`If-Range` e transmite o corpo como stream;
+- nao usa cache para tickets ou midia.
 
-O consumo de mídia conta nos limites e custos da conta Cloudflare e do backend.
+O consumo da midia conta nos limites e custos da Cloudflare. O backend autoriza
+a abertura, mas nao retransmite mais o arquivo completo.
