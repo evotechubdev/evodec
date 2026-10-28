@@ -91,11 +91,11 @@ function providerRequestHeaders(request) {
   return headers;
 }
 
-async function fetchWithHeaderTimeout(target, init, request) {
+async function fetchWithHeaderTimeout(target, init, request, timeoutMs = 60_000) {
   const controller = new AbortController();
   const abort = () => controller.abort();
   request.signal.addEventListener('abort', abort, { once: true });
-  const timer = setTimeout(() => controller.abort(), 60_000);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try { return await fetch(target, { ...init, signal: controller.signal }); }
   finally {
     clearTimeout(timer);
@@ -124,16 +124,28 @@ async function backendRelay(request, backendOrigin, backendPath) {
     headers: backendRequestHeaders(request),
     redirect: 'manual',
   }, request);
-  if (!response.ok) console.warn('media_backend_fallback_status', response.status);
+  if (!response.ok) await logErrorResponse('media_backend_fallback_status', response);
   return response;
 }
 
-async function openProvider(request, initialTarget) {
+async function logErrorResponse(label, response) {
+  const type = response.headers.get('content-type') || 'unknown';
+  let detail = /html/i.test(type) ? 'html_gateway' : 'non_json';
+  if (/json/i.test(type)) {
+    try {
+      const data = await response.clone().json();
+      detail = String(data?.code || 'json_error').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60);
+    } catch { detail = 'invalid_json'; }
+  }
+  console.warn(label, response.status, type, detail);
+}
+
+async function openProvider(request, initialTarget, timeoutMs = 60_000) {
   let target = validMediaUrl(initialTarget);
   for (let redirects = 0; redirects <= 4; redirects += 1) {
     const response = await fetchWithHeaderTimeout(target, {
       method: request.method, headers: providerRequestHeaders(request), redirect: 'manual',
-    }, request);
+    }, request, timeoutMs);
     if (!REDIRECT_STATUSES.has(response.status)) {
       if (!response.ok) console.warn('media_provider_status', response.status, response.headers.get('content-type') || 'unknown');
       return response;
@@ -144,6 +156,42 @@ async function openProvider(request, initialTarget) {
     target = validMediaUrl(new URL(location, target).href);
   }
   throw new Error('provider_redirect_invalid');
+}
+
+function secureProviderCandidates(target) {
+  const source = validMediaUrl(target);
+  if (source.protocol !== 'http:') return [];
+  const candidates = [];
+  const add = (port) => {
+    const candidate = new URL(source);
+    candidate.protocol = 'https:';
+    candidate.port = port;
+    if (!candidates.some(item => item.href === candidate.href)) candidates.push(candidate);
+  };
+  // Prefer standard TLS, then the provider's declared port and the common
+  // alternate HTTPS port used by IPTV panels.
+  add('');
+  if (source.port && source.port !== '80') add(source.port);
+  add('8443');
+  return candidates;
+}
+
+async function openSecureProviderFallback(request, target) {
+  for (const candidate of secureProviderCandidates(target)) {
+    try {
+      const response = await openProvider(request, candidate, 12_000);
+      const type = response.headers.get('content-type') || '';
+      if (response.ok && !/^(?:text\/html|application\/(?:json|xml))/i.test(type)) {
+        console.warn('media_secure_provider_fallback_ok', candidate.port || '443');
+        return { response, target: candidate };
+      }
+      console.warn('media_secure_provider_candidate_status', candidate.port || '443', response.status, type || 'unknown');
+      await response.body?.cancel().catch(() => {});
+    } catch (error) {
+      console.warn('media_secure_provider_candidate_failed', candidate.port || '443', error?.name || 'Error');
+    }
+  }
+  return null;
 }
 
 function base64Url(bytes) {
@@ -280,6 +328,10 @@ export default {
       if (backendPath && (upstream.status === 401 || upstream.status === 403)) {
         console.warn('media_provider_denied_using_backend_fallback', upstream.status);
         await upstream.body?.cancel().catch(() => {});
+        const secureFallback = await openSecureProviderFallback(request, target);
+        if (secureFallback) {
+          return await mediaResponse(secureFallback.response, origin, env, request, secureFallback.target);
+        }
         const fallback = await backendRelay(request, backendOrigin, backendPath);
         return await mediaResponse(fallback, origin, env, request, backendOrigin);
       }

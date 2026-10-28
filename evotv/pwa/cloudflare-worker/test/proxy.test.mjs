@@ -48,6 +48,9 @@ test('usa retransmissao HTTPS do backend quando o provedor bloqueia a Cloudflare
     if (calls.length === 2) {
       return new Response('blocked', { status: 403, headers: { 'content-type': 'text/plain' } });
     }
+    if (String(input).startsWith('https://provider.example')) {
+      return new Response('blocked', { status: 403, headers: { 'content-type': 'text/plain' } });
+    }
     assert.equal(String(input), 'https://backend.example/stream/ticket/7.ts');
     assert.equal(new Headers(init.headers).get('range'), 'bytes=0-');
     return new Response('relayed-video', { headers: { 'content-type': 'video/mp2t' } });
@@ -59,11 +62,32 @@ test('usa retransmissao HTTPS do backend quando o provedor bloqueia a Cloudflare
   assert.equal(response.status, 200);
   assert.equal(response.headers.get('content-type'), 'video/mp2t');
   assert.equal(await response.text(), 'relayed-video');
-  assert.deepEqual(calls, [
-    'https://backend.example/open-stream/ticket/7.ts',
-    'http://provider.example/live/u/p/7.ts',
-    'https://backend.example/stream/ticket/7.ts',
-  ]);
+  assert.equal(calls[0], 'https://backend.example/open-stream/ticket/7.ts');
+  assert.equal(calls[1], 'http://provider.example/live/u/p/7.ts');
+  assert.equal(calls.at(-1), 'https://backend.example/stream/ticket/7.ts');
+  assert.ok(calls.includes('https://provider.example/live/u/p/7.ts'));
+  assert.ok(calls.includes('https://provider.example:8443/live/u/p/7.ts'));
+});
+
+test('prefere HTTPS do mesmo provedor quando a borda recusa a URL HTTP', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  const calls = [];
+  globalThis.fetch = async (input) => {
+    calls.push(String(input));
+    if (calls.length === 1) {
+      return new Response(null, { status: 302, headers: { location: 'http://provider.example/live/u/p/9.ts' } });
+    }
+    if (calls.length === 2) return new Response('blocked', { status: 403 });
+    assert.equal(String(input), 'https://provider.example/live/u/p/9.ts');
+    return new Response('secure-video', { headers: { 'content-type': 'video/mp2t' } });
+  };
+  const response = await worker.fetch(new Request('https://proxy.example/open-stream/ticket/9.ts', {
+    headers: { origin: 'https://app.example' },
+  }), env);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), 'secure-video');
+  assert.equal(calls.length, 3);
 });
 
 test('criptografa destinos HLS e mantem playlist e segmentos no HTTPS do Worker', async (t) => {
