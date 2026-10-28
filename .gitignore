@@ -10,6 +10,7 @@ pages-dist/
 !.env.example
 
 # Projetos locais que nunca devem ser enviados ao Git
+local/
 evotv/local/
 evotv/app_android/
 evotv/programa_pc/
