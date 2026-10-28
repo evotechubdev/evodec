@@ -11,6 +11,7 @@ import mpegts from 'mpegts.js';
 
 import { EvoApi, EvoApiError } from './api';
 import { PWA_VERSION } from './pwa-version';
+import { registerDirectMediaTarget } from './pwa';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
   type Account,
@@ -50,6 +51,7 @@ interface PublicContacts {
 interface ActivePlayback {
   item: CatalogItem;
   source: string;
+  directHttp: boolean;
 }
 
 export default function App() {
@@ -587,7 +589,16 @@ function PlayerApp() {
         item,
         profileSession.playbackGrant,
       );
-      setActivePlayback({ item, source });
+      const directHttp = (() => {
+        try { return new URL(source).protocol === 'http:'; }
+        catch { return false; }
+      })();
+      const extension = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 8)
+        || (item.kind === 'live' ? 'ts' : 'mp4');
+      const playerSource = directHttp && item.kind !== 'live'
+        ? await registerDirectMediaTarget(source, `${item.id}.${extension}`)
+        : source;
+      setActivePlayback({ item, source: playerSource, directHttp });
     } catch (reason) {
       setError(readableError(reason));
     } finally {
@@ -814,10 +825,7 @@ function InternalMediaPlayer({ playback, onClose }: {
   const [loading, setLoading] = useState(true);
   const [needsPlay, setNeedsPlay] = useState(false);
   const [playerError, setPlayerError] = useState('');
-  const directHttp = (() => {
-    try { return new URL(playback.source).protocol === 'http:'; }
-    catch { return false; }
-  })();
+  const directHttp = playback.directHttp;
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

@@ -1,8 +1,28 @@
-const SERVICE_WORKER_VERSION = '16';
+const SERVICE_WORKER_VERSION = '17';
 const ACTIVATION_TIMEOUT_MS = 15_000;
 const RELOAD_MARKER = `evotv-sw-reload-v${SERVICE_WORKER_VERSION}`;
 
 let setupPromise: Promise<ServiceWorker> | null = null;
+
+export async function registerDirectMediaTarget(target: string, fileName: string): Promise<string> {
+  if (!('serviceWorker' in navigator)) throw new Error('O navegador nao oferece o componente de midia local.');
+  const worker = await (setupPromise ??= prepareServiceWorker());
+  const id = crypto.randomUUID();
+  const channel = new MessageChannel();
+  const response = new Promise<{ ok?: boolean; error?: string }>((resolve, reject) => {
+    const timeout = window.setTimeout(() => reject(new Error('O componente de midia nao respondeu.')), 5_000);
+    channel.port1.onmessage = (event: MessageEvent<{ ok?: boolean; error?: string }>) => {
+      window.clearTimeout(timeout);
+      channel.port1.close();
+      resolve(event.data || {});
+    };
+  });
+  worker.postMessage({ type: 'EVOTV_DIRECT_MEDIA_REGISTER', id, target }, [channel.port2]);
+  const result = await response;
+  if (!result.ok) throw new Error(result.error || 'Nao foi possivel preparar a midia local.');
+  const safeName = fileName.replace(/[^a-z0-9._-]/gi, '').slice(0, 80) || 'media.mp4';
+  return new URL(`__direct_media/${id}/${safeName}`, window.location.href).href;
+}
 
 export function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator) || import.meta.env.DEV) return;
