@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import Hls from 'hls.js';
 
 import { EvoApi, EvoApiError } from './api';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
@@ -42,6 +43,11 @@ const PUBLIC_CONTACTS_URL =
 interface PublicContacts {
   support: string;
   commercial: string;
+}
+
+interface ActivePlayback {
+  item: CatalogItem;
+  source: string;
 }
 
 export default function App() {
@@ -281,6 +287,7 @@ function PlayerApp() {
   const [catalogLoadingMore, setCatalogLoadingMore] = useState(false);
   const [seriesItem, setSeriesItem] = useState<CatalogItem | null>(null);
   const [seriesDetails, setSeriesDetails] = useState<SeriesDetails | null>(null);
+  const [activePlayback, setActivePlayback] = useState<ActivePlayback | null>(null);
   const [showInstallHelp, setShowInstallHelp] = useState(
     shouldShowInstallHelpFromRedirect,
   );
@@ -568,7 +575,6 @@ function PlayerApp() {
 
   async function playItem(item: CatalogItem) {
     if (!auth || !profileSession || busy) return;
-    const nativePlayerWindow = openNativePlayerWindow();
     setBusy(true);
     setError('');
     try {
@@ -578,14 +584,8 @@ function PlayerApp() {
         selectedProfile,
         item,
       );
-      if (nativePlayerWindow && !nativePlayerWindow.closed) {
-        nativePlayerWindow.opener = null;
-        nativePlayerWindow.location.replace(source);
-      } else {
-        window.location.assign(source);
-      }
+      setActivePlayback({ item, source });
     } catch (reason) {
-      nativePlayerWindow?.close();
       setError(readableError(reason));
     } finally {
       setBusy(false);
@@ -597,6 +597,7 @@ function PlayerApp() {
     const currentSession = profileSession;
     const currentProfile = selectedProfile;
     setProfileSession(null);
+    setActivePlayback(null);
     setSelectedProfile(0);
     catalogRequestId.current += 1;
     setCategories([]);
@@ -649,6 +650,7 @@ function PlayerApp() {
   function endProfileSession(message: string) {
     setError(message);
     setProfileSession(null);
+    setActivePlayback(null);
     setSelectedProfile(0);
     catalogRequestId.current += 1;
     setCategories([]);
@@ -785,32 +787,141 @@ function PlayerApp() {
       {showInstallHelp && (
         <InstallHelp onClose={closeInstallHelp} />
       )}
+      {activePlayback && (
+        <InternalMediaPlayer
+          playback={activePlayback}
+          onClose={() => setActivePlayback(null)}
+        />
+      )}
     </div>
   );
 }
 
-function openNativePlayerWindow(): Window | null {
-  const playerWindow = window.open(
-    '',
-    'evotv-native-player',
-    'popup=yes,width=1280,height=720,resizable=yes,scrollbars=no',
+function InternalMediaPlayer({ playback, onClose }: {
+  playback: ActivePlayback;
+  onClose(): void;
+}) {
+  const panelRef = useRef<HTMLElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [needsPlay, setNeedsPlay] = useState(false);
+  const [playerError, setPlayerError] = useState('');
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      if (document.fullscreenElement) void document.exitFullscreen();
+      else onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    let hls: Hls | null = null;
+    let disposed = false;
+    setLoading(true);
+    setNeedsPlay(false);
+    setPlayerError('');
+
+    const startPlayback = () => {
+      if (disposed) return;
+      void video.play().then(() => setNeedsPlay(false)).catch(() => setNeedsPlay(true));
+    };
+    const isHls = (() => {
+      try { return new URL(playback.source).pathname.toLowerCase().endsWith('.m3u8'); }
+      catch { return false; }
+    })();
+
+    if (isHls && !video.canPlayType('application/vnd.apple.mpegurl')) {
+      if (!Hls.isSupported()) {
+        setLoading(false);
+        setPlayerError('Este navegador não oferece um decodificador compatível com esta transmissão.');
+      } else {
+        hls = new Hls({ enableWorker: true, lowLatencyMode: true });
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MEDIA_ATTACHED, () => hls?.loadSource(playback.source));
+        hls.on(Hls.Events.MANIFEST_PARSED, startPlayback);
+        hls.on(Hls.Events.ERROR, (_event, data) => {
+          if (!data.fatal || disposed) return;
+          setLoading(false);
+          setPlayerError('A transmissão foi interrompida. Feche o player e tente novamente.');
+        });
+      }
+    } else {
+      video.src = playback.source;
+      video.addEventListener('loadedmetadata', startPlayback, { once: true });
+      video.load();
+    }
+
+    return () => {
+      disposed = true;
+      hls?.destroy();
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+    };
+  }, [playback.source]);
+
+  async function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      await document.exitFullscreen().catch(() => {});
+      return;
+    }
+    if (panelRef.current?.requestFullscreen) {
+      await panelRef.current.requestFullscreen().catch(() => {});
+      return;
+    }
+    const iosVideo = videoRef.current as HTMLVideoElement & { webkitEnterFullscreen?: () => void };
+    iosVideo?.webkitEnterFullscreen?.();
+  }
+
+  function resumePlayback() {
+    const video = videoRef.current;
+    if (!video) return;
+    void video.play().then(() => setNeedsPlay(false)).catch(() => {
+      setPlayerError('Toque novamente no botão de reprodução do player.');
+    });
+  }
+
+  return (
+    <div className="media-player-backdrop" role="presentation">
+      <section ref={panelRef} className="media-player-modal" role="dialog" aria-modal="true" aria-labelledby="media-player-title">
+        <header className="media-player-header">
+          <div>
+            <span>{playback.item.kind === 'live' ? 'AO VIVO' : mediaLabels[playback.item.kind]}</span>
+            <strong id="media-player-title">{playback.item.name}</strong>
+          </div>
+          <div className="media-player-actions">
+            <button type="button" onClick={() => void toggleFullscreen()}>⛶ Tela cheia</button>
+            <button type="button" onClick={onClose}>× Fechar</button>
+          </div>
+        </header>
+        <div className="media-player-surface">
+          <video
+            ref={videoRef}
+            controls
+            playsInline
+            crossOrigin="anonymous"
+            onCanPlay={() => setLoading(false)}
+            onPlaying={() => { setLoading(false); setNeedsPlay(false); }}
+            onWaiting={() => setLoading(true)}
+            onError={() => {
+              setLoading(false);
+              setPlayerError('Não foi possível reproduzir esta mídia neste navegador.');
+            }}
+          />
+          {loading && !playerError && <div className="media-player-status"><Spinner /> Preparando mídia…</div>}
+          {needsPlay && !playerError && (
+            <button type="button" className="media-player-start" onClick={resumePlayback}>▶ REPRODUZIR</button>
+          )}
+          {playerError && <div className="media-player-error">{playerError}</div>}
+        </div>
+      </section>
+    </div>
   );
-  if (!playerWindow) return null;
-  playerWindow.document.title = 'EVOTV';
-  playerWindow.document.body.replaceChildren();
-  Object.assign(playerWindow.document.body.style, {
-    margin: '0',
-    minHeight: '100vh',
-    display: 'grid',
-    placeItems: 'center',
-    background: '#020617',
-    color: '#e2e8f0',
-    fontFamily: 'system-ui, sans-serif',
-  });
-  const message = playerWindow.document.createElement('p');
-  message.textContent = 'Abrindo no player do dispositivo…';
-  playerWindow.document.body.append(message);
-  return playerWindow;
 }
 
 function Header({
