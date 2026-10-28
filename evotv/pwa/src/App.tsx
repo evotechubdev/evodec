@@ -9,6 +9,7 @@ import {
 import Hls from 'hls.js';
 
 import { EvoApi, EvoApiError } from './api';
+import { PWA_VERSION } from './pwa-version';
 import { clearSavedLogin, loadSavedLogin, saveLogin } from './storage';
 import {
   type Account,
@@ -793,6 +794,9 @@ function PlayerApp() {
           onClose={() => setActivePlayback(null)}
         />
       )}
+      <span className="pwa-version" aria-label={`Versão do PWA: ${PWA_VERSION}`}>
+        Versão: {PWA_VERSION}
+      </span>
     </div>
   );
 }
