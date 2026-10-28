@@ -117,6 +117,17 @@ async function backendRedirect(request, backendOrigin, backendPath, search) {
   return { target: validMediaUrl(new URL(location, backendOrigin).href) };
 }
 
+async function backendRelay(request, backendOrigin, backendPath) {
+  const relayPath = backendPath.replace(BACKEND_PREFIX, '/stream/');
+  const response = await fetchWithHeaderTimeout(new URL(relayPath, backendOrigin), {
+    method: request.method,
+    headers: backendRequestHeaders(request),
+    redirect: 'manual',
+  }, request);
+  if (!response.ok) console.warn('media_backend_fallback_status', response.status);
+  return response;
+}
+
 async function openProvider(request, initialTarget) {
   let target = validMediaUrl(initialTarget);
   for (let redirects = 0; redirects <= 4; redirects += 1) {
@@ -252,8 +263,9 @@ export default {
 
     try {
       let target;
+      let backendPath = '';
       if (url.pathname.startsWith(BACKEND_PREFIX)) {
-        const backendPath = validBackendPath(url.pathname, url.search);
+        backendPath = validBackendPath(url.pathname, url.search);
         if (!backendPath) return jsonError(404, 'NOT_FOUND', 'Rota nao encontrada.', origin, env);
         const opened = await backendRedirect(request, backendOrigin, backendPath, url.search);
         if (opened.response) return mediaResponse(opened.response, origin, env, request, backendOrigin);
@@ -265,6 +277,12 @@ export default {
       } else return jsonError(404, 'NOT_FOUND', 'Rota nao encontrada.', origin, env);
 
       const upstream = await openProvider(request, target);
+      if (backendPath && (upstream.status === 401 || upstream.status === 403)) {
+        console.warn('media_provider_denied_using_backend_fallback', upstream.status);
+        await upstream.body?.cancel().catch(() => {});
+        const fallback = await backendRelay(request, backendOrigin, backendPath);
+        return await mediaResponse(fallback, origin, env, request, backendOrigin);
+      }
       return await mediaResponse(upstream, origin, env, request, target);
     } catch (reason) {
       console.error('media_proxy_failed', reason instanceof Error ? reason.message : 'unknown');
