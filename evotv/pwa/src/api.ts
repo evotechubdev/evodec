@@ -186,7 +186,7 @@ export class EvoApi {
     profile: number,
     kind: MediaKind,
   ): Promise<CatalogCategory[]> {
-    const data = await this.backendValue('/api/iptv', token, {
+    const data = await this.backendValue('/api/tv', token, {
       method: 'POST',
       headers: sessionHeaders(sessionToken, profile),
       body: JSON.stringify({
@@ -212,7 +212,7 @@ export class EvoApi {
     profile: number,
     series: CatalogItem,
   ): Promise<SeriesDetails> {
-    const data = await this.backend('/api/iptv', token, {
+    const data = await this.backend('/api/tv', token, {
       method: 'POST',
       headers: sessionHeaders(sessionToken, profile),
       body: JSON.stringify({
@@ -548,10 +548,11 @@ function firebaseError(data: JsonObject): string {
 
 function backendError(data: JsonObject, status: number): string {
   const error = data.error;
-  if (typeof error === 'string' && error.trim()) return error;
+  if (typeof error === 'string' && error.trim()) return error.replace(/\bIPTV\b/gi, 'TV');
   const details = object(error);
   const nested = details ? text(details.message).trim() : '';
-  return nested || text(data.message).trim() || `O serviço respondeu com o código ${status}.`;
+  return (nested || text(data.message).trim() || `O serviço respondeu com o código ${status}.`)
+    .replace(/\bIPTV\b/gi, 'TV');
 }
 
 function object(value: unknown): JsonObject | null {

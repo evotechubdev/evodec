@@ -71,7 +71,7 @@ usado, o backend precisará permitir por CORS o domínio público e os cabeçalh
 `x-evo-version-code`, `x-evo-session` e `x-evo-profile`.
 
 O backend aceita o canal `web` sem consultar `config/versao`. As respostas de
-`/api/account`, `/api/profile`, `/api/catalog`, `/api/iptv` e `/api/session`
+`/api/account`, `/api/profile`, `/api/catalog`, `/api/tv` e `/api/session`
 continuam protegidas por autenticação e sessão. A mídia deve ser fornecida por
 HTTPS, pois páginas HTTPS não podem reproduzir streams HTTP.
 
