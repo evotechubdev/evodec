@@ -587,6 +587,7 @@ function PlayerApp() {
         profileSession.sessionToken,
         selectedProfile,
         item,
+        profileSession.playbackGrant,
       );
       const directHttp = (() => {
         try { return new URL(source).protocol === 'http:'; }

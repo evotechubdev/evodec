@@ -38,8 +38,17 @@ export interface Account {
   accountType: string;
 }
 
+export interface PlaybackGrant {
+  server: string;
+  username: string;
+  password: string;
+  profile: number;
+  expiresAt: number;
+}
+
 export interface ProfileSession {
   sessionToken: string;
+  playbackGrant: PlaybackGrant;
 }
 
 export interface ProfileSetting {
