@@ -78,6 +78,11 @@ continuam protegidas por autenticação e sessão. Sem o proxy opcional, a mídi
 deve ser fornecida por HTTPS, pois páginas HTTPS não podem reproduzir streams
 HTTP.
 
+O teste `?direct_http=1` para Chrome no Windows solicita ao backend o transporte
+`resolved`. O navegador recebe somente a URL temporária final do provedor; o PWA
+não solicita, descriptografa nem armazena as credenciais IPTV. Esse modo continua
+dependendo da permissão explícita de conteúdo inseguro do navegador.
+
 ## Teste com Cloudflare Workers
 
 O diretório `cloudflare-worker/` contém um proxy de borda opcional. Quando

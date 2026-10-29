@@ -7,7 +7,6 @@ import {
   type CatalogPage,
   type CatalogRequest,
   type MediaKind,
-  type PlaybackGrant,
   type ProfileSession,
   type ProfileSetting,
   type ProfileSettings,
@@ -33,11 +32,6 @@ export class EvoApiError extends Error {
     this.name = 'EvoApiError';
     this.code = code;
   }
-}
-
-interface PlaybackKeys {
-  publicKey: string;
-  decrypt(envelope: JsonObject, expectedProfile: number): Promise<PlaybackGrant>;
 }
 
 export class EvoApi {
@@ -102,33 +96,21 @@ export class EvoApi {
   }
 
   async selectProfile(token: string, profile: number, pin: string): Promise<ProfileSession> {
-    const keys = await generatePlaybackKeys();
     const data = await this.backend('/api/profile', token, {
       method: 'POST',
       body: JSON.stringify({
         profile,
         force: true,
         pin,
-        playbackPublicKey: keys.publicKey,
       }),
     });
     const sessionToken = text(data.sessionToken);
-    const envelope = object(data.playbackGrant);
-    if (!sessionToken || !envelope) {
+    if (!sessionToken) {
       throw new EvoApiError(
         'O servidor não enviou uma sessão de reprodução válida.',
       );
     }
-    try {
-      return {
-        sessionToken,
-        playbackGrant: await keys.decrypt(envelope, profile),
-      };
-    } catch {
-      throw new EvoApiError(
-        'Não foi possível validar a autorização de reprodução.',
-      );
-    }
+    return { sessionToken };
   }
 
   async profileSettings(token: string, sessionToken: string, profile: number): Promise<ProfileSettings> {
@@ -250,10 +232,9 @@ export class EvoApi {
     sessionToken: string,
     profile: number,
     item: CatalogItem,
-    playbackGrant: PlaybackGrant,
   ): Promise<string> {
     const useEdgeProxy = Boolean(appConfig.edgeProxyUrl);
-    const useWindowsDirect = supportsWindowsDirectPlayback(playbackGrant);
+    const useWindowsDirect = supportsWindowsDirectPlayback();
     const normalized = item.extension.toLowerCase().replace(/[^a-z0-9]/g, '');
     // Xtream catalogs commonly expose live channels as a continuous MPEG-TS
     // stream. Forcing .m3u8 makes some providers return a non-HLS response.
@@ -265,20 +246,24 @@ export class EvoApi {
         kind: item.kind,
         id: item.id,
         extension,
-        // The edge proxy consumes the backend's one-use redirect and opens the
-        // HTTP provider itself. The browser only sees the Worker HTTPS address.
-        transport: 'direct',
+        // In the authorized Windows test, the backend resolves only the first
+        // provider redirect and returns its credential-free temporary URL.
+        // Other browsers retain the HTTPS edge-proxy flow.
+        transport: useWindowsDirect ? 'resolved' : 'direct',
       }),
     });
     const source = text(data.url);
-    if (!source || text(data.transport) !== 'direct') {
+    const expectedTransport = useWindowsDirect ? 'resolved' : 'direct';
+    if (!source || text(data.transport) !== expectedTransport) {
       throw new EvoApiError('O servidor não retornou uma abertura compatível com este dispositivo.');
     }
     if (useWindowsDirect) {
       try {
-        return providerPlaybackUrl(playbackGrant, item, extension);
+        const url = new URL(source);
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) throw new Error();
+        return url.href;
       } catch {
-        throw new EvoApiError('A autorizacao direta da midia e invalida. Entre novamente no perfil.');
+        throw new EvoApiError('O servidor retornou uma abertura direta inválida.');
       }
     }
     try {
@@ -416,27 +401,12 @@ export class EvoApi {
   }
 }
 
-function supportsWindowsDirectPlayback(grant: PlaybackGrant): boolean {
+function supportsWindowsDirectPlayback(): boolean {
   const requested = new URLSearchParams(window.location.search).get('direct_http');
   if (requested === '1') sessionStorage.setItem('evo_direct_http_test', '1');
   else if (requested === '0') sessionStorage.removeItem('evo_direct_http_test');
   const directTest = requested === '1' || sessionStorage.getItem('evo_direct_http_test') === '1';
-  return directTest
-    && grant.expiresAt > Date.now();
-}
-
-function providerPlaybackUrl(grant: PlaybackGrant, item: CatalogItem, extension: string): string {
-  const serverText = grant.server.replace(/\/+$/, '');
-  const server = new URL(serverText);
-  if (!['http:', 'https:'].includes(server.protocol)
-    || server.username || server.password || server.search || server.hash
-    || !/^\d+$/.test(item.id)
-    || !/^[a-z0-9]{1,8}$/i.test(extension)
-    || !grant.username || !grant.password) {
-    throw new Error('invalid_direct_playback');
-  }
-  const folder: Record<MediaKind, string> = { live: 'live', movie: 'movie', series: 'series' };
-  return `${serverText}/${folder[item.kind]}/${encodeURIComponent(grant.username)}/${encodeURIComponent(grant.password)}/${item.id}.${extension}`;
+  return directTest;
 }
 
 function sessionHeaders(sessionToken: string, profile: number): HeadersInit {
@@ -455,83 +425,6 @@ function backendHeaders(token: string, extraHeaders?: HeadersInit): Headers {
   });
   new Headers(extraHeaders).forEach((value, key) => headers.set(key, value));
   return headers;
-}
-
-async function generatePlaybackKeys(): Promise<PlaybackKeys> {
-  if (!globalThis.crypto?.subtle) {
-    throw new EvoApiError('Abra o EVOTV por uma conexão HTTPS segura.');
-  }
-  const keyPair = (await crypto.subtle.generateKey(
-    {
-      name: 'RSA-OAEP',
-      modulusLength: 2048,
-      publicExponent: new Uint8Array([1, 0, 1]),
-      hash: 'SHA-256',
-    },
-    true,
-    ['encrypt', 'decrypt'],
-  )) as CryptoKeyPair;
-  const publicKey = bytesToBase64(
-    new Uint8Array(await crypto.subtle.exportKey('spki', keyPair.publicKey)),
-  );
-  return {
-    publicKey,
-    async decrypt(envelope, expectedProfile) {
-      if (integer(envelope.version, 0) !== 1) {
-        throw new Error('Envelope inválido.');
-      }
-      const encryptedKey = decodeBase64Url(requiredText(envelope, 'key'));
-      const rawKey = await crypto.subtle.decrypt(
-        { name: 'RSA-OAEP' },
-        keyPair.privateKey,
-        asArrayBuffer(encryptedKey),
-      );
-      const iv = decodeBase64Url(requiredText(envelope, 'iv'));
-      const encryptedData = decodeBase64Url(requiredText(envelope, 'data'));
-      const tag = decodeBase64Url(requiredText(envelope, 'tag'));
-      const ciphertext = new Uint8Array(encryptedData.length + tag.length);
-      ciphertext.set(encryptedData);
-      ciphertext.set(tag, encryptedData.length);
-      const aesKey = await crypto.subtle.importKey(
-        'raw',
-        rawKey,
-        { name: 'AES-GCM' },
-        false,
-        ['decrypt'],
-      );
-      const clear = await crypto.subtle.decrypt(
-        { name: 'AES-GCM', iv: asArrayBuffer(iv), tagLength: tag.length * 8 },
-        aesKey,
-        asArrayBuffer(ciphertext),
-      );
-      const decoded = object(JSON.parse(new TextDecoder().decode(clear)));
-      if (!decoded) throw new Error('Conteúdo inválido.');
-
-      const serverText = requiredText(decoded, 'server').replace(/\/+$/, '');
-      const server = new URL(serverText);
-      const profile = integer(decoded.profile, 0);
-      const expiresAt = integer(decoded.expiresAt, 0);
-      if (
-        !['http:', 'https:'].includes(server.protocol) ||
-        server.username ||
-        server.password ||
-        server.search ||
-        server.hash ||
-        profile !== expectedProfile ||
-        decoded.type !== 'profile-playback' ||
-        expiresAt <= Date.now()
-      ) {
-        throw new Error('Autorização inválida.');
-      }
-      return {
-        server: serverText,
-        username: requiredText(decoded, 'username'),
-        password: requiredText(decoded, 'password'),
-        profile,
-        expiresAt,
-      };
-    },
-  };
 }
 
 async function fetchWithTimeout(
@@ -629,32 +522,6 @@ function firstText(...values: unknown[]): string {
   return '';
 }
 
-function requiredText(data: JsonObject, key: string): string {
-  const result = text(data[key]);
-  if (!result) throw new Error(`Campo ausente: ${key}.`);
-  return result;
-}
-
 function clamp(value: number, minimum: number, maximum: number): number {
   return Math.min(Math.max(value, minimum), maximum);
-}
-
-function decodeBase64Url(value: string): Uint8Array {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padding = '='.repeat((4 - (normalized.length % 4)) % 4);
-  const binary = atob(normalized + padding);
-  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
-}
-
-function bytesToBase64(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary);
-}
-
-function asArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  ) as ArrayBuffer;
 }
