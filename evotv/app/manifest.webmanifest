@@ -1,7 +1,7 @@
 {
   "name": "EVOTV Catálogo Offline",
   "short_name": "EVOTV Offline",
-  "description": "Catálogo independente disponível offline, com sincronização administrativa manual.",
+  "description": "Catálogo independente de filmes disponível offline.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

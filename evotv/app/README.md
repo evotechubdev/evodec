@@ -1,12 +1,23 @@
-# EVOTV Catálogo Offline
+# EVOTV App Offline
 
-PWA estático e independente do EVOTV principal.
+Aplicação pública independente que consulta somente o snapshot incorporado em
+`data/catalogo-offline.json`. Não há login IPTV, sincronização ou área
+administrativa neste projeto.
 
-- `index.html`: catálogo e reprodução; não solicita credenciais.
-- `admin.html`: sincronização manual, importação, exportação e backups.
-- `data/catalogo-get-completo.json`: resposta completa e bruta de `get_vod_streams`.
-- `data/catalogo-offline.json`: catálogo enriquecido com `url_padrao` e `url_final`.
+## Reprodução
 
-O catálogo incorporado contém URLs diretas e deve permanecer privado até que seja definida a política de publicação. A administração usa as credenciais apenas em memória e nunca as salva. Antes de importar, restaurar ou sincronizar, o catálogo atual é preservado no IndexedDB; no máximo cinco backups são mantidos.
+O navegador nunca abre o destino HTTP diretamente. Ao selecionar um filme:
 
-Em páginas HTTPS, navegadores podem bloquear a consulta ou reprodução HTTP como conteúdo misto. O funcionamento offline refere-se aos metadados do catálogo e ao shell do aplicativo; a reprodução continua exigindo acesso à origem de mídia.
+1. o app envia o URL final sem credenciais ao backend por HTTPS;
+2. o backend valida origem, host e caminho e emite um ticket criptografado;
+3. o app entrega ao `<video>` apenas a URL HTTPS temporária do Cloudflare Worker;
+4. o Worker troca o ticket com o backend e transmite a mídia final por HTTPS.
+
+Backend dedicado:
+
+```text
+https://multimideas-evo-backend-app.onrender.com
+```
+
+O catálogo público carrega 45 itens por lote conforme a rolagem da grade. A
+interface e o catálogo continuam disponíveis offline; a reprodução exige rede.

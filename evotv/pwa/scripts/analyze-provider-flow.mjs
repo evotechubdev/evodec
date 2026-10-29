@@ -16,7 +16,8 @@ const options = Object.fromEntries(process.argv.slice(2).map((argument) => {
     : [argument.replace(/^--/, ''), ''];
 }));
 
-const server = new URL(options.server || 'http://p.xvply.net');
+if (!options.server) throw new Error('Informe o servidor explicitamente com --server.');
+const server = new URL(options.server);
 const credentialsPath = options.credentials;
 const requestedId = String(options.id || '166538');
 

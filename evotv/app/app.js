@@ -1,7 +1,8 @@
 import { currentCatalog, normalized } from './catalog-db.js';
-import { attachDirectHttpMp4 } from './direct-http-mp4.js';
 
 const PAGE_SIZE = 45;
+const BACKEND_BASE_URL = 'https://multimideas-evo-backend-app.onrender.com';
+const TICKET_TIMEOUT_MS = 45_000;
 let storedView = 'grid';
 try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list' : 'grid'; } catch { /* armazenamento opcional */ }
 const state = {
@@ -10,7 +11,8 @@ const state = {
   visible: PAGE_SIZE,
   selected: null,
   candidateIndex: 0,
-  stopPlayback: null,
+  ticketController: null,
+  playbackAttempt: 0,
   view: storedView,
 };
 const elements = {
@@ -114,7 +116,7 @@ function openItem(item) {
   elements.modalTitle.textContent = item.name || 'Sem título';
   elements.modalMeta.textContent = `${item.category_name || 'Filme'} · ${String(item.container_extension || 'mp4').toUpperCase()}`;
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
-  elements.playerMessage.textContent = 'O catálogo e o endereço estão disponíveis offline. A reprodução requer acesso ao servidor de mídia.';
+  elements.playerMessage.textContent = 'Pronto para abrir a mídia pela conexão HTTPS protegida.';
   elements.video.removeAttribute('src');
   elements.video.load();
   elements.video.hidden = true;
@@ -123,26 +125,18 @@ function openItem(item) {
 }
 
 function stopPlayback() {
-  if (state.stopPlayback) {
-    state.stopPlayback();
-    state.stopPlayback = null;
-    return;
-  }
+  state.playbackAttempt += 1;
+  state.ticketController?.abort();
+  state.ticketController = null;
   elements.video.pause();
   elements.video.removeAttribute('src');
   elements.video.load();
 }
 
-function nextCandidate(message) {
-  stopPlayback();
-  state.candidateIndex += 1;
-  elements.playerMessage.textContent = message;
-  tryCandidate();
-}
-
-function tryCandidate() {
+async function tryCandidate() {
   if (!state.selected) return;
   stopPlayback();
+  const attempt = state.playbackAttempt;
   const candidates = mediaCandidates(state.selected);
   const source = candidates[state.candidateIndex];
   if (!source) {
@@ -151,33 +145,50 @@ function tryCandidate() {
     elements.play.hidden = false;
     return;
   }
-  const url = new URL(source);
-  const isDirectHttpMp4 = location.protocol === 'https:'
-    && url.protocol === 'http:'
-    && url.pathname.toLowerCase().endsWith('.mp4')
-    && 'MediaSource' in window;
-  if (isDirectHttpMp4) {
-    elements.playerMessage.textContent = 'Preparando mídia HTTP no player interno…';
-    elements.video.hidden = false;
-    elements.play.hidden = true;
-    state.stopPlayback = attachDirectHttpMp4(elements.video, url.href, {
-      onError: (message) => nextCandidate(message),
-    });
-    return;
-  }
-  if (location.protocol === 'https:' && url.protocol === 'http:') {
-    elements.playerMessage.textContent = 'Tentando mídia HTTP. Este navegador precisa permitir conteúdo inseguro para o site.';
-  } else {
-    elements.playerMessage.textContent = `Tentando padrão ${state.selected.url_padrao || 'alternativo'}…`;
-  }
-  elements.video.hidden = false;
+  elements.playerMessage.textContent = 'Solicitando reprodução HTTPS segura…';
   elements.play.hidden = true;
-  elements.video.src = url.href;
-  void elements.video.play().catch(() => {});
+  const controller = new AbortController();
+  state.ticketController = controller;
+  const timer = window.setTimeout(() => controller.abort(), TICKET_TIMEOUT_MS);
+  try {
+    const response = await fetch(`${BACKEND_BASE_URL}/api/media-ticket`, {
+      method: 'POST',
+      mode: 'cors',
+      credentials: 'omit',
+      cache: 'no-store',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ target: source }),
+      signal: controller.signal,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(String(data?.code || `HTTP_${response.status}`));
+    if (attempt !== state.playbackAttempt) return;
+    const playbackUrl = new URL(String(data?.playbackUrl || ''));
+    if (playbackUrl.protocol !== 'https:') throw new Error('INVALID_PLAYBACK_URL');
+    state.ticketController = null;
+    elements.playerMessage.textContent = 'Preparando mídia pelo Cloudflare…';
+    elements.video.crossOrigin = 'anonymous';
+    elements.video.hidden = false;
+    elements.video.src = playbackUrl.href;
+    elements.video.load();
+    void elements.video.play().catch(() => {});
+  } catch (error) {
+    if (attempt !== state.playbackAttempt) return;
+    state.ticketController = null;
+    elements.video.hidden = true;
+    elements.play.hidden = false;
+    const aborted = error instanceof DOMException && error.name === 'AbortError';
+    const code = error instanceof Error ? error.message : 'UNKNOWN';
+    elements.playerMessage.textContent = aborted
+      ? 'O serviço demorou para responder. Tente novamente.'
+      : `O serviço HTTPS ainda não conseguiu preparar esta mídia (${code}).`;
+  } finally {
+    window.clearTimeout(timer);
+  }
 }
 
 elements.video.addEventListener('playing', () => {
-  elements.playerMessage.textContent = 'Reproduzindo pelo endereço offline salvo.';
+  elements.playerMessage.textContent = 'Reproduzindo por HTTPS seguro.';
   elements.play.hidden = true;
 });
 elements.video.addEventListener('canplay', () => {
@@ -186,11 +197,10 @@ elements.video.addEventListener('canplay', () => {
   });
 });
 elements.video.addEventListener('error', () => {
-  if (state.stopPlayback) return;
   state.candidateIndex += 1;
-  tryCandidate();
+  void tryCandidate();
 });
-elements.play.addEventListener('click', tryCandidate);
+elements.play.addEventListener('click', () => { void tryCandidate(); });
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', () => {
   stopPlayback();

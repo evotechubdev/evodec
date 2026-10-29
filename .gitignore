@@ -21,6 +21,7 @@ evotv/app_android/
 evotv/programa_pc/
 evotv/app_samsung/
 .app_ios_repository_backup/
+app-backend/
 
 # IDEs
 .idea/

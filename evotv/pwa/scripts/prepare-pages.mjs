@@ -15,7 +15,6 @@ const pagesBuild = resolve(packageRoot, 'pages-dist');
 const evotvBuild = resolve(pagesBuild, 'evotv');
 const offlineAppSource = resolve(repositoryRoot, 'evotv', 'app');
 const offlineAppBuild = resolve(evotvBuild, 'app');
-const mp4boxDist = resolve(packageRoot, 'node_modules', 'mp4box', 'dist');
 const mainPage = resolve(repositoryRoot, 'index.html');
 const publicAssets = resolve(repositoryRoot, 'public');
 
@@ -34,21 +33,11 @@ cpSync(applicationBuild, evotvBuild, { recursive: true });
 if (existsSync(offlineAppSource)) {
   mkdirSync(offlineAppBuild, { recursive: true });
   for (const entry of [
-    'index.html', 'admin.html', 'styles.css', 'app.js', 'admin.js',
-    'direct-http-mp4.js',
+    'index.html', 'styles.css', 'app.js',
     'catalog-db.js', 'sw.js', 'manifest.webmanifest', 'assets', 'data',
   ]) {
     const source = resolve(offlineAppSource, entry);
     if (existsSync(source)) cpSync(source, resolve(offlineAppBuild, entry), { recursive: true });
-  }
-  const vendorBuild = resolve(offlineAppBuild, 'vendor');
-  mkdirSync(vendorBuild, { recursive: true });
-  for (const entry of [
-    'mp4box.all.mjs',
-    'rolldown-runtime-CNh9ExCG.mjs',
-    'styp-BV5G3FS-.mjs',
-  ]) {
-    copyFileSync(resolve(mp4boxDist, entry), resolve(vendorBuild, entry));
   }
 }
 

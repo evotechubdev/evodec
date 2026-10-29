@@ -13,7 +13,8 @@ const argumentsMap = Object.fromEntries(process.argv.slice(2).map((argument) => 
     : [argument.replace(/^--/, ''), ''];
 }));
 
-const server = new URL(argumentsMap.server || 'http://p.xvply.net');
+if (!argumentsMap.server) throw new Error('Informe o servidor explicitamente com --server.');
+const server = new URL(argumentsMap.server);
 const credentialsPath = argumentsMap.credentials;
 const outputPath = resolve(argumentsMap.output || 'evotv/pwa/data/vod-direct-catalog.json');
 const checkpointPath = `${outputPath}.jsonl`;
