@@ -14,6 +14,10 @@ interface TrackBuffer {
 const MAX_BUFFER_AHEAD_SECONDS = 120;
 const KEEP_BUFFER_BEHIND_SECONDS = 60;
 const MAX_QUEUED_BYTES = 32 * 1024 * 1024;
+// MP4Box requires every selected track to use the same sample count. A shared
+// value keeps audio and video fragmentation enabled instead of silently
+// rejecting the second track.
+const SAMPLES_PER_SEGMENT = 120;
 
 /**
  * Fetches an HTTP MP4 from the page context that received Chrome's insecure
@@ -110,11 +114,8 @@ export function attachDirectHttpMp4(
       target.source.addEventListener('error', () => fail('O navegador não conseguiu decodificar este filme.'));
       tracks.push(target);
 
-      const durationSeconds = track.timescale > 0 ? track.duration / track.timescale : 0;
-      const samplesPerSecond = durationSeconds > 0 ? track.nb_samples / durationSeconds : 30;
-      const samplesPerSegment = Math.max(24, Math.min(400, Math.round(samplesPerSecond * 3)));
       mp4File?.setSegmentOptions(track.id, target, {
-        nbSamples: samplesPerSegment,
+        nbSamples: SAMPLES_PER_SEGMENT,
         rapAlignement: true,
       });
     }
