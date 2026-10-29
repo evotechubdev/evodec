@@ -1,0 +1,275 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https: http://127.0.0.1:*; media-src 'self' blob: http: https:; style-src 'self' 'unsafe-inline'; script-src 'self'; worker-src 'self' blob:; connect-src 'self' blob: http: https:; object-src 'none'; base-uri 'none'; form-action 'self';" />
+    <title>EVOTV</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main id="login-screen" class="login-screen">
+      <div class="login-atmosphere" aria-hidden="true">
+        <span class="orb orb-one"></span>
+        <span class="orb orb-two"></span>
+        <div class="signal-lines"></div>
+      </div>
+
+      <section class="login-card" aria-labelledby="login-title">
+        <div class="brand brand-login">
+          <img class="brand-logo" src="../assets/logo-evotv.png" alt="EVOTV" />
+        </div>
+        <div class="login-heading">
+          <span class="eyebrow">BEM-VINDO</span>
+          <h1 id="login-title">Entrar no EVOTV</h1>
+          <p id="login-status">Use seu acesso do sistema para continuar.</p>
+        </div>
+        <form id="login-form" novalidate>
+          <label class="field">
+            <span>LOGIN</span>
+            <span class="input-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg>
+              <input id="username" name="username" type="text" placeholder="Digite seu login" autocomplete="username" required />
+            </span>
+          </label>
+          <label class="field">
+            <span>SENHA</span>
+            <span class="input-shell">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4V6Zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8Z"/></svg>
+              <input id="password" name="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required />
+            </span>
+          </label>
+          <label class="remember-login">
+            <input id="remember-login" type="checkbox" />
+            <span>Lembrar login e senha neste computador</span>
+          </label>
+          <p id="login-error" class="form-error" role="alert"></p>
+          <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
+        </form>
+        <p class="privacy-note"><span>◆</span> Acesso exclusivo ao sistema EVOTV</p>
+        <p id="login-version" class="login-version">Versão — • Windows</p>
+      </section>
+    </main>
+
+    <main id="profile-screen" class="profile-screen hidden">
+      <div class="profile-atmosphere" aria-hidden="true"></div>
+      <section class="profile-panel" aria-labelledby="profile-title">
+        <img class="profile-logo" src="../assets/logo-evotv.png" alt="EVOTV" />
+        <span class="eyebrow">SELEÇÃO DE PERFIL</span>
+        <h1 id="profile-title">Quem está assistindo?</h1>
+        <p id="profile-user"></p>
+        <div id="profile-grid" class="profile-grid"></div>
+        <p id="profile-error" class="form-error profile-error" role="alert"></p>
+        <button id="back-to-login" class="text-button" type="button">← Voltar para o login</button>
+      </section>
+    </main>
+
+    <main id="app-screen" class="app-screen hidden">
+      <aside class="sidebar">
+        <div class="brand">
+          <img class="brand-logo" src="../assets/logo-evotv.png" alt="EVOTV" />
+        </div>
+        <nav class="main-nav" aria-label="Navegação principal">
+          <button class="nav-item active" data-section="channels"><svg viewBox="0 0 24 24"><path d="m8.2 3.6 1.4-1.4L12 4.6l2.4-2.4 1.4 1.4L13.4 6H19a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.6L8.2 3.6ZM5 8v11h14V8H5Zm2 2h8v7H7v-7Zm10 1h1v2h-1v-2Zm0 3h1v2h-1v-2Z"/></svg><span>Canais</span></button>
+          <button class="nav-item" data-section="movies"><svg viewBox="0 0 24 24"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5h3V5H4v3Zm5 0h6V5H9v3Zm8 0h3V5h-3v3ZM4 14h3v-4H4v4Zm5 0h6v-4H9v4Zm8 0h3v-4h-3v4ZM4 19h3v-3H4v3Zm5 0h6v-3H9v3Zm8 0h3v-3h-3v3Z"/></svg><span>Filmes</span></button>
+          <button class="nav-item" data-section="series"><svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span></button>
+          <button id="shows-nav" class="nav-item hidden" data-section="shows"><svg viewBox="0 0 24 24"><path d="M12 14a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v4a4 4 0 0 0 4 4Zm-2-8a2 2 0 1 1 4 0v4a2 2 0 1 1-4 0V6Zm8 4a6 6 0 0 1-5 5.91V19h3v2H8v-2h3v-3.09A6 6 0 0 1 6 10h2a4 4 0 0 0 8 0h2Z"/></svg><span>Shows</span></button>
+          <button id="extras-nav" class="nav-item extras-folder" type="button" aria-expanded="false" aria-controls="extra-types" title="Conteúdo Extra"><svg viewBox="0 0 24 24"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6ZM6 6v2h2V6H6Zm10 0v2h2V6h-2ZM6 16v2h2v-2H6Zm10 0v2h2v-2h-2Z"/></svg><span>Conteúdo Extra</span><i class="extras-chevron" aria-hidden="true">⌄</i></button>
+          <nav id="extra-types" class="extra-types hidden" aria-label="Conteúdo Extra">
+            <button type="button" data-extra-section="vertical-mininovelas" class="extra-subitem">Mininovelas Verticais</button>
+            <button type="button" data-extra-section="games" class="extra-subitem">Games</button>
+          </nav>
+        </nav>
+        <button id="adult-nav" class="nav-item adult-folder" type="button" aria-expanded="false" aria-controls="adult-types" title="Adulto 18+"><strong aria-hidden="true">18+</strong><span>Adulto 18+</span><i class="adult-chevron" aria-hidden="true">⌄</i></button>
+        <nav id="adult-types" class="adult-types hidden" aria-label="Adulto 18+">
+          <button type="button" data-adult-section="channels" class="adult-subitem">Canais Adultos</button>
+          <button type="button" data-adult-section="series" class="adult-subitem">Séries Adulto</button>
+          <button type="button" data-adult-section="movies" class="adult-subitem">Filmes Adulto</button>
+        </nav>
+        <div class="sidebar-bottom">
+          <span id="account-type" class="account-type">STANDARD</span>
+          <button id="profile-settings" class="logout-button hidden" type="button">Gerenciar perfis</button>
+          <button id="parental-settings" class="logout-button hidden" type="button">Controle parental</button>
+          <div class="connection"><i></i><span><strong>Conectado</strong><small id="server-label">Servidor TV</small></span></div>
+          <button id="switch-profile-button" class="logout-button"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h2v-3c0-.92 1.9-3 6-3s6 2.08 6 3v3h2v-3c0-2.5-3-5-8-5Z"/></svg>Trocar perfil</button>
+          <button id="logout-button" class="logout-button"><svg viewBox="0 0 24 24"><path d="M10 17v-2h5V9h-5V7l-5 5 5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg>Sair</button>
+        </div>
+      </aside>
+
+      <section class="content-area">
+        <header class="topbar">
+          <div><span id="section-kicker" class="eyebrow">TELEVISÃO AO VIVO</span><h1 id="section-title">Canais</h1></div>
+          <div class="top-actions">
+            <label class="search-box"><svg viewBox="0 0 24 24"><path d="M10.5 3a7.5 7.5 0 1 0 4.73 13.32L20.9 22 22 20.9l-5.68-5.67A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"/></svg><input id="search-input" type="search" placeholder="Buscar canais..." /></label>
+            <div id="view-switch" class="view-switch" aria-label="Modo de visualização">
+              <button class="active" data-view="grid" title="Grade"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3Zm2 2v4h4V5H5Zm8-2h8v8h-8V3Zm2 2v4h4V5h-4ZM3 13h8v8H3v-8Zm2 2v4h4v-4H5Zm8-2h8v8h-8v-8Zm2 2v4h4v-4h-4Z"/></svg></button>
+              <button data-view="list" title="Lista"><svg viewBox="0 0 24 24"><path d="M4 5h3v3H4V5Zm5 0h11v3H9V5Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Z"/></svg></button>
+            </div>
+          </div>
+        </header>
+
+        <div id="category-strip" class="category-strip" tabindex="0" aria-label="Categorias, rolagem horizontal"></div>
+        <div id="status-line" class="status-line" role="status"></div>
+        <div id="download-panel" class="download-panel hidden" role="status"><span id="download-status"></span><div class="download-panel-actions"><button id="show-download-folder" class="text-button hidden" type="button">Mostrar na pasta</button><button id="cancel-download" class="text-button" type="button">Cancelar download</button></div></div>
+        <section id="media-grid" class="media-grid" aria-live="polite"></section>
+      </section>
+    </main>
+
+    <dialog id="channel-dialog" class="series-dialog">
+      <div class="series-detail">
+        <button id="close-channel-choices" class="close-player" aria-label="Fechar">×</button>
+        <header class="series-header channel-choice-header">
+          <div>
+            <span class="eyebrow">AO VIVO</span>
+            <h2 id="channel-title">Canais</h2>
+            <p id="channel-description">Escolha o canal que deseja assistir.</p>
+          </div>
+        </header>
+        <div id="channel-choice-list" class="episode-list channel-choice-list"></div>
+      </div>
+    </dialog>
+
+    <dialog id="series-dialog" class="series-dialog">
+      <div class="series-detail">
+        <button id="close-series" class="close-player" aria-label="Fechar">×</button>
+        <header class="series-header">
+          <img id="series-cover" alt="" />
+          <div>
+            <span class="eyebrow">SÉRIE</span>
+            <h2 id="series-title">Detalhes da série</h2>
+            <p id="series-plot"></p>
+            <div class="detail-actions">
+              <button id="favorite-series" class="detail-button secondary" type="button">☆ Favoritar série</button>
+              <button id="favorite-episodes-filter" class="detail-button secondary" type="button" aria-pressed="false">Episódios favoritos</button>
+            </div>
+          </div>
+        </header>
+        <div id="series-loading" class="series-loading">Carregando temporadas...</div>
+        <div id="season-tabs" class="season-tabs"></div>
+        <div id="episode-list" class="episode-list"></div>
+      </div>
+    </dialog>
+
+    <dialog id="movie-dialog" class="series-dialog movie-dialog">
+      <div class="series-detail">
+        <button id="close-movie" class="close-player" aria-label="Fechar">×</button>
+        <header class="series-header movie-header">
+          <img id="movie-cover" alt="" />
+          <div>
+            <span class="eyebrow">FILME</span>
+            <h2 id="movie-title">Detalhes do filme</h2>
+            <p id="movie-plot"></p>
+            <div class="detail-actions">
+              <button id="movie-trailer" class="detail-button secondary" type="button" disabled>Trailer</button>
+              <button id="movie-resume" class="detail-button hidden" type="button">Continuar</button>
+              <button id="movie-play" class="detail-button" type="button">Reproduzir</button>
+            </div>
+          </div>
+        </header>
+      </div>
+    </dialog>
+
+    <dialog id="resume-dialog" class="parental-dialog resume-dialog">
+      <button id="close-resume" class="close-player" type="button" aria-label="Fechar">×</button>
+      <span class="eyebrow">CONTINUAR ASSISTINDO</span>
+      <h2 id="resume-title">Retomar reprodução?</h2>
+      <p id="resume-description"></p>
+      <div class="detail-actions vertical">
+        <button id="resume-continue" class="detail-button" type="button">Continuar de onde parou</button>
+        <button id="resume-restart" class="detail-button secondary" type="button">Começar do início</button>
+      </div>
+    </dialog>
+
+    <dialog id="player-dialog" class="player-dialog">
+      <div id="player-frame" class="player-frame">
+        <div class="player-meta"><span id="player-type" class="eyebrow">AO VIVO</span><h2 id="player-title">Reproduzindo</h2>
+          <div class="playback-options">
+            <button id="player-download-options" class="media-options-button hidden" type="button" aria-label="Opções da mídia" aria-haspopup="menu" aria-controls="media-actions-menu" aria-expanded="false">⋮</button>
+            <button id="close-player" class="player-close-button" aria-label="Fechar reprodução">×</button>
+          </div>
+        </div>
+        <div id="video-surface" class="native-video-surface" aria-label="Vídeo"></div>
+        <div class="native-controls" aria-label="Controles de reprodução">
+          <button id="native-play-pause" class="native-control-button" type="button" aria-label="Pausar">❚❚</button>
+          <button id="native-live" class="native-live-button hidden" type="button" aria-label="Ir para o ponto ao vivo" aria-pressed="false"><span class="native-live-dot" aria-hidden="true"></span>AO VIVO</button>
+          <div id="native-timeline" class="native-timeline">
+            <span id="native-time" class="native-time">0:00</span>
+            <input id="native-seek" class="native-seek" type="range" min="0" max="1000" value="0" aria-label="Posição da reprodução" disabled />
+            <span id="native-duration" class="native-time">0:00</span>
+          </div>
+          <button id="native-mute" class="native-control-button" type="button" aria-label="Silenciar" aria-pressed="false"><span class="volume-icon" aria-hidden="true">&#xE995;</span></button>
+          <input id="native-volume" class="native-volume" type="range" min="0" max="100" value="100" aria-label="Volume" />
+          <button id="native-fullscreen" class="native-control-button" type="button" aria-label="Tela cheia">⛶</button>
+        </div>
+      </div>
+    </dialog>
+
+    <dialog id="parental-dialog" class="parental-dialog">
+      <form id="parental-form" novalidate>
+        <button id="close-parental" class="close-player" type="button" aria-label="Fechar">×</button>
+        <span class="eyebrow">CONTEÚDO ADULTO</span>
+        <h2 id="parental-title">Controle parental</h2>
+        <p id="parental-description"></p>
+        <label id="parental-current-field" class="field"><span id="parental-pin-label">PIN atual</span><input id="parental-pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="off" /></label>
+        <div id="parental-options">
+          <div id="parental-profiles" class="parental-profiles"></div>
+          <p class="parental-help">Liberado: acesso direto. Pedir PIN: exige o PIN definido aqui. Oculto e bloqueado: esconde a pasta Adultos e impede liberação por PIN.</p>
+          <label class="field"><span id="parental-new-pin-label">Definir PIN · 4 a 8 números</span><input id="parental-new-pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="new-password" /></label>
+        </div>
+        <p id="parental-error" class="form-error" role="alert"></p>
+        <button id="parental-submit" class="primary-button" type="submit">Salvar proteção</button>
+      </form>
+    </dialog>
+
+    <dialog id="profile-pin-dialog" class="parental-dialog">
+      <form id="profile-pin-form" novalidate>
+        <button id="close-profile-pin" class="close-player" type="button" aria-label="Fechar">×</button>
+        <span class="eyebrow">PERFIL PROTEGIDO</span><h2>Digite o PIN do perfil</h2>
+        <label class="field"><span>PIN DO PERFIL</span><input id="profile-pin" type="password" maxlength="128" required autocomplete="off" /></label>
+        <label class="remember-login"><input id="remember-profile-pin" type="checkbox" /><span>Lembrar este PIN com a proteção segura do Windows</span></label>
+        <p id="profile-pin-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">Entrar no perfil</button>
+      </form>
+    </dialog>
+
+    <dialog id="profile-settings-dialog" class="parental-dialog">
+      <form id="profile-settings-form" novalidate>
+        <button id="close-profile-settings" class="close-player" type="button" aria-label="Fechar">×</button>
+        <span class="eyebrow">PERFIL PRINCIPAL</span>
+        <h2>Gerenciar perfis</h2>
+        <p>Defina o nome e, quando desejar trocar, um novo PIN para cada perfil.</p>
+        <div id="profile-settings-list" class="profile-settings-list"></div>
+        <p class="parental-help">PINs em branco permanecem inalterados. Use de 4 a 128 caracteres; letras, números e símbolos são aceitos.</p>
+        <p id="profile-settings-error" class="form-error" role="alert"></p>
+        <button id="profile-settings-submit" class="primary-button" type="submit">Salvar perfis</button>
+      </form>
+    </dialog>
+
+    <div id="media-actions-menu" class="media-actions-menu" popover="manual" role="menu" aria-label="Opções da mídia">
+      <button id="favorite-media" class="media-menu-download hidden" type="button" role="menuitem" aria-pressed="false"><span class="favorite-menu-star" aria-hidden="true">☆</span><span id="favorite-media-label">Favoritar</span></button>
+      <button id="download-player" class="media-menu-download" type="button" role="menuitem"><span class="premium-star" aria-hidden="true">★</span><span>Baixar mídia</span><span class="premium-label">PREMIUM</span></button>
+      <button id="select-quality" class="media-menu-download hidden" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="quality-options"><span>Qualidade · <span id="quality-selection">Automática</span></span><span class="menu-chevron" aria-hidden="true">›</span></button>
+      <div id="quality-options" class="quality-options hidden" role="menu" aria-label="Qualidade"></div>
+      <button id="select-language" class="media-menu-download hidden" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="language-options">Selecionar Idioma <span class="menu-chevron" aria-hidden="true">›</span></button>
+      <div id="language-options" class="language-options hidden" role="menu" aria-label="Selecionar Idioma">
+        <button id="select-audio" class="media-menu-download hidden" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="audio-tracks">Áudio <span class="menu-chevron" aria-hidden="true">›</span></button>
+        <div id="audio-tracks" class="track-options hidden" role="menu" aria-label="Áudio"></div>
+        <button id="select-subtitles" class="media-menu-download hidden" type="button" role="menuitem" aria-haspopup="menu" aria-expanded="false" aria-controls="subtitle-tracks">Legenda <span class="menu-chevron" aria-hidden="true">›</span></button>
+        <div id="subtitle-tracks" class="track-options hidden" role="menu" aria-label="Legenda"></div>
+      </div>
+      <p id="language-status" class="language-status hidden" role="status"></p>
+    </div>
+
+    <p id="app-notice" class="app-notice hidden" role="status" aria-live="polite"></p>
+    <script src="browse-cache.js"></script>
+    <script src="account-plan.js"></script>
+    <script src="catalog-organization.js"></script>
+    <script src="favorite-channels.js"></script>
+    <script src="favorite-content.js"></script>
+    <script src="playback-progress.js"></script>
+    <script src="live-quality.js"></script>
+    <script src="renderer.js"></script>
+    <script src="native-controls.js"></script>
+    <script src="profile-options.js"></script>
+    <script src="download-options.js"></script>
+  </body>
+</html>

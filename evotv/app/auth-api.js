@@ -192,8 +192,8 @@ export class EvoAuthApi {
   }
 
   async currentToken(auth) {
-    if (!auth?.idToken || !auth.refreshToken) throw new EvoApiError('Faça login novamente.');
-    if (Date.now() < auth.expiresAt) return auth.idToken;
+    if (!auth?.refreshToken) throw new EvoApiError('Faça login novamente.');
+    if (auth.idToken && Date.now() < auth.expiresAt) return auth.idToken;
     const response = await fetchWithTimeout(FIREBASE_REFRESH_URL, {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded' },

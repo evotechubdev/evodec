@@ -23,6 +23,19 @@ https://multimideas-evo-backend-app.onrender.com
 O catálogo carrega 45 itens por lote conforme a rolagem da grade. A interface
 e o catálogo continuam disponíveis offline; login e reprodução exigem rede.
 
+## Acesso lembrado neste aparelho
+
+A senha digitada não é armazenada. Quando o usuário escolhe manter o acesso,
+o APP guarda somente o token renovável do Firebase em um cofre local no
+IndexedDB, criptografado com AES-256-GCM e uma chave não exportável criada pelo
+Web Crypto do dispositivo. O PIN de perfil pode ser guardado no mesmo cofre.
+Sair da conta ou desmarcar a opção de manter o acesso apaga a sessão e os PINs
+salvos naquele navegador.
+
+Uma política de segurança de conteúdo bloqueia imagens e mídia HTTP no front-end.
+Capas HTTP usam a imagem padrão; os filmes chegam ao player somente pela URL
+HTTPS temporária do Cloudflare Worker.
+
 Por enquanto somente Filmes possui catálogo. Canais, Séries, Shows e Conteúdo
 Extra já aparecem na estrutura de navegação e serão ativados quando seus dados
 forem incorporados.

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#08090c">
   <meta name="description" content="EVOTV PWA com autenticação, perfis e catálogo de filmes.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; media-src 'self' blob: https://evotv-offline-media-proxy.evotechubdev.workers.dev; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://multimideas-evo-backend.onrender.com https://multimideas-evo-backend-app.onrender.com https://evotv-offline-media-proxy.evotechubdev.workers.dev; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
@@ -19,12 +20,12 @@
       <form id="login-form" novalidate>
         <label class="field"><span>LOGIN</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg><input id="username" type="text" placeholder="Digite seu login" autocomplete="username" required></span></label>
         <label class="field"><span>SENHA</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4V6Zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8Z"/></svg><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
-        <label class="remember-login"><input id="remember-login" type="checkbox"><span>Lembrar somente meu login neste aparelho</span></label>
+        <label class="remember-login"><input id="remember-login" type="checkbox" checked><span>Manter meu acesso neste aparelho</span></label>
         <p id="login-error" class="form-error" role="alert"></p>
         <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
       </form>
-      <p class="privacy-note"><span>◆</span> A senha não é armazenada no navegador</p>
-      <p class="login-version">Versão: jupiter-11 • PWA</p>
+      <p class="privacy-note"><span>◆</span> A senha é descartada após criar a sessão protegida</p>
+      <p class="login-version">Versão: jupiter-13 • PWA</p>
     </section>
   </main>
 
@@ -70,15 +71,15 @@
       </header>
       <select id="category-filter" class="visually-hidden" aria-label="Categoria"><option value="">Todos</option></select>
       <div id="category-strip" class="pc-category-strip" tabindex="0" aria-label="Categorias"></div>
-      <div class="pc-status-line" role="status"><span id="app-status">Preparando catálogo…</span><span id="catalog-count">Carregando…</span></div>
+      <div class="pc-status-line" role="status" hidden><span id="app-status"></span><span id="catalog-count"></span></div>
       <div id="catalog-grid" class="catalog-grid" aria-live="polite"></div><div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
       <button id="load-more" class="secondary-action" type="button" hidden>Carregar mais</button>
     </section>
   </main>
 
-  <dialog id="media-modal" class="media-modal"><button id="close-modal" class="modal-close" type="button" aria-label="Fechar">×</button><div class="media-layout"><img id="media-image" class="media-poster" alt=""><div class="media-content"><p class="eyebrow">FILME</p><h2 id="media-title"></h2><p id="media-meta" class="media-meta"></p><p id="player-message" class="status"></p><button id="play-media" class="primary-action" type="button">Reproduzir</button></div><div class="media-player-surface"><video id="media-player" controls playsinline hidden></video></div></div></dialog>
+  <dialog id="media-modal" class="media-modal"><button id="close-modal" class="modal-close" type="button" aria-label="Fechar">×</button><div class="media-layout"><img id="media-image" class="media-poster" alt=""><div class="media-content"><p class="eyebrow">FILME</p><h2 id="media-title"></h2><p id="media-meta" class="media-meta"></p><p id="media-synopsis" class="media-synopsis"></p><div class="media-detail-actions"><button id="play-media" class="primary-action" type="button">Reproduzir</button><button id="trailer-media" class="detail-action" type="button">Trailer</button><button id="download-media" class="detail-action premium-download" type="button" hidden><span aria-hidden="true">★</span> Baixar <small>PREMIUM</small></button></div><p id="player-message" class="visually-hidden" aria-live="polite"></p></div><div class="media-player-surface"><video id="media-player" controls playsinline hidden></video></div></div></dialog>
 
-  <dialog id="profile-pin-dialog" class="settings-dialog"><form id="profile-pin-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">PERFIL PROTEGIDO</span><h2 id="profile-pin-title">Digite o PIN do perfil</h2><label class="field"><span>PIN DO PERFIL</span><input id="profile-pin" type="password" minlength="4" maxlength="128" autocomplete="off" required></label><p id="profile-pin-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">ENTRAR NO PERFIL</button></form></dialog>
+  <dialog id="profile-pin-dialog" class="settings-dialog"><form id="profile-pin-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">PERFIL PROTEGIDO</span><h2 id="profile-pin-title">Digite o PIN do perfil</h2><label class="field"><span>PIN DO PERFIL</span><input id="profile-pin" type="password" minlength="4" maxlength="128" autocomplete="off" required></label><label class="remember-login"><input id="remember-profile-pin" type="checkbox" checked><span>Lembrar este PIN com o cofre protegido do aparelho</span></label><p id="profile-pin-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">ENTRAR NO PERFIL</button></form></dialog>
 
   <dialog id="profile-settings-dialog" class="settings-dialog wide-dialog"><form id="profile-settings-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">PERFIL PRINCIPAL</span><h2>Gerenciar perfis</h2><p>Defina os nomes e informe um novo PIN somente quando desejar alterá-lo.</p><div id="profile-settings-list" class="profile-settings-list"></div><p class="dialog-help">PINs em branco permanecem inalterados. Use de 4 a 128 caracteres.</p><p id="profile-settings-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">SALVAR PERFIS</button></form></dialog>
 
