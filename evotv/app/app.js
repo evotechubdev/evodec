@@ -1,8 +1,16 @@
 import { currentCatalog, normalized } from './catalog-db.js';
+import { attachDirectHttpMp4 } from './direct-http-mp4.js';
 
 const PAGE_SIZE = 45;
 const AUTO_PAGING = 'IntersectionObserver' in window;
-const state = { catalog: null, filtered: [], visible: PAGE_SIZE, selected: null, candidateIndex: 0 };
+const state = {
+  catalog: null,
+  filtered: [],
+  visible: PAGE_SIZE,
+  selected: null,
+  candidateIndex: 0,
+  stopPlayback: null,
+};
 const elements = {
   search: document.querySelector('#catalog-search'),
   category: document.querySelector('#category-filter'),
@@ -86,6 +94,7 @@ function renderGrid() {
 }
 
 function openItem(item) {
+  stopPlayback();
   state.selected = item;
   state.candidateIndex = 0;
   elements.modalTitle.textContent = item.name || 'Sem título';
@@ -98,8 +107,27 @@ function openItem(item) {
   elements.modal.showModal();
 }
 
+function stopPlayback() {
+  if (state.stopPlayback) {
+    state.stopPlayback();
+    state.stopPlayback = null;
+    return;
+  }
+  elements.video.pause();
+  elements.video.removeAttribute('src');
+  elements.video.load();
+}
+
+function nextCandidate(message) {
+  stopPlayback();
+  state.candidateIndex += 1;
+  elements.playerMessage.textContent = message;
+  tryCandidate();
+}
+
 function tryCandidate() {
   if (!state.selected) return;
+  stopPlayback();
   const candidates = mediaCandidates(state.selected);
   const source = candidates[state.candidateIndex];
   if (!source) {
@@ -108,8 +136,20 @@ function tryCandidate() {
     return;
   }
   const url = new URL(source);
+  const isDirectHttpMp4 = location.protocol === 'https:'
+    && url.protocol === 'http:'
+    && url.pathname.toLowerCase().endsWith('.mp4')
+    && 'MediaSource' in window;
+  if (isDirectHttpMp4) {
+    elements.playerMessage.textContent = 'Preparando mídia HTTP no player interno…';
+    elements.video.hidden = false;
+    state.stopPlayback = attachDirectHttpMp4(elements.video, url.href, {
+      onError: (message) => nextCandidate(message),
+    });
+    return;
+  }
   if (location.protocol === 'https:' && url.protocol === 'http:') {
-    elements.playerMessage.textContent = 'Tentando mídia HTTP. Navegadores que bloqueiam conteúdo misto exigem um proxy HTTPS.';
+    elements.playerMessage.textContent = 'Tentando mídia HTTP. Este navegador precisa permitir conteúdo inseguro para o site.';
   } else {
     elements.playerMessage.textContent = `Tentando padrão ${state.selected.url_padrao || 'alternativo'}…`;
   }
@@ -121,16 +161,20 @@ function tryCandidate() {
 elements.video.addEventListener('playing', () => {
   elements.playerMessage.textContent = 'Reproduzindo pelo endereço offline salvo.';
 });
+elements.video.addEventListener('canplay', () => {
+  void elements.video.play().catch(() => {
+    elements.playerMessage.textContent = 'Mídia pronta. Pressione o botão de reprodução do player.';
+  });
+});
 elements.video.addEventListener('error', () => {
+  if (state.stopPlayback) return;
   state.candidateIndex += 1;
   tryCandidate();
 });
 elements.play.addEventListener('click', tryCandidate);
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', () => {
-  elements.video.pause();
-  elements.video.removeAttribute('src');
-  elements.video.load();
+  stopPlayback();
 });
 elements.search.addEventListener('input', applyFilters);
 elements.category.addEventListener('change', applyFilters);
