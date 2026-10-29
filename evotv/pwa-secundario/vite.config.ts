@@ -3,19 +3,19 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   root: '..',
-  // Caminhos relativos permitem publicar o mesmo build em /pwa/ ou no
+  // Caminhos relativos permitem publicar o mesmo build em /pwa-secundario/ ou no
   // subdiretório criado pelo GitHub Pages.
   base: './',
   plugins: [react()],
-  publicDir: 'pwa/assets',
+  publicDir: 'pwa-secundario/assets',
   build: {
-    outDir: 'pwa/dist',
+    outDir: 'pwa-secundario/dist',
     emptyOutDir: true,
     sourcemap: true,
     rollupOptions: {
       input: {
         support: 'index.html',
-        pwa: 'pwa/index.html',
+        pwaSecundario: 'pwa-secundario/index.html',
       },
     },
   },

@@ -29,12 +29,12 @@ npm run build
 ```
 
 O resultado fica em `dist/`: `dist/index.html` é o portal de suporte e
-`dist/pwa/index.html` é a área privada instalável, iniciada pela tela de
+`dist/pwa-secundario/index.html` é a área privada instalável, iniciada pela tela de
 login. Ambos devem ser servidos por HTTPS. O service worker não é registrado
 durante `npm run dev`.
 
 O arquivo `render.yaml` publica `dist/`, mantém o portal na raiz, redireciona
-`/pwa` para `/pwa/`, entrega o aplicativo por `/pwa/*` e encaminha
+`/pwa-secundario` para `/pwa-secundario/`, entrega o aplicativo por `/pwa-secundario/*` e encaminha
 `/pwa-api/*` ao backend atual.
 
 ## Variáveis
@@ -60,7 +60,7 @@ O portal do EVOTV e o aplicativo PWA ficam, respectivamente, em:
 
 ```text
 https://evotechubdev.github.io/evodec/evotv/index.html
-https://evotechubdev.github.io/evodec/evotv/pwa/index.html
+https://evotechubdev.github.io/evodec/evotv/pwa-secundario/index.html
 ```
 
 ## Backend
@@ -120,7 +120,7 @@ depende dos formatos de vídeo suportados pelo navegador de cada TV.
 O cartão **EVOTV - PWA** deve apontar diretamente para:
 
 ```text
-https://evotechubdev.github.io/evodec/evotv/pwa/index.html
+https://evotechubdev.github.io/evodec/evotv/pwa-secundario/index.html
 ```
 
 O parâmetro `?install=1`, usado pelo cartão do site de suporte, abre diretamente

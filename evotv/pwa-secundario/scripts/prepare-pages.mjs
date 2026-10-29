@@ -4,6 +4,7 @@ import {
   existsSync,
   mkdirSync,
   rmSync,
+  writeFileSync,
 } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +30,18 @@ rmSync(pagesBuild, { recursive: true, force: true });
 mkdirSync(pagesBuild, { recursive: true });
 copyFileSync(mainPage, resolve(pagesBuild, 'index.html'));
 cpSync(applicationBuild, evotvBuild, { recursive: true });
+
+// Mantem os atalhos e instalacoes antigas utilizaveis durante a mudanca de
+// /pwa/ para /pwa-secundario/. A consulta (incluindo direct_http=1) e o hash
+// sao preservados, mas nenhum dado de autenticacao e colocado no HTML.
+const legacyPwaBuild = resolve(evotvBuild, 'pwa');
+mkdirSync(legacyPwaBuild, { recursive: true });
+writeFileSync(resolve(legacyPwaBuild, 'index.html'), `<!doctype html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="robots" content="noindex">
+<meta http-equiv="refresh" content="0; url=../pwa-secundario/index.html">
+<title>EVOTV</title></head><body><script>
+location.replace('../pwa-secundario/index.html' + location.search + location.hash);
+</script></body></html>\n`);
 
 if (existsSync(offlineAppSource)) {
   mkdirSync(offlineAppBuild, { recursive: true });

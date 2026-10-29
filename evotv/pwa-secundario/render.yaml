@@ -18,7 +18,7 @@ services:
         destination: https://multimideas-evo-backend.onrender.com/*
       - type: redirect
         source: /pwa
-        destination: /pwa/
+        destination: /pwa-secundario/
       - type: rewrite
-        source: /pwa/*
-        destination: /pwa/index.html
+        source: /pwa-secundario/*
+        destination: /pwa-secundario/index.html

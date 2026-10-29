@@ -33,7 +33,7 @@ import {
 type Screen = 'login' | 'profiles' | 'catalog' | 'series';
 
 const api = new EvoApi();
-const isPwaPath = /\/pwa(?:\/|$)/.test(window.location.pathname);
+const isPwaPath = /\/pwa-secundario(?:\/|$)/.test(window.location.pathname);
 const assetUrl = (path: string) =>
   `${import.meta.env.BASE_URL}${isPwaPath ? '../' : ''}${path}`;
 const ANDROID_DOWNLOAD_URL =
@@ -123,7 +123,7 @@ function SupportPortal() {
               title="EVOTV - PWA"
               description="Indicada para iOS e outros sistemas de TV ou dispositivos."
               label="Instalar PWA"
-              href={assetUrl('pwa/index.html?install=1')}
+              href={assetUrl('pwa-secundario/index.html?install=1')}
               featured
             />
           </div>

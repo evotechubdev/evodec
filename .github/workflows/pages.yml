@@ -24,14 +24,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: evotv/pwa/package-lock.json
+          cache-dependency-path: evotv/pwa-secundario/package-lock.json
 
       - name: Install dependencies
-        working-directory: evotv/pwa
+        working-directory: evotv/pwa-secundario
         run: npm ci --no-audit --no-fund
 
       - name: Type-check and build GitHub Pages structure
-        working-directory: evotv/pwa
+        working-directory: evotv/pwa-secundario
         env:
           VITE_EVO_BACKEND_URL: https://multimideas-evo-backend.onrender.com
           VITE_EVO_EDGE_PROXY_URL: ${{ vars.VITE_EVO_EDGE_PROXY_URL }}
@@ -43,7 +43,7 @@ jobs:
       - name: Upload GitHub Pages artifact
         uses: actions/upload-pages-artifact@v5
         with:
-          path: evotv/pwa/pages-dist
+          path: evotv/pwa-secundario/pages-dist
 
   deploy:
     environment:

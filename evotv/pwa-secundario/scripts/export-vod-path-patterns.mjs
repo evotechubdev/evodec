@@ -16,7 +16,7 @@ const argumentsMap = Object.fromEntries(process.argv.slice(2).map((argument) => 
 if (!argumentsMap.server) throw new Error('Informe o servidor explicitamente com --server.');
 const server = new URL(argumentsMap.server);
 const credentialsPath = argumentsMap.credentials;
-const outputPath = resolve(argumentsMap.output || 'evotv/pwa/data/vod-direct-catalog.json');
+const outputPath = resolve(argumentsMap.output || 'evotv/pwa-secundario/data/vod-direct-catalog.json');
 const checkpointPath = `${outputPath}.jsonl`;
 const concurrency = Math.max(1, Math.min(4, Number.parseInt(argumentsMap.concurrency || '2', 10) || 2));
 const delayMs = Math.max(100, Math.min(2_000, Number.parseInt(argumentsMap.delay || '250', 10) || 250));

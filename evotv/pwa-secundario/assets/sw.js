@@ -1,12 +1,12 @@
-const CACHE_NAME = 'evotv-pwa-v18';
-const SERVICE_WORKER_VERSION = '18';
+const CACHE_NAME = 'evotv-pwa-secundario-v19';
+const SERVICE_WORKER_VERSION = '19';
 const APP_ROOT = new URL('./', self.location.href).href;
-const PWA_ROOT = new URL('pwa/', APP_ROOT).href;
+const PWA_ROOT = new URL('pwa-secundario/', APP_ROOT).href;
 const PWA_INDEX = new URL('index.html', PWA_ROOT).href;
 const APP_SHELL = [
   PWA_ROOT,
   PWA_INDEX,
-  new URL('pwa/manifest.json', APP_ROOT).href,
+  new URL('pwa-secundario/manifest.json', APP_ROOT).href,
   new URL('icons/icon-192.png', APP_ROOT).href,
   new URL('icons/icon-512.png', APP_ROOT).href,
 ];

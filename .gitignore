@@ -10,8 +10,8 @@ pages-dist/
 !.env.example
 
 # Catálogos e diagnósticos gerados localmente (podem conter URLs diretas)
-evotv/pwa/data/vod-direct-catalog*.json
-evotv/pwa/data/vod-direct-catalog*.jsonl
+evotv/pwa-secundario/data/vod-direct-catalog*.json
+evotv/pwa-secundario/data/vod-direct-catalog*.jsonl
 **/login-e-senha.txt
 
 # Projetos locais que nunca devem ser enviados ao Git

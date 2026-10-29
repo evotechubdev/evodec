@@ -1,4 +1,4 @@
-const SERVICE_WORKER_VERSION = '18';
+const SERVICE_WORKER_VERSION = '19';
 const ACTIVATION_TIMEOUT_MS = 15_000;
 const RELOAD_MARKER = `evotv-sw-reload-v${SERVICE_WORKER_VERSION}`;
 
@@ -6,7 +6,7 @@ let setupPromise: Promise<ServiceWorker> | null = null;
 
 export function registerServiceWorker(): void {
   if (!('serviceWorker' in navigator) || import.meta.env.DEV) return;
-  if (!/\/pwa(?:\/|$)/.test(window.location.pathname)) return;
+  if (!/\/pwa-secundario(?:\/|$)/.test(window.location.pathname)) return;
   setupPromise ??= prepareServiceWorker();
   void setupPromise.catch(() => {
     // Login e catálogo continuam disponíveis mesmo se o modo offline falhar.
@@ -15,12 +15,16 @@ export function registerServiceWorker(): void {
 
 async function prepareServiceWorker(): Promise<ServiceWorker> {
   const legacyScope = new URL('../', window.location.href).pathname;
+  const previousPwaScope = new URL('../pwa/', window.location.href).pathname;
   const pwaScope = new URL('./', window.location.href).pathname;
   const workerUrl = new URL(`${import.meta.env.BASE_URL}../sw.js?v=${SERVICE_WORKER_VERSION}`, window.location.href).href;
   const registrations = await navigator.serviceWorker.getRegistrations();
   await Promise.all(
     registrations
-      .filter((registration) => new URL(registration.scope).pathname === legacyScope)
+      .filter((registration) => {
+        const scope = new URL(registration.scope).pathname;
+        return scope === legacyScope || scope === previousPwaScope;
+      })
       .map((registration) => registration.unregister()),
   );
 

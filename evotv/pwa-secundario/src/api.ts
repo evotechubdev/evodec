@@ -258,6 +258,17 @@ export class EvoApi {
     // Xtream catalogs commonly expose live channels as a continuous MPEG-TS
     // stream. Forcing .m3u8 makes some providers return a non-HLS response.
     const extension = normalized.slice(0, 8) || (item.kind === 'live' ? 'ts' : 'mp4');
+    // O modo direto e uma opcao de teste explicita para navegadores nos quais
+    // o usuario ja liberou HTTP. Nesse modo, o grant local autenticado e
+    // suficiente e nao devemos exigir um segundo ticket do backend para cada
+    // episodio. Isso tambem mantem filmes, canais e series no mesmo fluxo.
+    if (useWindowsDirect) {
+      try {
+        return providerPlaybackUrl(playbackGrant, item, extension);
+      } catch {
+        throw new EvoApiError('A autorizacao direta da midia e invalida. Entre novamente no perfil.');
+      }
+    }
     const data = await this.backend('/api/stream-ticket', token, {
       method: 'POST',
       headers: sessionHeaders(sessionToken, profile),
@@ -273,13 +284,6 @@ export class EvoApi {
     const source = text(data.url);
     if (!source || text(data.transport) !== 'direct') {
       throw new EvoApiError('O servidor não retornou uma abertura compatível com este dispositivo.');
-    }
-    if (useWindowsDirect) {
-      try {
-        return providerPlaybackUrl(playbackGrant, item, extension);
-      } catch {
-        throw new EvoApiError('A autorizacao direta da midia e invalida. Entre novamente no perfil.');
-      }
     }
     try {
       const url = new URL(source);
