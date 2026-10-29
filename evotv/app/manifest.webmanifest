@@ -1,7 +1,7 @@
 {
-  "name": "EVOTV Catálogo Offline",
-  "short_name": "EVOTV Offline",
-  "description": "Catálogo independente de filmes disponível offline.",
+  "name": "EVOTV",
+  "short_name": "EVOTV",
+  "description": "EVOTV PWA com login, perfis, controle parental e catálogo de filmes.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -4,81 +4,87 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#08090c">
-  <meta name="description" content="Catálogo EVOTV independente com dados disponíveis offline.">
+  <meta name="description" content="EVOTV PWA com autenticação, perfis e catálogo de filmes.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
-  <title>EVOTV — Filmes</title>
+  <title>EVOTV</title>
 </head>
 <body class="catalog-page">
-  <main class="pc-app-shell">
+  <main id="login-screen" class="login-screen">
+    <div class="login-atmosphere" aria-hidden="true"><span class="orb orb-one"></span><span class="orb orb-two"></span><div class="signal-lines"></div></div>
+    <section class="login-card" aria-labelledby="login-title">
+      <img class="login-logo" src="./assets/logo_evotv.png" alt="EVOTV">
+      <div class="login-heading"><span class="eyebrow">BEM-VINDO</span><h1 id="login-title">Entrar no EVOTV</h1><p>Use o mesmo acesso do Programa de PC.</p></div>
+      <form id="login-form" novalidate>
+        <label class="field"><span>LOGIN</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg><input id="username" type="text" placeholder="Digite seu login" autocomplete="username" required></span></label>
+        <label class="field"><span>SENHA</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4V6Zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8Z"/></svg><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
+        <label class="remember-login"><input id="remember-login" type="checkbox"><span>Lembrar somente meu login neste aparelho</span></label>
+        <p id="login-error" class="form-error" role="alert"></p>
+        <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
+      </form>
+      <p class="privacy-note"><span>◆</span> A senha não é armazenada no navegador</p>
+      <p class="login-version">Versão: jupiter-11 • PWA</p>
+    </section>
+  </main>
+
+  <main id="profile-screen" class="profile-screen" hidden>
+    <div class="profile-atmosphere" aria-hidden="true"></div>
+    <section class="profile-panel" aria-labelledby="profile-title">
+      <img class="profile-logo" src="./assets/logo_evotv.png" alt="EVOTV">
+      <span class="eyebrow">SELEÇÃO DE PERFIL</span><h1 id="profile-title">Quem está assistindo?</h1><p id="profile-user"></p>
+      <div id="profile-grid" class="profile-grid"></div>
+      <p id="profile-error" class="form-error profile-error" role="alert"></p>
+      <button id="back-to-login" class="text-button" type="button">← Voltar para o login</button>
+    </section>
+  </main>
+
+  <main id="app-screen" class="pc-app-shell" hidden>
     <aside class="pc-sidebar">
-      <a class="pc-brand" href="./index.html" aria-label="EVOTV"><img src="./assets/logo_evotv.png" alt="EVOTV"></a>
+      <a class="pc-brand" href="#filmes" aria-label="EVOTV"><img src="./assets/logo_evotv.png" alt="EVOTV"></a>
       <nav class="pc-nav" aria-label="Navegação principal">
-        <button class="pc-nav-item" type="button" disabled title="Canais não incluídos neste catálogo offline">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.2 3.6 1.4-1.4L12 4.6l2.4-2.4 1.4 1.4L13.4 6H19a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.6L8.2 3.6ZM5 8v11h14V8H5Zm2 2h8v7H7v-7Zm10 1h1v2h-1v-2Zm0 3h1v2h-1v-2Z"/></svg><span>Canais</span>
-        </button>
-        <button class="pc-nav-item active" type="button" aria-current="page">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5h3V5H4v3Zm5 0h6V5H9v3Zm8 0h3V5h-3v3ZM4 14h3v-4H4v4Zm5 0h6v-4H9v4Zm8 0h3v-4h-3v4ZM4 19h3v-3H4v3Zm5 0h6v-3H9v3Zm8 0h3v-3h-3v3Z"/></svg><span>Filmes</span>
-        </button>
-        <button class="pc-nav-item" type="button" disabled title="Séries não incluídas neste catálogo offline">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span>
-        </button>
+        <button class="pc-nav-item future-section" type="button" data-future="Canais"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.2 3.6 1.4-1.4L12 4.6l2.4-2.4 1.4 1.4L13.4 6H19a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.6L8.2 3.6ZM5 8v11h14V8H5Zm2 2h8v7H7v-7Z"/></svg><span>Canais</span></button>
+        <button id="movies-nav" class="pc-nav-item active" type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5h3V5H4v3Zm5 0h6V5H9v3Zm8 0h3V5h-3v3ZM4 14h3v-4H4v4Zm5 0h6v-4H9v4Zm8 0h3v-4h-3v4Z"/></svg><span>Filmes</span></button>
+        <button class="pc-nav-item future-section" type="button" data-future="Séries"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span></button>
+        <button class="pc-nav-item future-section" type="button" data-future="Shows"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v4a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-5 5.91V19h3v2H8v-2h3v-3.09A6 6 0 0 1 6 10h2a4 4 0 0 0 8 0h2Z"/></svg><span>Shows</span></button>
+        <button class="pc-nav-item future-section" type="button" data-future="Conteúdo Extra"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg><span>Conteúdo Extra</span></button>
+        <button id="adult-nav" class="pc-nav-item adult-nav" type="button"><strong aria-hidden="true">18+</strong><span>Adulto 18+</span></button>
       </nav>
       <div class="pc-sidebar-bottom">
-        <span class="pc-account-type">CATÁLOGO OFFLINE</span>
-        <div class="pc-connection"><i></i><span><strong>Conectado</strong><small>Biblioteca local</small></span></div>
+        <span id="account-type" class="pc-account-type">STANDARD</span>
+        <button id="profile-settings" class="sidebar-action" type="button" hidden>Gerenciar perfis</button>
+        <button id="parental-settings" class="sidebar-action" type="button" hidden>Controle parental</button>
+        <div class="pc-connection"><i></i><span><strong>Conectado</strong><small id="server-label">Perfil</small></span></div>
+        <button id="switch-profile" class="sidebar-action" type="button">Trocar perfil</button>
+        <button id="logout-button" class="sidebar-action" type="button">Sair</button>
       </div>
     </aside>
 
     <section class="pc-content-area">
       <header class="pc-topbar">
-        <div><span class="eyebrow">BIBLIOTECA DE FILMES</span><h1 id="catalog-heading">Filmes</h1></div>
+        <div><span id="section-kicker" class="eyebrow">CATÁLOGO ON DEMAND</span><h1 id="catalog-heading">Filmes</h1></div>
         <div class="pc-top-actions">
-          <label class="pc-search-box" aria-label="Buscar filmes">
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 1 0 4.73 13.32L20.9 22 22 20.9l-5.68-5.67A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"/></svg>
-            <input id="catalog-search" type="search" placeholder="Buscar filmes..." autocomplete="off">
-          </label>
-          <div class="pc-view-switch" aria-label="Modo de visualização">
-            <button class="active" data-view="grid" type="button" title="Grade" aria-label="Exibir em grade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3V3Zm2 2v4h4V5H5Zm8-2h8v8h-8V3Zm2 2v4h4V5h-4ZM3 13h8v8H3v-8Zm2 2v4h4v-4H5Zm8-2h8v8h-8v-8Zm2 2v4h4v-4h-4Z"/></svg></button>
-            <button data-view="list" type="button" title="Lista" aria-label="Exibir em lista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h3v3H4V5Zm5 0h11v3H9V5ZM4 10.5h3v3H4v-3Zm5 0h11v3H9v-3ZM4 16h3v3H4v-3Zm5 0h11v3H9v-3Z"/></svg></button>
-          </div>
+          <label class="pc-search-box" aria-label="Buscar filmes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 1 0 4.73 13.32L20.9 22 22 20.9l-5.68-5.67A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"/></svg><input id="catalog-search" type="search" placeholder="Buscar filmes..." autocomplete="off"></label>
+          <div class="pc-view-switch" aria-label="Modo de visualização"><button class="active" data-view="grid" type="button" title="Grade" aria-label="Exibir em grade"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z"/></svg></button><button data-view="list" type="button" title="Lista" aria-label="Exibir em lista"><svg viewBox="0 0 24 24"><path d="M4 5h3v3H4V5Zm5 0h11v3H9V5Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Z"/></svg></button></div>
         </div>
       </header>
-
       <select id="category-filter" class="visually-hidden" aria-label="Categoria"><option value="">Todos</option></select>
       <div id="category-strip" class="pc-category-strip" tabindex="0" aria-label="Categorias"></div>
-      <div class="pc-status-line" role="status"><span id="app-status">Preparando catálogo local…</span><span id="catalog-count">Carregando…</span></div>
-      <div id="catalog-grid" class="catalog-grid" aria-live="polite"></div>
-      <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
+      <div class="pc-status-line" role="status"><span id="app-status">Preparando catálogo…</span><span id="catalog-count">Carregando…</span></div>
+      <div id="catalog-grid" class="catalog-grid" aria-live="polite"></div><div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
       <button id="load-more" class="secondary-action" type="button" hidden>Carregar mais</button>
     </section>
   </main>
 
-  <dialog id="media-modal" class="media-modal">
-    <button id="close-modal" class="modal-close" type="button" aria-label="Fechar">×</button>
-    <div class="media-layout">
-      <img id="media-image" class="media-poster" alt="">
-      <div class="media-content">
-        <p class="eyebrow">FILME</p><h2 id="media-title"></h2>
-        <p id="media-meta" class="media-meta"></p><p id="player-message" class="status"></p>
-        <button id="play-media" class="primary-action" type="button">Reproduzir</button>
-      </div>
-      <div class="media-player-surface"><video id="media-player" controls playsinline hidden></video></div>
-    </div>
-  </dialog>
+  <dialog id="media-modal" class="media-modal"><button id="close-modal" class="modal-close" type="button" aria-label="Fechar">×</button><div class="media-layout"><img id="media-image" class="media-poster" alt=""><div class="media-content"><p class="eyebrow">FILME</p><h2 id="media-title"></h2><p id="media-meta" class="media-meta"></p><p id="player-message" class="status"></p><button id="play-media" class="primary-action" type="button">Reproduzir</button></div><div class="media-player-surface"><video id="media-player" controls playsinline hidden></video></div></div></dialog>
 
-  <script>
-    window.addEventListener('error', function (event) {
-      var status = document.querySelector('#app-status');
-      if (status) { status.textContent = 'Erro ao abrir catálogo: ' + (event.message || 'falha de execução'); status.classList.add('error'); }
-    });
-    window.addEventListener('unhandledrejection', function (event) {
-      var status = document.querySelector('#app-status');
-      var reason = event.reason && event.reason.message ? event.reason.message : 'falha assíncrona';
-      if (status) { status.textContent = 'Erro ao abrir catálogo: ' + reason; status.classList.add('error'); }
-    });
-  </script>
+  <dialog id="profile-pin-dialog" class="settings-dialog"><form id="profile-pin-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">PERFIL PROTEGIDO</span><h2 id="profile-pin-title">Digite o PIN do perfil</h2><label class="field"><span>PIN DO PERFIL</span><input id="profile-pin" type="password" minlength="4" maxlength="128" autocomplete="off" required></label><p id="profile-pin-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">ENTRAR NO PERFIL</button></form></dialog>
+
+  <dialog id="profile-settings-dialog" class="settings-dialog wide-dialog"><form id="profile-settings-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">PERFIL PRINCIPAL</span><h2>Gerenciar perfis</h2><p>Defina os nomes e informe um novo PIN somente quando desejar alterá-lo.</p><div id="profile-settings-list" class="profile-settings-list"></div><p class="dialog-help">PINs em branco permanecem inalterados. Use de 4 a 128 caracteres.</p><p id="profile-settings-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">SALVAR PERFIS</button></form></dialog>
+
+  <dialog id="parental-dialog" class="settings-dialog wide-dialog"><form id="parental-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">CONTEÚDO ADULTO</span><h2 id="parental-title">Controle parental</h2><p id="parental-description"></p><label id="parental-current-field" class="field"><span id="parental-pin-label">PIN atual</span><input id="parental-pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="off"></label><div id="parental-options"><div id="parental-profiles" class="parental-profiles"></div><p class="dialog-help">Liberado: acesso direto. Pedir PIN: exige o PIN principal. Oculto e bloqueado: remove a pasta Adultos.</p><label class="field"><span id="parental-new-pin-label">Definir PIN · 4 a 8 números</span><input id="parental-new-pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="new-password"></label></div><p id="parental-error" class="form-error" role="alert"></p><button id="parental-submit" class="primary-button" type="submit">SALVAR PROTEÇÃO</button></form></dialog>
+
+  <p id="app-notice" class="app-notice" role="status" aria-live="polite" hidden></p>
   <script type="module" src="./app.js"></script>
 </body>
 </html>

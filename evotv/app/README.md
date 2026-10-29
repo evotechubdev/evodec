@@ -1,8 +1,9 @@
 # EVOTV App Offline
 
-Aplicação pública independente que consulta somente o snapshot incorporado em
-`data/catalogo-offline.json`. Não há login IPTV, sincronização ou área
-administrativa neste projeto.
+Aplicação pública independente que consulta o snapshot incorporado em
+`data/catalogo-offline.json`. O APP usa o mesmo Firebase e o mesmo backend de
+contas do Programa de PC para login, perfis, sessões e controle parental. Não
+há sincronização nem área administrativa neste projeto.
 
 ## Reprodução
 
@@ -19,5 +20,9 @@ Backend dedicado:
 https://multimideas-evo-backend-app.onrender.com
 ```
 
-O catálogo público carrega 45 itens por lote conforme a rolagem da grade. A
-interface e o catálogo continuam disponíveis offline; a reprodução exige rede.
+O catálogo carrega 45 itens por lote conforme a rolagem da grade. A interface
+e o catálogo continuam disponíveis offline; login e reprodução exigem rede.
+
+Por enquanto somente Filmes possui catálogo. Canais, Séries, Shows e Conteúdo
+Extra já aparecem na estrutura de navegação e serão ativados quando seus dados
+forem incorporados.

@@ -33,7 +33,7 @@ cpSync(applicationBuild, evotvBuild, { recursive: true });
 if (existsSync(offlineAppSource)) {
   mkdirSync(offlineAppBuild, { recursive: true });
   for (const entry of [
-    'index.html', 'styles.css', 'app.js',
+    'index.html', 'styles.css', 'app.js', 'auth-api.js',
     'catalog-db.js', 'sw.js', 'manifest.webmanifest', 'assets', 'data',
   ]) {
     const source = resolve(offlineAppSource, entry);
