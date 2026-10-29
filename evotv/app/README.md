@@ -36,6 +36,17 @@ Uma política de segurança de conteúdo bloqueia imagens e mídia HTTP no front
 Capas HTTP usam a imagem padrão; os filmes chegam ao player somente pela URL
 HTTPS temporária do Cloudflare Worker.
 
+O catálogo segue a organização do Programa de PC. A seção inicial é
+`Filmes | Lançamentos 2026`, ordenada pelo campo `added` do mais recente para o
+mais antigo, seguida por Recém Adicionados, Favoritos, Todos e pelas categorias
+do snapshot. Favoritos são locais por conta e perfil. Contas PREMIUM recebem um
+ícone de download nos cards; o backend devolve a mídia HTTPS como anexo.
+
+O modal possui sinopse e trailer incorporado. O APP usa apenas sinopses e IDs ou
+URLs reais presentes no snapshot, sem transformar uma pesquisa em trailer. O
+snapshot atual ainda não contém esses campos, por isso esses dados aparecerão
+quando forem incluídos pela futura rotina administrativa de enriquecimento.
+
 Por enquanto somente Filmes possui catálogo. Canais, Séries, Shows e Conteúdo
 Extra já aparecem na estrutura de navegação e serão ativados quando seus dados
 forem incorporados.

@@ -1,9 +1,0 @@
-{
-  "name": "evotv",
-  "version": "0.0.3",
-  "description": "EVOTV para Windows compatível com Xtream Codes",
-  "main": "src/main.js",
-  "author": "EVOTV",
-  "license": "UNLICENSED",
-  "dependencies": {}
-}

@@ -22,6 +22,7 @@ evotv/programa_pc/
 evotv/app_samsung/
 .app_ios_repository_backup/
 app-backend/
+.tmp-pc-asar/
 
 # IDEs
 .idea/

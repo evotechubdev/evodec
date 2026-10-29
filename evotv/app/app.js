@@ -53,8 +53,8 @@ const elements = {
   notice: $('#app-notice'), search: $('#catalog-search'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), count: $('#catalog-count'), status: $('#app-status'), sentinel: $('#load-sentinel'),
   loadMore: $('#load-more'), modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
-  modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), playerMessage: $('#player-message'),
-  play: $('#play-media'), trailer: $('#trailer-media'), download: $('#download-media'), close: $('#close-modal'), viewButtons: $$('[data-view]'),
+  modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
+  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), viewButtons: $$('[data-view]'),
 };
 
 function showScreen(name) {
@@ -144,16 +144,24 @@ function synopsisFrom(item = {}) {
 
 function trailerFrom(item = {}) {
   const value = String(item.youtube_trailer || item.trailer || item.trailer_url || item.youtubeTrailer || '').trim();
-  if (/^https:\/\//i.test(value)) return value;
-  if (/^[a-zA-Z0-9_-]{6,20}$/.test(value)) return `https://www.youtube.com/watch?v=${encodeURIComponent(value)}`;
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${item.name || 'filme'} trailer oficial`)}`;
+  let id = /^[a-zA-Z0-9_-]{6,20}$/.test(value) ? value : '';
+  if (!id) {
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'https:') return '';
+      if (['youtu.be', 'www.youtu.be'].includes(url.hostname)) id = url.pathname.split('/').filter(Boolean)[0] || '';
+      else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com'].includes(url.hostname)) {
+        id = url.searchParams.get('v') || (/^\/embed\/([^/]+)/.exec(url.pathname)?.[1] || '');
+      }
+    } catch { return ''; }
+  }
+  return /^[a-zA-Z0-9_-]{6,20}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0` : '';
 }
 
 function safeImage(value) {
   try {
     const url = new URL(String(value || ''), location.href);
-    const localPreview = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
-    return url.protocol === 'https:' || (localPreview && url.protocol === 'http:') ? url.href : '';
+    return url.protocol === 'https:' ? url.href : '';
   } catch { return ''; }
 }
 
@@ -239,12 +247,21 @@ function renderGrid() {
     const copy = document.createElement('span'); copy.className = 'catalog-card-copy';
     const title = document.createElement('strong'); title.textContent = item.name || 'Sem título';
     const titleRow = document.createElement('span'); titleRow.className = 'catalog-title-row';
+    const actions = document.createElement('span'); actions.className = 'catalog-title-actions';
     const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = 'content-favorite-toggle';
     const active = state.favorites.has(String(item.stream_id || '')); favorite.classList.toggle('active', active);
     favorite.textContent = active ? '★' : '☆'; favorite.title = active ? 'Desfavoritar' : 'Favoritar';
     favorite.setAttribute('aria-label', `${favorite.title}: ${item.name || 'filme'}`); favorite.setAttribute('aria-pressed', String(active));
     favorite.addEventListener('click', (event) => { event.stopPropagation(); toggleFavorite(item); });
-    titleRow.append(title, favorite);
+    actions.append(favorite);
+    if (String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
+      const download = document.createElement('button'); download.type = 'button'; download.className = 'content-download';
+      download.title = 'Baixar filme · PREMIUM'; download.setAttribute('aria-label', `Baixar ${item.name || 'filme'}`);
+      download.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17V3ZM5 19h14v2H5v-2Z"/></svg>';
+      download.addEventListener('click', (event) => { event.stopPropagation(); void downloadItem(item, download); });
+      actions.append(download);
+    }
+    titleRow.append(title, actions);
     const meta = document.createElement('small'); meta.textContent = item.category_name || 'Filme'; copy.append(titleRow, meta);
     card.append(poster, copy); return card;
   }));
@@ -260,8 +277,7 @@ function openItem(item) {
   elements.modalSynopsis.textContent = synopsisFrom(item);
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = '';
-  elements.trailer.dataset.url = trailerFrom(item); elements.trailer.disabled = false;
-  elements.download.hidden = String(state.session?.accountType || state.account?.accountType || '').toUpperCase() !== 'PREMIUM';
+  elements.trailer.dataset.url = trailerFrom(item); elements.trailer.disabled = !elements.trailer.dataset.url;
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
   elements.modal.showModal();
 }
@@ -269,6 +285,7 @@ function openItem(item) {
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
   elements.video.pause(); elements.video.removeAttribute('src'); elements.video.load();
+  elements.trailerPlayer.removeAttribute('src'); elements.trailerPlayer.hidden = true;
 }
 
 async function mediaTicket(source, signal, download = false) {
@@ -309,19 +326,19 @@ async function tryCandidate() {
   } finally { window.clearTimeout(timer); }
 }
 
-async function downloadSelected() {
-  if (!state.selected || String(state.session?.accountType || state.account?.accountType || '').toUpperCase() !== 'PREMIUM') return;
-  const source = mediaCandidates(state.selected)[0];
+async function downloadItem(item, button) {
+  if (!item || String(state.session?.accountType || state.account?.accountType || '').toUpperCase() !== 'PREMIUM') return;
+  const source = mediaCandidates(item)[0];
   if (!source) return;
-  elements.download.disabled = true;
+  button.disabled = true;
   try {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), TICKET_TIMEOUT_MS);
     const url = await mediaTicket(source, controller.signal, true).finally(() => window.clearTimeout(timer));
-    const anchor = document.createElement('a'); anchor.href = url; anchor.download = String(state.selected.name || 'filme');
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = String(item.name || 'filme');
     anchor.rel = 'noopener'; document.body.append(anchor); anchor.click(); anchor.remove();
   } catch (error) { notice(`Não foi possível iniciar o download (${readableError(error)}).`); }
-  finally { elements.download.disabled = false; }
+  finally { button.disabled = false; }
 }
 
 function renderProfiles() {
@@ -585,15 +602,16 @@ elements.moviesNav.addEventListener('click', () => enterMovieView(false));
 elements.adultNav.addEventListener('click', () => { void openAdultSection(); });
 $$('.future-section').forEach(button => button.addEventListener('click', () => notice(`${button.dataset.future} já está estruturado e será ativado quando o catálogo correspondente for adicionado.`)));
 
-elements.video.addEventListener('playing', () => { elements.playerMessage.textContent = 'Reproduzindo por HTTPS seguro.'; elements.play.hidden = true; });
-elements.video.addEventListener('canplay', () => { void elements.video.play().catch(() => { elements.playerMessage.textContent = 'Mídia pronta. Pressione o botão de reprodução do player.'; }); });
+elements.video.addEventListener('playing', () => { elements.playerMessage.textContent = ''; elements.play.hidden = true; });
+elements.video.addEventListener('canplay', () => { void elements.video.play().catch(() => {}); });
 elements.video.addEventListener('error', () => { state.candidateIndex += 1; void tryCandidate(); });
 elements.play.addEventListener('click', () => { void tryCandidate(); });
 elements.trailer.addEventListener('click', () => {
   const url = elements.trailer.dataset.url;
-  if (url) window.open(url, '_blank', 'noopener,noreferrer');
+  if (!url) return;
+  stopPlayback(); elements.play.hidden = false;
+  elements.trailerPlayer.src = url; elements.trailerPlayer.hidden = false;
 });
-elements.download.addEventListener('click', () => { void downloadSelected(); });
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', stopPlayback);
 elements.search.addEventListener('input', applyFilters); elements.category.addEventListener('change', applyFilters);
