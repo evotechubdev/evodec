@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 540" role="img" aria-label="Capa indisponível">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#173a5a"/><stop offset="1" stop-color="#081523"/></linearGradient></defs>
+  <rect width="360" height="540" rx="24" fill="url(#g)"/>
+  <circle cx="180" cy="225" r="72" fill="none" stroke="#28d8ff" stroke-opacity=".4" stroke-width="8"/>
+  <path d="m163 185 61 40-61 40z" fill="#28d8ff" fill-opacity=".76"/>
+  <text x="180" y="350" text-anchor="middle" fill="#c8e5f8" font-family="system-ui,sans-serif" font-size="24" font-weight="700">EVOTV</text>
+  <text x="180" y="385" text-anchor="middle" fill="#8eabc1" font-family="system-ui,sans-serif" font-size="15">CATÁLOGO OFFLINE</text>
+</svg>
