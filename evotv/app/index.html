@@ -3,55 +3,74 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#07111f">
+  <meta name="theme-color" content="#08090c">
   <meta name="description" content="Catálogo EVOTV independente com dados disponíveis offline.">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
-  <title>EVOTV Catálogo Offline</title>
+  <title>EVOTV — Filmes</title>
 </head>
-<body>
-  <header class="topbar">
-    <a class="brand" href="./index.html" aria-label="EVOTV Catálogo Offline">
-      <img src="./assets/logo_evotv.png" alt="EVOTV">
-      <span><strong>Catálogo</strong><small>offline</small></span>
-    </a>
-    <a class="admin-link" href="./admin.html">Administrador</a>
-  </header>
-  <main>
-    <section class="hero">
-      <p class="eyebrow">Biblioteca independente</p>
-      <h1>Seu catálogo continua disponível, mesmo sem consultar a lista.</h1>
-      <p id="app-status" class="status">Preparando catálogo local…</p>
-    </section>
-    <section class="catalog-panel" aria-labelledby="catalog-heading">
-      <div class="section-heading">
-        <div><p class="eyebrow">Filmes</p><h2 id="catalog-heading">Catálogo completo</h2></div>
-        <span id="catalog-count">Carregando…</span>
+<body class="catalog-page">
+  <main class="pc-app-shell">
+    <aside class="pc-sidebar">
+      <a class="pc-brand" href="./index.html" aria-label="EVOTV"><img src="./assets/logo_evotv.png" alt="EVOTV"></a>
+      <nav class="pc-nav" aria-label="Navegação principal">
+        <button class="pc-nav-item" type="button" disabled title="Canais não incluídos neste catálogo offline">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.2 3.6 1.4-1.4L12 4.6l2.4-2.4 1.4 1.4L13.4 6H19a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.6L8.2 3.6ZM5 8v11h14V8H5Zm2 2h8v7H7v-7Zm10 1h1v2h-1v-2Zm0 3h1v2h-1v-2Z"/></svg><span>Canais</span>
+        </button>
+        <button class="pc-nav-item active" type="button" aria-current="page">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5h3V5H4v3Zm5 0h6V5H9v3Zm8 0h3V5h-3v3ZM4 14h3v-4H4v4Zm5 0h6v-4H9v4Zm8 0h3v-4h-3v4ZM4 19h3v-3H4v3Zm5 0h6v-3H9v3Zm8 0h3v-3h-3v3Z"/></svg><span>Filmes</span>
+        </button>
+        <button class="pc-nav-item" type="button" disabled title="Séries não incluídas neste catálogo offline">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span>
+        </button>
+        <a class="pc-nav-item" href="./admin.html">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6ZM6 6v2h2V6H6Zm10 0v2h2V6h-2ZM6 16v2h2v-2H6Zm10 0v2h2v-2h-2Z"/></svg><span>Administrador</span>
+        </a>
+      </nav>
+      <div class="pc-sidebar-bottom">
+        <span class="pc-account-type">CATÁLOGO OFFLINE</span>
+        <div class="pc-connection"><i></i><span><strong>Conectado</strong><small>Biblioteca local</small></span></div>
       </div>
-      <div class="filters">
-        <label><span>Pesquisar</span><input id="catalog-search" type="search" placeholder="Nome do filme" autocomplete="off"></label>
-        <label><span>Categoria</span><select id="category-filter"><option value="">Todas as categorias</option></select></label>
-      </div>
+    </aside>
+
+    <section class="pc-content-area">
+      <header class="pc-topbar">
+        <div><span class="eyebrow">BIBLIOTECA DE FILMES</span><h1 id="catalog-heading">Filmes</h1></div>
+        <div class="pc-top-actions">
+          <label class="pc-search-box" aria-label="Buscar filmes">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 1 0 4.73 13.32L20.9 22 22 20.9l-5.68-5.67A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"/></svg>
+            <input id="catalog-search" type="search" placeholder="Buscar filmes..." autocomplete="off">
+          </label>
+          <div class="pc-view-switch" aria-label="Modo de visualização">
+            <button class="active" data-view="grid" type="button" title="Grade" aria-label="Exibir em grade"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3h8v8H3V3Zm2 2v4h4V5H5Zm8-2h8v8h-8V3Zm2 2v4h4V5h-4ZM3 13h8v8H3v-8Zm2 2v4h4v-4H5Zm8-2h8v8h-8v-8Zm2 2v4h4v-4h-4Z"/></svg></button>
+            <button data-view="list" type="button" title="Lista" aria-label="Exibir em lista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h3v3H4V5Zm5 0h11v3H9V5ZM4 10.5h3v3H4v-3Zm5 0h11v3H9v-3ZM4 16h3v3H4v-3Zm5 0h11v3H9v-3Z"/></svg></button>
+          </div>
+        </div>
+      </header>
+
+      <select id="category-filter" class="visually-hidden" aria-label="Categoria"><option value="">Todos</option></select>
+      <div id="category-strip" class="pc-category-strip" tabindex="0" aria-label="Categorias"></div>
+      <div class="pc-status-line" role="status"><span id="app-status">Preparando catálogo local…</span><span id="catalog-count">Carregando…</span></div>
       <div id="catalog-grid" class="catalog-grid" aria-live="polite"></div>
       <div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
       <button id="load-more" class="secondary-action" type="button" hidden>Carregar mais</button>
     </section>
   </main>
+
   <dialog id="media-modal" class="media-modal">
     <button id="close-modal" class="modal-close" type="button" aria-label="Fechar">×</button>
     <div class="media-layout">
       <img id="media-image" class="media-poster" alt="">
       <div class="media-content">
-        <p class="eyebrow">Selecionado</p>
-        <h2 id="media-title"></h2>
-        <p id="media-meta" class="media-meta"></p>
-        <p id="player-message" class="status"></p>
-        <video id="media-player" controls playsinline hidden></video>
+        <p class="eyebrow">FILME</p><h2 id="media-title"></h2>
+        <p id="media-meta" class="media-meta"></p><p id="player-message" class="status"></p>
         <button id="play-media" class="primary-action" type="button">Reproduzir</button>
       </div>
+      <div class="media-player-surface"><video id="media-player" controls playsinline hidden></video></div>
     </div>
   </dialog>
+
   <script>
     window.addEventListener('error', function (event) {
       var status = document.querySelector('#app-status');

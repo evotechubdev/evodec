@@ -2,7 +2,8 @@ import { currentCatalog, normalized } from './catalog-db.js';
 import { attachDirectHttpMp4 } from './direct-http-mp4.js';
 
 const PAGE_SIZE = 45;
-const AUTO_PAGING = 'IntersectionObserver' in window;
+let storedView = 'grid';
+try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list' : 'grid'; } catch { /* armazenamento opcional */ }
 const state = {
   catalog: null,
   filtered: [],
@@ -10,10 +11,12 @@ const state = {
   selected: null,
   candidateIndex: 0,
   stopPlayback: null,
+  view: storedView,
 };
 const elements = {
   search: document.querySelector('#catalog-search'),
   category: document.querySelector('#category-filter'),
+  categoryStrip: document.querySelector('#category-strip'),
   grid: document.querySelector('#catalog-grid'),
   count: document.querySelector('#catalog-count'),
   status: document.querySelector('#app-status'),
@@ -27,6 +30,7 @@ const elements = {
   playerMessage: document.querySelector('#player-message'),
   play: document.querySelector('#play-media'),
   close: document.querySelector('#close-modal'),
+  viewButtons: [...document.querySelectorAll('[data-view]')],
 };
 
 const safeImage = (value) => {
@@ -62,35 +66,45 @@ function applyFilters() {
     (!query || normalized(item.name).includes(query))
     && (!category || String(item.category_id || '') === category));
   state.visible = PAGE_SIZE;
+  elements.categoryStrip.querySelectorAll('[data-category]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.category === category);
+  });
   renderGrid();
 }
 
 function renderGrid() {
   const items = state.filtered.slice(0, state.visible);
+  elements.grid.classList.toggle('list-view', state.view === 'list');
   elements.grid.replaceChildren(...items.map((item) => {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'catalog-card';
+    button.setAttribute('aria-label', `Abrir ${item.name || 'filme'}`);
     button.addEventListener('click', () => openItem(item));
+    const poster = document.createElement('span');
+    poster.className = 'catalog-poster';
     const image = document.createElement('img');
     image.loading = 'lazy';
+    image.decoding = 'async';
     image.alt = '';
     image.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
     image.addEventListener('error', () => { image.src = './assets/poster-placeholder.svg'; }, { once: true });
+    const play = document.createElement('span');
+    play.className = 'poster-play';
+    poster.append(image, play);
     const copy = document.createElement('span');
     copy.className = 'catalog-card-copy';
     const title = document.createElement('strong');
     title.textContent = item.name || 'Sem título';
     const meta = document.createElement('small');
-    meta.textContent = `${item.category_name || 'Sem categoria'} · padrão ${item.url_padrao || '—'}`;
+    meta.textContent = item.category_name || 'Filme';
     copy.append(title, meta);
-    button.append(image, copy);
+    button.append(poster, copy);
     return button;
   }));
   elements.count.textContent = `${items.length.toLocaleString('pt-BR')} de ${state.filtered.length.toLocaleString('pt-BR')} filmes`;
-  const finished = state.visible >= state.filtered.length;
-  elements.sentinel.hidden = !AUTO_PAGING || finished;
-  elements.loadMore.hidden = AUTO_PAGING || finished;
+  elements.sentinel.hidden = true;
+  elements.loadMore.hidden = true;
 }
 
 function openItem(item) {
@@ -98,12 +112,13 @@ function openItem(item) {
   state.selected = item;
   state.candidateIndex = 0;
   elements.modalTitle.textContent = item.name || 'Sem título';
-  elements.modalMeta.textContent = `${item.category_name || 'Sem categoria'} · ID ${item.stream_id} · ${String(item.container_extension || '').toUpperCase()} · padrão ${item.url_padrao || '—'}`;
+  elements.modalMeta.textContent = `${item.category_name || 'Filme'} · ${String(item.container_extension || 'mp4').toUpperCase()}`;
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = 'O catálogo e o endereço estão disponíveis offline. A reprodução requer acesso ao servidor de mídia.';
   elements.video.removeAttribute('src');
   elements.video.load();
   elements.video.hidden = true;
+  elements.play.hidden = false;
   elements.modal.showModal();
 }
 
@@ -133,6 +148,7 @@ function tryCandidate() {
   if (!source) {
     elements.playerMessage.textContent = 'Nenhum dos endereços disponíveis respondeu neste navegador.';
     elements.video.hidden = true;
+    elements.play.hidden = false;
     return;
   }
   const url = new URL(source);
@@ -143,6 +159,7 @@ function tryCandidate() {
   if (isDirectHttpMp4) {
     elements.playerMessage.textContent = 'Preparando mídia HTTP no player interno…';
     elements.video.hidden = false;
+    elements.play.hidden = true;
     state.stopPlayback = attachDirectHttpMp4(elements.video, url.href, {
       onError: (message) => nextCandidate(message),
     });
@@ -154,12 +171,14 @@ function tryCandidate() {
     elements.playerMessage.textContent = `Tentando padrão ${state.selected.url_padrao || 'alternativo'}…`;
   }
   elements.video.hidden = false;
+  elements.play.hidden = true;
   elements.video.src = url.href;
   void elements.video.play().catch(() => {});
 }
 
 elements.video.addEventListener('playing', () => {
   elements.playerMessage.textContent = 'Reproduzindo pelo endereço offline salvo.';
+  elements.play.hidden = true;
 });
 elements.video.addEventListener('canplay', () => {
   void elements.video.play().catch(() => {
@@ -178,18 +197,31 @@ elements.modal.addEventListener('close', () => {
 });
 elements.search.addEventListener('input', applyFilters);
 elements.category.addEventListener('change', applyFilters);
+elements.viewButtons.forEach((button) => {
+  button.classList.toggle('active', button.dataset.view === state.view);
+  button.addEventListener('click', () => {
+    state.view = button.dataset.view === 'list' ? 'list' : 'grid';
+    try { localStorage.setItem('evotv-catalog-view', state.view); } catch { /* armazenamento opcional */ }
+    elements.viewButtons.forEach((item) => item.classList.toggle('active', item === button));
+    renderGrid();
+  });
+});
+elements.categoryStrip.addEventListener('wheel', (event) => {
+  if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
+  event.preventDefault();
+  elements.categoryStrip.scrollLeft += event.deltaY;
+}, { passive: false });
 elements.loadMore.addEventListener('click', () => {
   state.visible += PAGE_SIZE;
   renderGrid();
 });
-if (AUTO_PAGING) {
-  const observer = new IntersectionObserver((entries) => {
-    if (!entries.some((entry) => entry.isIntersecting) || state.visible >= state.filtered.length) return;
+elements.grid.addEventListener('scroll', () => {
+  if (state.visible >= state.filtered.length) return;
+  if (elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 700) {
     state.visible += PAGE_SIZE;
     renderGrid();
-  }, { rootMargin: '700px 0px' });
-  observer.observe(elements.sentinel);
-}
+  }
+});
 
 async function start() {
   try {
@@ -203,6 +235,21 @@ async function start() {
       option.value = String(category.category_id || '');
       option.textContent = category.category_name || 'Sem nome';
       return option;
+    }));
+    elements.categoryStrip.replaceChildren(...[
+      { category_id: '', category_name: 'Todos' },
+      ...categories,
+    ].map((category) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = `pc-category-button${String(category.category_id || '') === elements.category.value ? ' active' : ''}`;
+      button.dataset.category = String(category.category_id || '');
+      button.textContent = category.category_name || 'Sem nome';
+      button.addEventListener('click', () => {
+        elements.category.value = button.dataset.category;
+        applyFilters();
+      });
+      return button;
     }));
     elements.status.textContent = `Snapshot ${new Date(state.catalog.generatedAt).toLocaleString('pt-BR')} · ${state.catalog.patterns.length} padrões`;
     applyFilters();
