@@ -35,6 +35,7 @@ const state = {
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'movies', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
+  liveStallTimer: 0,
   miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
   liveFavorites: null, adultLiveFavorites: null,
@@ -594,7 +595,17 @@ function openLiveChannel(item) {
   }
   stopPlayback();
   if (elements.seriesDialog.open) closeSeriesDetails();
-  state.selected = { ...item, kind: 'live' };
+  const variants = (Array.isArray(item.evo_live_variants) ? item.evo_live_variants : [])
+    .filter(variant => /^\d{1,20}$/.test(String(variant?.stream_id || ''))
+      && Number.isInteger(Number(variant.quality)) && Number(variant.quality) >= 0 && Number(variant.quality) <= 5)
+    .filter((variant, index, list) => list.findIndex(candidate => String(candidate.stream_id) === String(variant.stream_id)) === index)
+    .sort((a, b) => Number(b.quality) - Number(a.quality));
+  const initialVariant = variants.find(variant => Number(variant.quality) <= 2) || variants.at(-1);
+  state.selected = {
+    ...item,
+    ...(initialVariant ? { stream_id: String(initialVariant.stream_id), container_extension: initialVariant.container_extension || item.container_extension } : {}),
+    kind: 'live', evo_live_variants: variants,
+  };
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
   elements.modalTitle.textContent = item.name || 'Canal';
@@ -634,6 +645,40 @@ function openLiveChannel(item) {
   elements.play.textContent = 'Assistir ao vivo';
   if (!elements.modal.open) elements.modal.showModal();
   void tryCandidate();
+}
+
+function switchLiveQuality(reason = 'buffer') {
+  const selected = state.selected;
+  const variants = selected?.kind === 'live' ? selected.evo_live_variants : null;
+  if (!Array.isArray(variants) || variants.length < 2) return false;
+  if (selected.evo_live_switching) return true;
+  const current = variants.find(variant => String(variant.stream_id) === String(selected.stream_id));
+  const next = variants.find(variant => Number(variant.quality) < Number(current?.quality))
+    || variants.find(variant => String(variant.stream_id) !== String(selected.stream_id)
+      && Number(variant.quality) === Number(current?.quality));
+  if (!next) return false;
+  selected.stream_id = String(next.stream_id);
+  selected.container_extension = next.container_extension || selected.container_extension || 'ts';
+  selected.evo_live_switching = true;
+  state.candidateIndex = 0;
+  elements.playerMessage.textContent = reason === 'stall'
+    ? `Conexão instável; tentando qualidade ${liveQualityNames([next]) || 'mais baixa'}…`
+    : `Tentando qualidade ${liveQualityNames([next]) || 'alternativa'}…`;
+  elements.playerMessage.classList.remove('visually-hidden');
+  void tryCandidate();
+  return true;
+}
+
+function scheduleLiveQualityFallback(video) {
+  if (state.liveStallTimer || state.selected?.evo_live_variants?.length < 2) return;
+  const attempt = state.playbackAttempt;
+  state.liveStallTimer = window.setTimeout(() => {
+    state.liveStallTimer = 0;
+    if (attempt !== state.playbackAttempt || state.selected?.kind !== 'live') return;
+    if (video.readyState >= HTMLMediaElement.HAVE_FUTURE_DATA && !video.paused) return;
+    state.selected.evo_live_switching = false;
+    switchLiveQuality('stall');
+  }, 4500);
 }
 
 function liveQualityNames(variants = []) {
@@ -830,6 +875,7 @@ function closeSeriesDetails() {
 
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
+  window.clearTimeout(state.liveStallTimer); state.liveStallTimer = 0;
   state.restoreModalAfterPictureInPicture = false;
   if (document.pictureInPictureElement === elements.video) {
     void document.exitPictureInPicture().catch(() => {});
@@ -893,6 +939,8 @@ function bindMainVideoEvents(video) {
   });
   video.addEventListener('playing', (event) => {
     if (!isCurrentVideo(event)) return;
+    window.clearTimeout(state.liveStallTimer); state.liveStallTimer = 0;
+    if (state.selected?.kind === 'live') state.selected.evo_live_switching = false;
     elements.playerMessage.textContent = '';
     elements.playerMessage.classList.add('visually-hidden');
     elements.play.hidden = true;
@@ -902,15 +950,18 @@ function bindMainVideoEvents(video) {
     if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
     elements.playerMessage.textContent = 'O canal está aguardando novos dados da transmissão…';
     elements.playerMessage.classList.remove('visually-hidden');
+    scheduleLiveQualityFallback(video);
   });
   video.addEventListener('stalled', (event) => {
     if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
     elements.playerMessage.textContent = 'A transmissão parou de enviar dados. Verifique a conexão com o serviço de canais.';
     elements.playerMessage.classList.remove('visually-hidden');
+    scheduleLiveQualityFallback(video);
   });
   video.addEventListener('error', (event) => {
     if (!isCurrentVideo(event)) return;
     if (state.selected?.kind === 'live') {
+      if (switchLiveQuality('error')) return;
       elements.playerMessage.textContent = 'A transmissão encontrou um erro. Tente trocar de canal e voltar para reconectar.';
       elements.playerMessage.classList.remove('visually-hidden');
       return;
@@ -1128,6 +1179,7 @@ function createLivePlayer(playbackUrl, attempt, isLive = true) {
   player.on(mpegts.Events.MEDIA_INFO, startPlayback);
   player.on(mpegts.Events.ERROR, (type, detail) => {
     if (attempt !== state.playbackAttempt) return;
+    if (state.selected?.kind === 'live' && switchLiveQuality('error')) return;
     elements.playerMessage.classList.remove('visually-hidden');
     const mediaLabel = state.selected?.kind === 'show' ? 'O show' : 'A transmissao do canal';
     elements.playerMessage.textContent = `${mediaLabel} encontrou um erro (${String(type || 'desconhecido')}${detail ? `: ${String(detail)}` : ''}).`;
