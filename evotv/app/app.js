@@ -498,7 +498,11 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
     elements.status.parentElement.hidden = false; elements.status.classList.add('error');
     if (firstPage) state.page.hasMore = false;
   } finally {
-    if (generation === state.page.generation) { state.page.loading = false; renderGrid(); }
+    if (generation === state.page.generation) {
+      state.page.loading = false;
+      renderGrid();
+      if (state.page.hasMore) loadOnScroll();
+    }
   }
 }
 
@@ -1667,12 +1671,11 @@ elements.categoryStrip.addEventListener('wheel', (event) => {
 }, { passive: false });
 const loadOnScroll = () => {
   if (!state.page.hasMore || state.page.loading) return;
-  const nearGridBottom = elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 200;
-  const nearPageBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200;
-  if (nearGridBottom || nearPageBottom) void loadCatalogPage();
+  const contentDoesNotFillScreen = elements.grid.scrollHeight <= elements.grid.clientHeight + 1;
+  const atLoadedContentEnd = elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 1;
+  if (contentDoesNotFillScreen || atLoadedContentEnd) void loadCatalogPage();
 };
 elements.grid.addEventListener('scroll', loadOnScroll, { passive: true });
-window.addEventListener('scroll', loadOnScroll, { passive: true });
 
 async function start() {
   if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
