@@ -21,6 +21,7 @@ const SAVED_LOGIN_KEY = 'evo_app_login_v1';
 const MOVIE_RELEASES_CATEGORY = 'evo_movie_releases_2026';
 const RECENT_CATEGORY = 'evo_recent';
 const FAVORITES_CATEGORY = 'evo_content_favorites';
+const SHOW_FAVORITES_CATEGORY = 'evo_show_favorites';
 const ALL_CATEGORY = 'all';
 const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
@@ -154,7 +155,9 @@ function toggleFavorite(item) {
   if (!/^(?:\d{1,20}|series:\d{1,20}|(?:adult-)?episode:\d{1,20})$/.test(id)) return;
   if (state.favorites.has(id)) state.favorites.delete(id); else state.favorites.add(id);
   saveFavorites();
-  if (elements.category.value === FAVORITES_CATEGORY) applyFilters(); else renderGrid();
+  if (elements.category.value === FAVORITES_CATEGORY
+    || (state.activeSection === 'shows' && elements.category.value === SHOW_FAVORITES_CATEGORY)) applyFilters();
+  else renderGrid();
 }
 
 function liveFavoritesStorageKey(adult = state.adultView) {
@@ -313,7 +316,10 @@ function renderCategoryFilters() {
   }
   if (state.activeSection === 'shows') {
     if (!state.showCatalog) return;
-    const categories = state.showCatalog.categories.filter(category => isAdultCategory(category) === state.adultView);
+    const categories = [
+      ...state.showCatalog.categories.filter(category => isAdultCategory(category) === state.adultView),
+      { category_id: SHOW_FAVORITES_CATEGORY, category_name: 'Shows Favoritos' },
+    ];
     const previous = elements.category.value;
     elements.category.replaceChildren(...categories.map(category => {
       const option = document.createElement('option');
@@ -434,10 +440,14 @@ function renderGrid() {
         actions.append(move);
       }
     }
-    if (!['series', 'live', 'show'].includes(item.kind) && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
+    if (!['series', 'live'].includes(item.kind) && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
       const download = document.createElement('button'); download.type = 'button'; download.className = 'content-download';
       download.title = 'Baixar filme · PREMIUM'; download.setAttribute('aria-label', `Baixar ${item.name || 'filme'}`);
       download.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17V3ZM5 19h14v2H5v-2Z"/></svg>';
+      if (item.kind === 'show') {
+        download.title = 'Baixar show PREMIUM';
+        download.setAttribute('aria-label', `Baixar show: ${item.name || ''}`);
+      }
       download.addEventListener('click', (event) => { event.stopPropagation(); void downloadItem(item, download); });
       actions.append(download);
     }
@@ -510,7 +520,10 @@ function showsCatalogPage(params) {
   const query = normalized(params.query);
   const filtered = state.showCatalog.items.filter(item => {
     const key = String(item.evo_show_category_key || '');
-    return allowed.has(key) && (params.category === ALL_CATEGORY || key === params.category)
+    const inFavorites = state.favorites.has(String(item.stream_id || ''));
+    const categoryMatch = params.category === SHOW_FAVORITES_CATEGORY
+      ? inFavorites : params.category === ALL_CATEGORY || key === params.category;
+    return allowed.has(key) && categoryMatch
       && (!query || normalized(item.name).includes(query));
   });
   const items = filtered.slice(params.offset, params.offset + params.limit);
@@ -1044,7 +1057,10 @@ async function mediaTicket(source, signal, download = false) {
     const idToken = await api.currentToken(state.auth);
     endpoint = showMatch ? '/api/show-ticket' : '/api/live-ticket';
     headers.authorization = `Bearer ${idToken}`;
-    body = { stream_id: (showMatch || liveMatch)[1] };
+    body = showMatch ? { stream_id: showMatch[1], download } : { stream_id: liveMatch[1] };
+  } else if (download) {
+    const idToken = await api.currentToken(state.auth);
+    headers.authorization = `Bearer ${idToken}`;
   }
   const response = await fetch(`${MEDIA_BACKEND_URL}${endpoint}`, {
     method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
@@ -1190,8 +1206,12 @@ async function downloadItem(item, button) {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), TICKET_TIMEOUT_MS);
     const url = await mediaTicket(source, controller.signal, true).finally(() => window.clearTimeout(timer));
-    const extension = String(item.container_extension || item.extension || 'mp4').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'mp4';
-    const filename = String(item.name || 'filme').replace(/[\\/:*?"<>|]/g, '_').trim() || 'filme';
+    const servedName = decodeURIComponent(new URL(url).pathname.split('/').pop() || '').replace(/^download-/i, '');
+    const extensionPosition = servedName.lastIndexOf('.');
+    const servedExtension = extensionPosition >= 0 ? servedName.slice(extensionPosition + 1) : '';
+    const extension = String(servedExtension || item.container_extension || item.extension || 'mp4').replace(/[^a-z0-9]/gi, '').toLowerCase() || 'mp4';
+    const fallbackName = item.kind === 'show' ? 'show' : 'filme';
+    const filename = String(item.name || fallbackName).replace(/[\\/:*?"<>|]/g, '_').trim() || fallbackName;
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = `${filename}.${extension}`;
     anchor.rel = 'noopener'; document.body.append(anchor); anchor.click(); anchor.remove();
   } catch (error) { notice(`Não foi possível iniciar o download (${readableError(error)}).`); }
