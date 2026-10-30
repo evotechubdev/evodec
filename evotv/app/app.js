@@ -1118,7 +1118,11 @@ async function tryCandidate() {
   stopPlayback(); const attempt = state.playbackAttempt;
   const source = mediaCandidates(state.selected)[state.candidateIndex];
   if (!source) {
+    elements.playerMessage.classList.remove('visually-hidden');
     elements.playerMessage.textContent = 'Nenhum dos endereços disponíveis respondeu neste navegador.';
+    if (state.selected.kind === 'show') {
+      elements.playerMessage.textContent = 'A grava\u00e7\u00e3o n\u00e3o p\u00f4de ser carregada. Verifique o link .ts do show no backend.';
+    }
     elements.video.hidden = true; elements.play.hidden = false; return;
   }
   elements.playerMessage.textContent = ''; elements.play.hidden = true;
@@ -1141,7 +1145,7 @@ async function tryCandidate() {
       // channel ticket/proxy path, but let the native video element read the
       // final Content-Type and provide movie-style pause/seek controls.
       elements.video.src = playbackUrl;
-      elements.video.load(); void elements.video.play().catch(() => {});
+      elements.video.load(); void playShowVideo(attempt);
     } else {
       elements.video.src = playbackUrl;
       elements.video.load(); void elements.video.play().catch(() => {});
@@ -1154,6 +1158,23 @@ async function tryCandidate() {
     elements.playerMessage.textContent = aborted ? 'O serviço demorou para responder. Tente novamente.'
       : `O serviço HTTPS ainda não conseguiu preparar esta mídia (${readableError(error)}).`;
   } finally { window.clearTimeout(timer); }
+}
+
+async function playShowVideo(attempt = state.playbackAttempt) {
+  try {
+    await elements.video.play();
+    if (attempt !== state.playbackAttempt) return;
+    elements.playerMessage.textContent = '';
+    elements.playerMessage.classList.add('visually-hidden');
+    elements.play.hidden = true;
+  } catch (error) {
+    if (attempt !== state.playbackAttempt) return;
+    elements.play.hidden = false;
+    elements.playerMessage.textContent = error?.name === 'NotAllowedError'
+      ? 'A grava\u00e7\u00e3o est\u00e1 carregada. Toque em Reproduzir para iniciar o show.'
+      : 'O show est\u00e1 carregado. Use os controles do v\u00eddeo para iniciar a reprodu\u00e7\u00e3o.';
+    elements.playerMessage.classList.remove('visually-hidden');
+  }
 }
 
 async function downloadItem(item, button) {
@@ -1579,7 +1600,13 @@ $$('.future-section').forEach(button => button.addEventListener('click', () => n
 
 bindMainVideoEvents(elements.video);
 elements.liveNow.addEventListener('click', () => seekVideoToLive(elements.video, elements.liveNow));
-elements.play.addEventListener('click', () => { void tryCandidate(); });
+elements.play.addEventListener('click', () => {
+  if (state.selected?.kind === 'show' && elements.video.getAttribute('src')) {
+    void playShowVideo();
+    return;
+  }
+  void tryCandidate();
+});
 elements.trailer.addEventListener('click', () => {
   const url = elements.trailer.dataset.url;
   if (!url) return;
