@@ -13,6 +13,8 @@ import {
 
 const PAGE_SIZE = 45;
 const MEDIA_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
+const MEDIA_PROXY_ORIGIN = 'https://evotv-offline-media-proxy.evotechubdev.workers.dev';
+const MEDIA_SOURCE_HOSTS = new Set(['89.222.120.168:34871', '89.222.120.168:30266']);
 const TICKET_TIMEOUT_MS = 45_000;
 const SAVED_LOGIN_KEY = 'evo_app_login_v1';
 const MOVIE_RELEASES_CATEGORY = 'evo_movie_releases_2026';
@@ -179,9 +181,20 @@ function safeImage(value) {
   } catch { return ''; }
 }
 
+function mediaSourceTarget(value) {
+  try {
+    const url = new URL(String(value || ''));
+    if (url.protocol !== 'http:' || !MEDIA_SOURCE_HOSTS.has(url.host.toLowerCase())
+      || url.username || url.password || url.search || url.hash
+      || !['/s3v3/', '/1-filmes/'].some(prefix => url.pathname.startsWith(prefix))) return '';
+    return url.href;
+  } catch { return ''; }
+}
+
 function mediaCandidates(item) {
   const candidates = [];
-  if (item.url_final) candidates.push(item.url_final);
+  const direct = mediaSourceTarget(item.url_final);
+  if (direct) candidates.push(direct);
   const extension = String(item.container_extension || 'mp4').replace(/[^a-z0-9]/gi, '') || 'mp4';
   const id = String(item.stream_id || '');
   const sourcePatterns = item.kind === 'series' ? state.seriesCatalog?.patterns || [] : state.catalog.patterns;
@@ -193,7 +206,8 @@ function mediaCandidates(item) {
   for (const pattern of patterns) {
     if (!pattern.template.includes('{id}')) continue;
     const url = pattern.template.replaceAll('{id}', id).replaceAll('{ext}', extension);
-    if (!candidates.includes(url)) candidates.push(url);
+    const target = mediaSourceTarget(url);
+    if (target && !candidates.includes(target)) candidates.push(target);
   }
   return candidates;
 }
@@ -567,6 +581,9 @@ function stopPlayback() {
 }
 
 async function mediaTicket(source, signal, download = false) {
+  if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+    throw new Error('HTTPS_REQUIRED');
+  }
   const response = await fetch(`${MEDIA_BACKEND_URL}/api/media-ticket`, {
     method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
     headers: { 'content-type': 'application/json' }, body: JSON.stringify({ target: source, download }), signal,
@@ -574,7 +591,10 @@ async function mediaTicket(source, signal, download = false) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(String(data?.code || `HTTP_${response.status}`));
   const playbackUrl = new URL(String(data?.playbackUrl || ''));
-  if (playbackUrl.protocol !== 'https:') throw new Error('INVALID_PLAYBACK_URL');
+  if (playbackUrl.protocol !== 'https:' || playbackUrl.origin !== MEDIA_PROXY_ORIGIN
+    || !playbackUrl.pathname.startsWith('/open-stream/') || playbackUrl.search || playbackUrl.hash) {
+    throw new Error('INVALID_PLAYBACK_URL');
+  }
   return playbackUrl.href;
 }
 
@@ -991,6 +1011,12 @@ elements.grid.addEventListener('scroll', loadOnScroll, { passive: true });
 window.addEventListener('scroll', loadOnScroll, { passive: true });
 
 async function start() {
+  if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
+    const secureUrl = new URL(location.href);
+    secureUrl.protocol = 'https:';
+    location.replace(secureUrl.href);
+    return;
+  }
   clearLegacyCatalog();
   let fallbackLogin = '';
   try {
