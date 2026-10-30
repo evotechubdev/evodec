@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#08090c">
-  <meta name="description" content="EVOTV PWA com catalogos autenticados de filmes e series.">
+  <meta name="description" content="EVOTV PWA com catálogos de canais, filmes e séries.">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; upgrade-insecure-requests; block-all-mixed-content; script-src 'self'; style-src 'self'; img-src 'self' data: https:; media-src 'self' blob: https://evotv-offline-media-proxy.evotechubdev.workers.dev; frame-src https://www.youtube-nocookie.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://multimideas-evo-backend.onrender.com https://multimideas-evo-backend-app.onrender.com https://evotv-offline-media-proxy.evotechubdev.workers.dev; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icon-192.png">
@@ -44,7 +44,7 @@
     <aside class="pc-sidebar">
       <a class="pc-brand" href="#filmes" aria-label="EVOTV"><img src="./assets/logo_evotv.png" alt="EVOTV"></a>
       <nav class="pc-nav" aria-label="Navegação principal">
-        <button class="pc-nav-item future-section" type="button" data-future="Canais"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.2 3.6 1.4-1.4L12 4.6l2.4-2.4 1.4 1.4L13.4 6H19a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.6L8.2 3.6ZM5 8v11h14V8H5Zm2 2h8v7H7v-7Z"/></svg><span>Canais</span></button>
+        <button id="channels-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8.2 3.6 1.4-1.4L12 4.6l2.4-2.4 1.4 1.4L13.4 6H19a2 2 0 0 1 2 2v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5.6L8.2 3.6ZM5 8v11h14V8H5Zm2 2h8v7H7v-7Z"/></svg><span>Canais</span></button>
         <button id="movies-nav" class="pc-nav-item active" type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5h3V5H4v3Zm5 0h6V5H9v3Zm8 0h3V5h-3v3ZM4 14h3v-4H4v4Zm5 0h6v-4H9v4Zm8 0h3v-4h-3v4Z"/></svg><span>Filmes</span></button>
         <button id="series-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span></button>
         <button class="pc-nav-item future-section" type="button" data-future="Shows"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v4a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-5 5.91V19h3v2H8v-2h3v-3.09A6 6 0 0 1 6 10h2a4 4 0 0 0 8 0h2Z"/></svg><span>Shows</span></button>
@@ -107,6 +107,7 @@
   <dialog id="parental-dialog" class="settings-dialog wide-dialog"><form id="parental-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">CONTEÚDO ADULTO</span><h2 id="parental-title">Controle parental</h2><p id="parental-description"></p><label id="parental-current-field" class="field"><span id="parental-pin-label">PIN atual</span><input id="parental-pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="off"></label><div id="parental-options"><div id="parental-profiles" class="parental-profiles"></div><p class="dialog-help">Liberado: acesso direto. Pedir PIN: exige o PIN principal. Oculto e bloqueado: remove a pasta Adultos.</p><label class="field"><span id="parental-new-pin-label">Definir PIN · 4 a 8 números</span><input id="parental-new-pin" type="password" inputmode="numeric" pattern="[0-9]{4,8}" minlength="4" maxlength="8" autocomplete="new-password"></label></div><p id="parental-error" class="form-error" role="alert"></p><button id="parental-submit" class="primary-button" type="submit">SALVAR PROTEÇÃO</button></form></dialog>
 
   <p id="app-notice" class="app-notice" role="status" aria-live="polite" hidden></p>
+  <script src="./vendor/mpegts.js"></script>
   <script type="module" src="./app.js"></script>
 </body>
 </html>
