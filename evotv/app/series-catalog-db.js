@@ -29,10 +29,13 @@ export function currentSeriesCatalog(idToken) {
 export async function episodesForSeries(catalog, series, idToken) {
   const ids = Array.isArray(series?.segmentIds) ? series.segmentIds : [];
   const chunks = await Promise.all(ids.map((id) => {
-    const segment = catalog.segments[Number(id) - 1];
-    if (!segment || Number(segment.segment) !== Number(id)) throw new Error('Segmento de episodios invalido.');
+    const segmentNumber = Number(id);
+    const segment = catalog.segments[segmentNumber - 1];
+    const expectedFile = `series-offline/segment-${String(segmentNumber).padStart(4, '0')}.json`;
+    if (!Number.isInteger(segmentNumber) || segmentNumber < 1 || !segment || segment.file !== expectedFile) {
+      throw new Error('Segmento de episodios invalido.');
+    }
     if (!segmentPromises.has(id)) {
-      const segmentNumber = Number(id);
       const request = catalogFetch(`/api/catalog/series/segments/${segmentNumber}`, idToken).then(value => {
         if (!Array.isArray(value.episodes)) throw new Error('O segmento nao contem episodios.');
         return value.episodes;

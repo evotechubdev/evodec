@@ -26,7 +26,7 @@ try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list
 
 const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [], visible: PAGE_SIZE,
-  activeSection: 'movies', seriesCatalog: null, activeSeries: null, activeSeriesEpisodes: [], visibleEpisodes: PAGE_SIZE,
+  activeSection: 'movies', seriesCatalog: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, playbackAttempt: 0,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
   busy: false, adultView: false, profileSettings: null, parentalSettings: null,
@@ -54,16 +54,14 @@ const elements = {
   adultNav: $('#adult-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), count: $('#catalog-count'), status: $('#app-status'), sentinel: $('#load-sentinel'),
-  loadMore: $('#load-more'), modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
+  loadMore: $('#load-more'), seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
+  seriesPlot: $('#series-plot'), seriesLoading: $('#series-loading'), seasonTabs: $('#season-tabs'), episodeList: $('#episode-list'),
+  closeSeries: $('#close-series'), favoriteSeries: $('#favorite-series'), favoriteEpisodesFilter: $('#favorite-episodes-filter'),
+  modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
-  mediaKind: $('#media-kind'), seriesBrowser: $('#series-browser'), seriesStatus: $('#series-status'), season: $('#series-season'), episodes: $('#series-episodes'), episodeMore: document.createElement('button'),
+  mediaKind: $('#media-kind'),
   play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), viewButtons: $$('[data-view]'),
 };
-
-elements.episodeMore.type = 'button'; elements.episodeMore.className = 'series-load-more';
-elements.episodeMore.textContent = 'Carregar mais episódios'; elements.episodeMore.hidden = true;
-elements.seriesBrowser.append(elements.episodeMore);
-elements.episodeMore.addEventListener('click', () => { state.visibleEpisodes += PAGE_SIZE; renderEpisodes(); });
 
 function showScreen(name) {
   elements.loginScreen.hidden = name !== 'login';
@@ -126,7 +124,7 @@ function loadFavorites() {
   try {
     const parsed = JSON.parse(localStorage.getItem(key));
     if (parsed?.version === 1 && Array.isArray(parsed.items)) {
-      state.favorites = new Set(parsed.items.map(String).filter(value => /^(?:\d{1,20}|series:\d{1,20})$/.test(value)).slice(0, 1000));
+      state.favorites = new Set(parsed.items.map(String).filter(value => /^(?:\d{1,20}|series:\d{1,20}|(?:adult-)?episode:\d{1,20})$/.test(value)).slice(0, 1000));
     }
   } catch { /* favoritos são opcionais */ }
 }
@@ -138,11 +136,17 @@ function saveFavorites() {
 }
 
 function toggleFavorite(item) {
-  const id = item?.kind === 'series' ? `series:${item.series_id}` : String(item?.stream_id || '');
-  if (!/^(?:\d{1,20}|series:\d{1,20})$/.test(id)) return;
+  const id = item?.episode_id != null
+    ? `${state.adultView ? 'adult-' : ''}episode:${item.episode_id}`
+    : item?.kind === 'series' ? `series:${item.series_id}` : String(item?.stream_id || '');
+  if (!/^(?:\d{1,20}|series:\d{1,20}|(?:adult-)?episode:\d{1,20})$/.test(id)) return;
   if (state.favorites.has(id)) state.favorites.delete(id); else state.favorites.add(id);
   saveFavorites();
   if (elements.category.value === FAVORITES_CATEGORY) applyFilters(); else renderGrid();
+}
+
+function isEpisodeFavorite(episode) {
+  return state.favorites.has(`${state.adultView ? 'adult-' : ''}episode:${episode.episode_id}`);
 }
 
 function synopsisFrom(item = {}) {
@@ -319,7 +323,8 @@ function openItem(item) {
   if (!state.session) return;
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
-  state.activeSeries = null; elements.seriesBrowser.hidden = true; elements.mediaKind.textContent = 'FILME';
+  state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
+  elements.mediaKind.textContent = 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
   elements.play.textContent = 'Reproduzir';
   elements.modalMeta.textContent = item.category_name || 'Filme';
@@ -331,51 +336,175 @@ function openItem(item) {
   elements.modal.showModal();
 }
 
+function syncSeriesFavoriteControls() {
+  const series = state.activeSeries;
+  const seriesFavorite = Boolean(series && state.favorites.has(`series:${series.series_id}`));
+  elements.favoriteSeries.textContent = seriesFavorite ? '★ Série favoritada' : '☆ Favoritar série';
+  elements.favoriteSeries.classList.toggle('active', seriesFavorite);
+  elements.favoriteSeries.setAttribute('aria-pressed', String(seriesFavorite));
+  elements.favoriteEpisodesFilter.classList.toggle('active', state.favoriteEpisodesOnly);
+  elements.favoriteEpisodesFilter.setAttribute('aria-pressed', String(state.favoriteEpisodesOnly));
+}
+
 async function openSeries(series) {
   if (!state.session || !state.seriesCatalog) return;
-  stopPlayback(); state.selected = null; state.activeSeries = series; state.candidateIndex = 0;
-  elements.mediaKind.textContent = 'SÉRIE'; elements.modalTitle.textContent = series.name || 'Série';
-  elements.modalMeta.textContent = `${series.category_name || 'Série'} · ${series.mappedEpisodeCount || 0} episódios disponíveis`;
-  elements.modalSynopsis.textContent = synopsisFrom(series); elements.modalImage.src = safeImage(series.cover) || './assets/poster-placeholder.svg';
-  elements.playerMessage.textContent = ''; elements.trailer.dataset.url = trailerFrom(series); elements.trailer.disabled = !elements.trailer.dataset.url;
-  elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = true;
-  elements.seriesBrowser.hidden = false; elements.seriesStatus.textContent = 'Carregando episódios…'; elements.season.replaceChildren(); elements.episodes.replaceChildren();
-  elements.modal.showModal();
+  stopPlayback();
+  state.selected = null;
+  state.activeSeries = series;
+  state.activeSeriesEpisodes = [];
+  state.seriesSeason = '';
+  state.favoriteEpisodesOnly = false;
+  elements.seriesTitle.textContent = series.name || 'Série';
+  elements.seriesCover.src = safeImage(series.cover) || './assets/poster-placeholder.svg';
+  elements.seriesCover.classList.toggle('hidden', !safeImage(series.cover));
+  elements.seriesPlot.textContent = synopsisFrom(series);
+  elements.seriesLoading.hidden = false;
+  elements.seriesLoading.textContent = 'Carregando temporadas...';
+  elements.seasonTabs.replaceChildren();
+  elements.episodeList.replaceChildren();
+  syncSeriesFavoriteControls();
+  elements.seriesDialog.showModal();
+
   try {
     const idToken = await api.currentToken(state.auth);
-    state.activeSeriesEpisodes = await episodesForSeries(state.seriesCatalog, series, idToken);
-    if (!elements.modal.open || state.activeSeries !== series) return;
-    const seasons = [...new Set(state.activeSeriesEpisodes.map(episode => String(episode.season || '1')))]
-      .sort((a, b) => (Number(a) || 0) - (Number(b) || 0) || a.localeCompare(b, 'pt-BR'));
-    elements.season.replaceChildren(...seasons.map(season => {
-      const option = document.createElement('option'); option.value = season; option.textContent = /^\d+$/.test(season) ? `Temporada ${season}` : season; return option;
-    }));
-    elements.season.onchange = () => { state.visibleEpisodes = PAGE_SIZE; renderEpisodes(); };
-    elements.seriesStatus.textContent = `${state.activeSeriesEpisodes.length} episódios disponíveis`;
-    state.visibleEpisodes = PAGE_SIZE;
-    renderEpisodes();
+    const episodes = await episodesForSeries(state.seriesCatalog, series, idToken);
+    if (!elements.seriesDialog.open || state.activeSeries !== series) return;
+    state.activeSeriesEpisodes = episodes;
+    renderSeriesDetails();
   } catch (error) {
-    elements.seriesStatus.textContent = `Não foi possível carregar os episódios (${readableError(error)}).`;
+    if (!elements.seriesDialog.open || state.activeSeries !== series) return;
+    elements.seriesLoading.hidden = false;
+    elements.seriesLoading.textContent = `Não foi possível carregar os episódios (${readableError(error)}).`;
   }
 }
 
-function renderEpisodes() {
-  const episodes = state.activeSeriesEpisodes.filter(episode => String(episode.season || '1') === elements.season.value)
-    .sort((left, right) => (Number(left.episode_num) || 0) - (Number(right.episode_num) || 0) || String(left.title).localeCompare(String(right.title), 'pt-BR'));
-  elements.episodes.replaceChildren(...episodes.slice(0, state.visibleEpisodes).map(episode => {
-    const button = document.createElement('button'); button.type = 'button'; button.className = 'series-episode';
-    button.textContent = episode.title || `Episódio ${episode.episode_num}`;
+function renderSeriesDetails() {
+  const seasons = [...new Set(state.activeSeriesEpisodes.map(episode => String(episode.season || '1')))]
+    .sort((left, right) => (Number(left) || 0) - (Number(right) || 0) || left.localeCompare(right, 'pt-BR'));
+  if (!seasons.length) {
+    elements.seriesLoading.hidden = false;
+    elements.seriesLoading.textContent = 'Nenhum episódio disponível para esta série.';
+    elements.seasonTabs.replaceChildren();
+    elements.episodeList.replaceChildren();
+    return;
+  }
+
+  elements.seriesLoading.hidden = true;
+  elements.seasonTabs.replaceChildren(...seasons.map((season, index) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `season-button${index === 0 ? ' active' : ''}`;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-selected', String(index === 0));
+    button.textContent = Number(season) === 0 ? 'Especiais' : `Temporada ${season}`;
     button.addEventListener('click', () => {
-      stopPlayback(); state.selected = { ...episode, kind: 'series', name: episode.title || `Episódio ${episode.episode_num}` };
-      state.candidateIndex = 0; elements.modalTitle.textContent = state.activeSeries.name || episode.series_name;
-      elements.modalMeta.textContent = `Temporada ${episode.season} · Episódio ${episode.episode_num}`;
-      elements.play.hidden = false; elements.play.textContent = `Reproduzir episódio ${episode.episode_num}`;
-      elements.playerMessage.textContent = '';
-      elements.episodes.querySelectorAll('.series-episode').forEach(item => item.classList.toggle('active', item === button));
+      elements.seasonTabs.querySelectorAll('.season-button').forEach(tab => {
+        const active = tab === button;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', String(active));
+      });
+      renderEpisodes(season);
     });
     return button;
   }));
-  elements.episodeMore.hidden = state.visibleEpisodes >= episodes.length;
+  state.seriesSeason = seasons[0];
+  renderEpisodes(seasons[0]);
+}
+
+function renderEpisodes(season = state.seriesSeason) {
+  state.seriesSeason = String(season || '1');
+  const episodes = state.activeSeriesEpisodes
+    .filter(episode => String(episode.season || '1') === state.seriesSeason)
+    .sort((left, right) => (Number(left.episode_num) || 0) - (Number(right.episode_num) || 0)
+      || String(left.title || '').localeCompare(String(right.title || ''), 'pt-BR'))
+    .filter(episode => !state.favoriteEpisodesOnly || isEpisodeFavorite(episode));
+
+  elements.episodeList.replaceChildren(...episodes.map((episode, index) => {
+    const number = String(episode.episode_num || index + 1);
+    const row = document.createElement('div');
+    row.className = 'episode-row';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'episode-button';
+    const badge = document.createElement('span');
+    badge.className = 'episode-number';
+    badge.textContent = `E${number.padStart(2, '0')}`;
+    const info = document.createElement('span');
+    info.className = 'episode-info';
+    const heading = document.createElement('strong');
+    heading.textContent = episode.title || `Episódio ${number}`;
+    const meta = document.createElement('small');
+    meta.textContent = `Temporada ${state.seriesSeason}`;
+    const play = document.createElement('span');
+    play.className = 'episode-play';
+    play.setAttribute('aria-hidden', 'true');
+    info.append(heading, meta);
+    button.append(badge, info, play);
+    button.setAttribute('aria-label', `Reproduzir temporada ${state.seriesSeason}, episódio ${number}: ${heading.textContent}`);
+    button.addEventListener('click', () => openSeriesEpisode(episode));
+
+    const favorite = document.createElement('button');
+    favorite.type = 'button';
+    favorite.className = 'episode-favorite-toggle';
+    const active = isEpisodeFavorite(episode);
+    favorite.textContent = active ? '★' : '☆';
+    favorite.classList.toggle('active', active);
+    favorite.setAttribute('aria-label', active ? 'Desfavoritar episódio' : 'Favoritar episódio');
+    favorite.setAttribute('aria-pressed', String(active));
+    favorite.addEventListener('click', () => {
+      toggleFavorite({ ...episode, episode_id: episode.episode_id });
+      syncSeriesFavoriteControls();
+      renderEpisodes(state.seriesSeason);
+    });
+    row.append(button, favorite);
+    return row;
+  }));
+  if (!episodes.length && state.favoriteEpisodesOnly) {
+    const empty = document.createElement('p');
+    empty.className = 'series-empty';
+    empty.textContent = 'Nenhum episódio favoritado nesta temporada.';
+    elements.episodeList.append(empty);
+  }
+}
+
+function openSeriesEpisode(episode) {
+  const series = state.activeSeries;
+  if (!series) return;
+  const episodeTitle = episode.title || `Episódio ${episode.episode_num}`;
+  state.selected = {
+    ...episode,
+    kind: 'series',
+    name: series.name || episode.series_name || episodeTitle,
+    cover: series.cover,
+    plot: series.plot,
+    seriesName: series.name || episode.series_name || 'Série',
+  };
+  state.candidateIndex = 0;
+  closeSeriesDetails();
+  stopPlayback();
+  elements.mediaKind.textContent = 'SÉRIE';
+  elements.modalTitle.textContent = state.selected.seriesName;
+  elements.modalMeta.textContent = `Temporada ${episode.season} · Episódio ${episode.episode_num}`;
+  elements.modalSynopsis.textContent = synopsisFrom(series);
+  elements.modalImage.src = safeImage(series.cover) || './assets/poster-placeholder.svg';
+  elements.playerMessage.textContent = '';
+  elements.trailer.dataset.url = trailerFrom(series);
+  elements.trailer.disabled = !elements.trailer.dataset.url;
+  elements.video.removeAttribute('src');
+  elements.video.load();
+  elements.video.hidden = true;
+  elements.play.hidden = false;
+  elements.play.textContent = `Reproduzir episódio ${episode.episode_num}`;
+  elements.modal.showModal();
+  void tryCandidate();
+}
+
+function closeSeriesDetails() {
+  if (elements.seriesDialog.open) elements.seriesDialog.close();
+  state.activeSeries = null;
+  state.activeSeriesEpisodes = [];
+  state.seriesSeason = '';
+  state.favoriteEpisodesOnly = false;
 }
 
 function stopPlayback() {
@@ -750,6 +879,21 @@ elements.logout.addEventListener('click', () => { void logout(); });
 elements.moviesNav.addEventListener('click', () => enterMovieView(false));
 elements.seriesNav.addEventListener('click', () => { void enterSeriesView(); });
 elements.adultNav.addEventListener('click', () => { void openAdultSection(); });
+elements.closeSeries.addEventListener('click', closeSeriesDetails);
+elements.seriesDialog.addEventListener('cancel', (event) => { event.preventDefault(); closeSeriesDetails(); });
+elements.seriesDialog.addEventListener('click', (event) => {
+  if (event.target === elements.seriesDialog) closeSeriesDetails();
+});
+elements.favoriteSeries.addEventListener('click', () => {
+  if (!state.activeSeries) return;
+  toggleFavorite({ ...state.activeSeries, kind: 'series' });
+  syncSeriesFavoriteControls();
+});
+elements.favoriteEpisodesFilter.addEventListener('click', () => {
+  state.favoriteEpisodesOnly = !state.favoriteEpisodesOnly;
+  syncSeriesFavoriteControls();
+  renderEpisodes(state.seriesSeason);
+});
 $$('.future-section').forEach(button => button.addEventListener('click', () => notice(`${button.dataset.future} já está estruturado e será ativado quando o catálogo correspondente for adicionado.`)));
 
 elements.video.addEventListener('playing', () => { elements.playerMessage.textContent = ''; elements.play.hidden = true; });
