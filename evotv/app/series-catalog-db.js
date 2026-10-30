@@ -1,14 +1,24 @@
+const CATALOG_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
 let catalogPromise;
 const segmentPromises = new Map();
 
-export function currentSeriesCatalog() {
+async function catalogFetch(path, idToken) {
+  if (!idToken) throw new Error('Entre no app para carregar o catalogo.');
+  const response = await fetch(`${CATALOG_BACKEND_URL}${path}`, {
+    headers: { authorization: `Bearer ${idToken}`, accept: 'application/json' },
+    credentials: 'omit', cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(data?.error || `Catalogo de series indisponivel (${response.status}).`));
+  return data;
+}
+
+export function currentSeriesCatalog(idToken) {
   if (!catalogPromise) {
-    catalogPromise = fetch('./data/series-offline.json')
-      .then(async response => {
-        if (!response.ok) throw new Error(`Catálogo de séries indisponível (${response.status}).`);
-        const catalog = await response.json();
+    catalogPromise = catalogFetch('/api/catalog/series', idToken)
+      .then(catalog => {
         if (!Array.isArray(catalog.series) || !Array.isArray(catalog.patterns) || !Array.isArray(catalog.segments)) {
-          throw new Error('O índice de séries está incompleto.');
+          throw new Error('O indice de series esta incompleto.');
         }
         return catalog;
       }).catch(error => { catalogPromise = null; throw error; });
@@ -16,16 +26,15 @@ export function currentSeriesCatalog() {
   return catalogPromise;
 }
 
-export async function episodesForSeries(catalog, series) {
+export async function episodesForSeries(catalog, series, idToken) {
   const ids = Array.isArray(series?.segmentIds) ? series.segmentIds : [];
   const chunks = await Promise.all(ids.map((id) => {
     const segment = catalog.segments[Number(id) - 1];
-    if (!segment || Number(segment.segment) !== Number(id)) throw new Error('Segmento de episódios inválido.');
+    if (!segment || Number(segment.segment) !== Number(id)) throw new Error('Segmento de episodios invalido.');
     if (!segmentPromises.has(id)) {
-      const request = fetch(`./data/${segment.file}`).then(async response => {
-        if (!response.ok) throw new Error(`Episódios indisponíveis (${response.status}).`);
-        const value = await response.json();
-        if (!Array.isArray(value.episodes)) throw new Error('O segmento não contém episódios.');
+      const segmentNumber = Number(id);
+      const request = catalogFetch(`/api/catalog/series/segments/${segmentNumber}`, idToken).then(value => {
+        if (!Array.isArray(value.episodes)) throw new Error('O segmento nao contem episodios.');
         return value.episodes;
       }).catch(error => { segmentPromises.delete(id); throw error; });
       segmentPromises.set(id, request);
@@ -34,4 +43,9 @@ export async function episodesForSeries(catalog, series) {
   }));
   const seriesId = String(series.series_id);
   return chunks.flat().filter(episode => String(episode.series_id) === seriesId);
+}
+
+export function clearSeriesCatalogCache() {
+  catalogPromise = null;
+  segmentPromises.clear();
 }

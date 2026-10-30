@@ -1,6 +1,6 @@
 import { EvoAuthApi } from './auth-api.js';
-import { currentCatalog, normalized } from './catalog-db.js';
-import { currentSeriesCatalog, episodesForSeries } from './series-catalog-db.js';
+import { clearLegacyCatalog, currentCatalog, normalized } from './catalog-db.js';
+import { clearSeriesCatalogCache, currentSeriesCatalog, episodesForSeries } from './series-catalog-db.js';
 import {
   clearProfilePins,
   clearRememberedAuth,
@@ -25,7 +25,7 @@ let storedView = 'grid';
 try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list' : 'grid'; } catch { /* opcional */ }
 
 const state = {
-  catalog: null, categories: [], filtered: [], visible: PAGE_SIZE,
+  catalog: null, catalogLoad: null, categories: [], filtered: [], visible: PAGE_SIZE,
   activeSection: 'movies', seriesCatalog: null, activeSeries: null, activeSeriesEpisodes: [], visibleEpisodes: PAGE_SIZE,
   selected: null, candidateIndex: 0, ticketController: null, playbackAttempt: 0,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
@@ -342,7 +342,8 @@ async function openSeries(series) {
   elements.seriesBrowser.hidden = false; elements.seriesStatus.textContent = 'Carregando episódios…'; elements.season.replaceChildren(); elements.episodes.replaceChildren();
   elements.modal.showModal();
   try {
-    state.activeSeriesEpisodes = await episodesForSeries(state.seriesCatalog, series);
+    const idToken = await api.currentToken(state.auth);
+    state.activeSeriesEpisodes = await episodesForSeries(state.seriesCatalog, series, idToken);
     if (!elements.modal.open || state.activeSeries !== series) return;
     const seasons = [...new Set(state.activeSeriesEpisodes.map(episode => String(episode.season || '1')))]
       .sort((a, b) => (Number(a) || 0) - (Number(b) || 0) || a.localeCompare(b, 'pt-BR'));
@@ -477,7 +478,7 @@ async function selectProfileWithPin(profile, pin, rememberPin, fromVault = false
     await persistAuthOnDevice();
     state.pendingProfile = 0; elements.profilePin.value = '';
     if (elements.profilePinDialog.open) elements.profilePinDialog.close();
-    updateSessionUi(); showScreen('app'); enterMovieView(false); startSessionWatcher();
+    updateSessionUi(); showScreen('app'); void enterMovieView(false); startSessionWatcher();
   } catch (error) {
     state.session = null;
     if (fromVault) {
@@ -527,22 +528,50 @@ async function logout() {
   if (state.busy) return;
   const login = state.auth?.login || elements.username.value;
   setBusy(true); await releaseProfile(); await forgetDevice(login);
+  state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null;
+  clearSeriesCatalogCache(); clearLegacyCatalog();
   state.auth = null; state.account = null; state.rememberDevice = false; elements.password.value = '';
   elements.rememberLogin.checked = false;
   elements.loginError.textContent = ''; showScreen('login'); setBusy(false);
 }
 
-function enterMovieView(adult = false) {
+async function loadMovieCatalog() {
+  if (state.catalog) return state.catalog;
+  if (state.catalogLoad) return state.catalogLoad;
+  const auth = state.auth;
+  state.catalogLoad = (async () => {
+    const idToken = await api.currentToken(auth);
+    const catalog = await currentCatalog(idToken);
+    if (state.auth !== auth) throw new Error('A sessao mudou durante o carregamento.');
+    state.catalog = catalog;
+    state.categories = Array.isArray(catalog.categories) ? [...catalog.categories] : [];
+    return catalog;
+  })().finally(() => { state.catalogLoad = null; });
+  return state.catalogLoad;
+}
+
+async function enterMovieView(adult = false) {
   state.activeSection = 'movies';
   state.adultView = adult;
   elements.moviesNav.classList.toggle('active', !adult); elements.seriesNav.classList.remove('active'); elements.adultNav.classList.toggle('active', adult);
   elements.heading.textContent = adult ? 'Filmes Adulto' : 'Filmes';
-  elements.kicker.textContent = adult ? 'CONTEÚDO ADULTO 18+' : 'CATÁLOGO ON DEMAND';
+  elements.kicker.textContent = adult ? 'CONTEUDO ADULTO 18+' : 'CATALOGO ON DEMAND';
   elements.searchLabel.setAttribute('aria-label', adult ? 'Buscar filmes adultos' : 'Buscar filmes');
   elements.search.placeholder = adult ? 'Buscar filmes adultos...' : 'Buscar filmes...'; elements.search.value = '';
+  if (!state.session) return;
+  if (!state.catalog) {
+    elements.status.textContent = 'Carregando catalogo de filmes...'; elements.status.parentElement.hidden = false;
+    try { await loadMovieCatalog(); }
+    catch (error) {
+      if (state.activeSection !== 'movies') return;
+      elements.status.textContent = `Nao foi possivel carregar filmes (${readableError(error)}).`;
+      elements.status.classList.add('error'); return;
+    }
+  }
+  if (state.activeSection !== 'movies' || !state.session) return;
+  elements.status.textContent = ''; elements.status.parentElement.hidden = true; elements.status.classList.remove('error');
   renderCategoryFilters(); applyFilters();
 }
-
 async function enterSeriesView() {
   if (!state.session) return;
   state.activeSection = 'series';
@@ -552,7 +581,8 @@ async function enterSeriesView() {
   elements.search.placeholder = state.adultView ? 'Buscar séries adultas...' : 'Buscar séries...'; elements.search.value = '';
   elements.status.textContent = 'Carregando catálogo de séries…'; elements.status.parentElement.hidden = false;
   try {
-    state.seriesCatalog ||= await currentSeriesCatalog();
+    const idToken = await api.currentToken(state.auth);
+    state.seriesCatalog ||= await currentSeriesCatalog(idToken);
     if (state.activeSection !== 'series' || !state.session) return;
     elements.status.textContent = '';
     elements.status.parentElement.hidden = true;
@@ -755,19 +785,12 @@ elements.grid.addEventListener('scroll', () => {
 });
 
 async function start() {
+  clearLegacyCatalog();
   let fallbackLogin = '';
   try {
     fallbackLogin = localStorage.getItem(SAVED_LOGIN_KEY) || '';
     elements.username.value = fallbackLogin;
   } catch { /* armazenamento opcional */ }
-  const catalogTask = currentCatalog().then((catalog) => {
-    state.catalog = catalog;
-    state.categories = [...state.catalog.categories];
-    elements.status.textContent = '';
-  }).catch((error) => {
-    elements.status.textContent = readableError(error); elements.status.classList.add('error');
-  });
-
   let restored = null;
   try { restored = await readRememberedAuth(); } catch { /* cofre indisponível */ }
   if (restored) {
@@ -783,7 +806,6 @@ async function start() {
   } else {
     elements.rememberLogin.checked = true; state.rememberDevice = true; elements.username.value = fallbackLogin; showScreen('login');
   }
-  await catalogTask;
 }
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
