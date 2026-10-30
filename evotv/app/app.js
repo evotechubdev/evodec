@@ -22,6 +22,7 @@ const RECENT_CATEGORY = 'evo_recent';
 const FAVORITES_CATEGORY = 'evo_content_favorites';
 const ALL_CATEGORY = 'all';
 const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
+const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
 const api = new EvoAuthApi();
 
 let storedView = 'grid';
@@ -75,7 +76,7 @@ function showScreen(name) {
 }
 
 function readableError(error) {
-  if (String(error?.message || error) === 'LIVE_STREAM_NOT_CONFIGURED') return 'Configure LIVE_RAUTH_TOKEN nas variáveis do backend no Render.';
+  if (['LIVE_STREAM_NOT_CONFIGURED', 'LIVE_PROVIDER_NOT_CONFIGURED', 'LIVE_LINK_MAP_UNAVAILABLE', 'LIVE_CHANNEL_LINK_MISSING'].includes(String(error?.message || error))) return 'O link RAUTH deste canal não está disponível no mapa privado do backend.';
   if (String(error?.message || error) === 'SERVICE_NOT_CONFIGURED') return 'O backend do app ainda não concluiu a configuração de mídia.';
   return String(error?.message || error || 'Não foi possível concluir a operação.').replace(/\bIPTV\b/gi, 'TV');
 }
@@ -222,7 +223,9 @@ function mediaCandidates(item) {
 function renderCategoryFilters() {
   if (state.activeSection === 'live') {
     if (!state.liveCatalog) return;
-    const source = state.liveCatalog.categories.filter(category => isAdultCategory(category) === state.adultView);
+    const source = state.liveCatalog.categories.filter(category =>
+      String(category.category_id) === LIVE_MAINTENANCE_CATEGORY
+      || isAdultCategory(category) === state.adultView);
     const categories = [
       ...(!state.adultView ? [{ category_id: LIVE_FAVORITES_CATEGORY, category_name: 'Canais Favoritos' }] : []),
       { category_id: ALL_CATEGORY, category_name: state.adultView ? 'Todos os canais adultos' : 'Todos os canais' },
