@@ -13,6 +13,7 @@ pages-dist/
 evotv/pwa-secundario/data/vod-direct-catalog*.json
 evotv/pwa-secundario/data/vod-direct-catalog*.jsonl
 **/login-e-senha.txt
+**/dados-login.txt
 
 # Projetos locais que nunca devem ser enviados ao Git
 local/
@@ -22,6 +23,7 @@ evotv/programa_pc/
 evotv/app_samsung/
 .app_ios_repository_backup/
 app-backend/
+evotv/app-backend/
 .tmp-pc-asar/
 
 # IDEs

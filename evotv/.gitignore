@@ -1,0 +1,2 @@
+# O backend tem repositório Git próprio e não entra no Git do frontend.
+app-backend/

@@ -1,5 +1,6 @@
 import { EvoAuthApi } from './auth-api.js';
 import { currentCatalog, normalized } from './catalog-db.js';
+import { currentSeriesCatalog, episodesForSeries } from './series-catalog-db.js';
 import {
   clearProfilePins,
   clearRememberedAuth,
@@ -25,6 +26,7 @@ try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list
 
 const state = {
   catalog: null, categories: [], filtered: [], visible: PAGE_SIZE,
+  activeSection: 'movies', seriesCatalog: null, activeSeries: null, activeSeriesEpisodes: [], visibleEpisodes: PAGE_SIZE,
   selected: null, candidateIndex: 0, ticketController: null, playbackAttempt: 0,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
   busy: false, adultView: false, profileSettings: null, parentalSettings: null,
@@ -49,13 +51,19 @@ const elements = {
   parentalError: $('#parental-error'), parentalSubmit: $('#parental-submit'),
   profileSettingsButton: $('#profile-settings'), parentalSettingsButton: $('#parental-settings'),
   switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'), serverLabel: $('#server-label'),
-  adultNav: $('#adult-nav'), moviesNav: $('#movies-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
-  notice: $('#app-notice'), search: $('#catalog-search'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
+  adultNav: $('#adult-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
+  notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), count: $('#catalog-count'), status: $('#app-status'), sentinel: $('#load-sentinel'),
   loadMore: $('#load-more'), modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
+  mediaKind: $('#media-kind'), seriesBrowser: $('#series-browser'), seriesStatus: $('#series-status'), season: $('#series-season'), episodes: $('#series-episodes'), episodeMore: document.createElement('button'),
   play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), viewButtons: $$('[data-view]'),
 };
+
+elements.episodeMore.type = 'button'; elements.episodeMore.className = 'series-load-more';
+elements.episodeMore.textContent = 'Carregar mais episódios'; elements.episodeMore.hidden = true;
+elements.seriesBrowser.append(elements.episodeMore);
+elements.episodeMore.addEventListener('click', () => { state.visibleEpisodes += PAGE_SIZE; renderEpisodes(); });
 
 function showScreen(name) {
   elements.loginScreen.hidden = name !== 'login';
@@ -118,7 +126,7 @@ function loadFavorites() {
   try {
     const parsed = JSON.parse(localStorage.getItem(key));
     if (parsed?.version === 1 && Array.isArray(parsed.items)) {
-      state.favorites = new Set(parsed.items.map(String).filter(value => /^\d{1,20}$/.test(value)).slice(0, 1000));
+      state.favorites = new Set(parsed.items.map(String).filter(value => /^(?:\d{1,20}|series:\d{1,20})$/.test(value)).slice(0, 1000));
     }
   } catch { /* favoritos são opcionais */ }
 }
@@ -130,8 +138,8 @@ function saveFavorites() {
 }
 
 function toggleFavorite(item) {
-  const id = String(item?.stream_id || '');
-  if (!/^\d{1,20}$/.test(id)) return;
+  const id = item?.kind === 'series' ? `series:${item.series_id}` : String(item?.stream_id || '');
+  if (!/^(?:\d{1,20}|series:\d{1,20})$/.test(id)) return;
   if (state.favorites.has(id)) state.favorites.delete(id); else state.favorites.add(id);
   saveFavorites();
   if (elements.category.value === FAVORITES_CATEGORY) applyFilters(); else renderGrid();
@@ -170,7 +178,8 @@ function mediaCandidates(item) {
   if (item.url_final) candidates.push(item.url_final);
   const extension = String(item.container_extension || 'mp4').replace(/[^a-z0-9]/gi, '') || 'mp4';
   const id = String(item.stream_id || '');
-  const patterns = [...state.catalog.patterns].sort((left, right) => {
+  const sourcePatterns = item.kind === 'series' ? state.seriesCatalog?.patterns || [] : state.catalog.patterns;
+  const patterns = [...sourcePatterns].sort((left, right) => {
     if (left.id === item.url_padrao) return -1;
     if (right.id === item.url_padrao) return 1;
     return Number(right.count || 0) - Number(left.count || 0);
@@ -184,6 +193,26 @@ function mediaCandidates(item) {
 }
 
 function renderCategoryFilters() {
+  if (state.activeSection === 'series') {
+    if (!state.seriesCatalog) return;
+    const source = state.seriesCatalog.categories.filter(category => isAdultCategory(category) === state.adultView);
+    const categories = [
+      { category_id: ALL_CATEGORY, category_name: state.adultView ? 'Todas as séries adultas' : 'Todas as séries' },
+      { category_id: FAVORITES_CATEGORY, category_name: state.adultView ? 'Favoritas adultas' : 'Favoritas' },
+      ...source,
+    ];
+    elements.category.replaceChildren(...categories.map(category => {
+      const option = document.createElement('option'); option.value = String(category.category_id); option.textContent = category.category_name; return option;
+    }));
+    elements.category.value = ALL_CATEGORY;
+    elements.categoryStrip.replaceChildren(...categories.map(category => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
+      button.dataset.category = String(category.category_id); button.textContent = category.category_name;
+      button.addEventListener('click', () => { elements.category.value = button.dataset.category; applyFilters(); });
+      return button;
+    }));
+    return;
+  }
   if (!state.catalog) return;
   const sourceCategories = state.categories.filter(category => isAdultCategory(category) === state.adultView);
   const categories = state.adultView
@@ -210,9 +239,22 @@ function renderCategoryFilters() {
 }
 
 function applyFilters() {
-  if (!state.catalog || !state.session) return;
+  if (!state.session || (state.activeSection === 'movies' && !state.catalog) || (state.activeSection === 'series' && !state.seriesCatalog)) return;
   const query = normalized(elements.search.value.trim());
   const category = elements.category.value;
+  if (state.activeSection === 'series') {
+    const categoryMap = new Map(state.seriesCatalog.categories.map(item => [String(item.category_id), item]));
+    state.filtered = state.seriesCatalog.series.filter(item => isAdultCategory(categoryMap.get(String(item.category_id))) === state.adultView
+      && (!query || normalized(item.name).includes(query))
+      && (category === ALL_CATEGORY || (category === FAVORITES_CATEGORY
+        ? state.favorites.has(`series:${item.series_id}`) : String(item.category_id) === category)))
+      .map(item => ({ ...item, kind: 'series', stream_id: String(item.series_id), stream_icon: item.cover || '', mappedEpisodeCount: Number(item.mappedEpisodeCount || 0) }));
+    if (category === RECENT_CATEGORY) state.filtered.sort((left, right) => Number(right.last_modified || 0) - Number(left.last_modified || 0));
+    state.visible = PAGE_SIZE;
+    elements.categoryStrip.querySelectorAll('[data-category]').forEach(button => button.classList.toggle('active', button.dataset.category === category));
+    renderGrid();
+    return;
+  }
   const categoryMap = new Map(state.categories.map(item => [String(item.category_id || ''), item]));
   state.filtered = state.catalog.items.filter((item) => {
     const adult = isAdultCategory(categoryMap.get(String(item.category_id || '')));
@@ -235,7 +277,7 @@ function renderGrid() {
   elements.grid.classList.toggle('list-view', state.view === 'list');
   elements.grid.replaceChildren(...items.map((item) => {
     const card = document.createElement('article'); card.className = 'catalog-card'; card.tabIndex = 0; card.setAttribute('role', 'button');
-    card.setAttribute('aria-label', `Abrir ${item.name || 'filme'}`); card.addEventListener('click', () => openItem(item));
+    card.setAttribute('aria-label', `Abrir ${item.name || (item.kind === 'series' ? 'série' : 'filme')}`); card.addEventListener('click', () => openItem(item));
     card.addEventListener('keydown', (event) => {
       if (event.target === card && ['Enter', ' '].includes(event.key)) { event.preventDefault(); openItem(item); }
     });
@@ -249,7 +291,8 @@ function renderGrid() {
     const titleRow = document.createElement('span'); titleRow.className = 'catalog-title-row';
     const actions = document.createElement('span'); actions.className = 'catalog-title-actions';
     const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = 'content-favorite-toggle';
-    const active = state.favorites.has(String(item.stream_id || '')); favorite.classList.toggle('active', active);
+    const favoriteId = item.kind === 'series' ? `series:${item.series_id}` : String(item.stream_id || '');
+    const active = state.favorites.has(favoriteId); favorite.classList.toggle('active', active);
     favorite.textContent = active ? '★' : '☆'; favorite.title = active ? 'Desfavoritar' : 'Favoritar';
     favorite.setAttribute('aria-label', `${favorite.title}: ${item.name || 'filme'}`); favorite.setAttribute('aria-pressed', String(active));
     favorite.addEventListener('click', (event) => { event.stopPropagation(); toggleFavorite(item); });
@@ -262,17 +305,23 @@ function renderGrid() {
       actions.append(download);
     }
     titleRow.append(title, actions);
-    const meta = document.createElement('small'); meta.textContent = item.category_name || 'Filme'; copy.append(titleRow, meta);
+    const meta = document.createElement('small'); meta.textContent = item.kind === 'series'
+      ? `${item.category_name || 'Série'} · ${item.mappedEpisodeCount} episódios`
+      : item.category_name || 'Filme'; copy.append(titleRow, meta);
     card.append(poster, copy); return card;
   }));
-  elements.count.textContent = '';
-  elements.sentinel.hidden = true; elements.loadMore.hidden = true;
+  elements.count.textContent = `${state.filtered.length.toLocaleString('pt-BR')} ${state.activeSection === 'series' ? 'séries' : 'filmes'}`;
+  elements.count.parentElement.hidden = false;
+  elements.sentinel.hidden = true; elements.loadMore.hidden = state.visible >= state.filtered.length;
 }
 
 function openItem(item) {
   if (!state.session) return;
+  if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
+  state.activeSeries = null; elements.seriesBrowser.hidden = true; elements.mediaKind.textContent = 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
+  elements.play.textContent = 'Reproduzir';
   elements.modalMeta.textContent = item.category_name || 'Filme';
   elements.modalSynopsis.textContent = synopsisFrom(item);
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
@@ -280,6 +329,52 @@ function openItem(item) {
   elements.trailer.dataset.url = trailerFrom(item); elements.trailer.disabled = !elements.trailer.dataset.url;
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
   elements.modal.showModal();
+}
+
+async function openSeries(series) {
+  if (!state.session || !state.seriesCatalog) return;
+  stopPlayback(); state.selected = null; state.activeSeries = series; state.candidateIndex = 0;
+  elements.mediaKind.textContent = 'SÉRIE'; elements.modalTitle.textContent = series.name || 'Série';
+  elements.modalMeta.textContent = `${series.category_name || 'Série'} · ${series.mappedEpisodeCount || 0} episódios disponíveis`;
+  elements.modalSynopsis.textContent = synopsisFrom(series); elements.modalImage.src = safeImage(series.cover) || './assets/poster-placeholder.svg';
+  elements.playerMessage.textContent = ''; elements.trailer.dataset.url = trailerFrom(series); elements.trailer.disabled = !elements.trailer.dataset.url;
+  elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = true;
+  elements.seriesBrowser.hidden = false; elements.seriesStatus.textContent = 'Carregando episódios…'; elements.season.replaceChildren(); elements.episodes.replaceChildren();
+  elements.modal.showModal();
+  try {
+    state.activeSeriesEpisodes = await episodesForSeries(state.seriesCatalog, series);
+    if (!elements.modal.open || state.activeSeries !== series) return;
+    const seasons = [...new Set(state.activeSeriesEpisodes.map(episode => String(episode.season || '1')))]
+      .sort((a, b) => (Number(a) || 0) - (Number(b) || 0) || a.localeCompare(b, 'pt-BR'));
+    elements.season.replaceChildren(...seasons.map(season => {
+      const option = document.createElement('option'); option.value = season; option.textContent = /^\d+$/.test(season) ? `Temporada ${season}` : season; return option;
+    }));
+    elements.season.onchange = () => { state.visibleEpisodes = PAGE_SIZE; renderEpisodes(); };
+    elements.seriesStatus.textContent = `${state.activeSeriesEpisodes.length} episódios disponíveis`;
+    state.visibleEpisodes = PAGE_SIZE;
+    renderEpisodes();
+  } catch (error) {
+    elements.seriesStatus.textContent = `Não foi possível carregar os episódios (${readableError(error)}).`;
+  }
+}
+
+function renderEpisodes() {
+  const episodes = state.activeSeriesEpisodes.filter(episode => String(episode.season || '1') === elements.season.value)
+    .sort((left, right) => (Number(left.episode_num) || 0) - (Number(right.episode_num) || 0) || String(left.title).localeCompare(String(right.title), 'pt-BR'));
+  elements.episodes.replaceChildren(...episodes.slice(0, state.visibleEpisodes).map(episode => {
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'series-episode';
+    button.textContent = episode.title || `Episódio ${episode.episode_num}`;
+    button.addEventListener('click', () => {
+      stopPlayback(); state.selected = { ...episode, kind: 'series', name: episode.title || `Episódio ${episode.episode_num}` };
+      state.candidateIndex = 0; elements.modalTitle.textContent = state.activeSeries.name || episode.series_name;
+      elements.modalMeta.textContent = `Temporada ${episode.season} · Episódio ${episode.episode_num}`;
+      elements.play.hidden = false; elements.play.textContent = `Reproduzir episódio ${episode.episode_num}`;
+      elements.playerMessage.textContent = '';
+      elements.episodes.querySelectorAll('.series-episode').forEach(item => item.classList.toggle('active', item === button));
+    });
+    return button;
+  }));
+  elements.episodeMore.hidden = state.visibleEpisodes >= episodes.length;
 }
 
 function stopPlayback() {
@@ -438,12 +533,36 @@ async function logout() {
 }
 
 function enterMovieView(adult = false) {
+  state.activeSection = 'movies';
   state.adultView = adult;
-  elements.moviesNav.classList.toggle('active', !adult); elements.adultNav.classList.toggle('active', adult);
+  elements.moviesNav.classList.toggle('active', !adult); elements.seriesNav.classList.remove('active'); elements.adultNav.classList.toggle('active', adult);
   elements.heading.textContent = adult ? 'Filmes Adulto' : 'Filmes';
   elements.kicker.textContent = adult ? 'CONTEÚDO ADULTO 18+' : 'CATÁLOGO ON DEMAND';
+  elements.searchLabel.setAttribute('aria-label', adult ? 'Buscar filmes adultos' : 'Buscar filmes');
   elements.search.placeholder = adult ? 'Buscar filmes adultos...' : 'Buscar filmes...'; elements.search.value = '';
   renderCategoryFilters(); applyFilters();
+}
+
+async function enterSeriesView() {
+  if (!state.session) return;
+  state.activeSection = 'series';
+  elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.add('active'); elements.adultNav.classList.toggle('active', state.adultView);
+  elements.heading.textContent = state.adultView ? 'Séries Adulto' : 'Séries'; elements.kicker.textContent = state.adultView ? 'SÉRIES · CONTEÚDO ADULTO 18+' : 'SÉRIES E EPISÓDIOS';
+  elements.searchLabel.setAttribute('aria-label', state.adultView ? 'Buscar séries adultas' : 'Buscar séries');
+  elements.search.placeholder = state.adultView ? 'Buscar séries adultas...' : 'Buscar séries...'; elements.search.value = '';
+  elements.status.textContent = 'Carregando catálogo de séries…'; elements.status.parentElement.hidden = false;
+  try {
+    state.seriesCatalog ||= await currentSeriesCatalog();
+    if (state.activeSection !== 'series' || !state.session) return;
+    elements.status.textContent = '';
+    elements.status.parentElement.hidden = true;
+    elements.status.classList.remove('error');
+    renderCategoryFilters(); applyFilters();
+  } catch (error) {
+    elements.status.textContent = `Não foi possível carregar séries (${readableError(error)}).`;
+    elements.status.parentElement.hidden = false;
+    elements.status.classList.add('error');
+  }
 }
 
 function renderProfileSettings() {
@@ -599,6 +718,7 @@ elements.backToLogin.addEventListener('click', () => { void logout(); });
 elements.switchProfile.addEventListener('click', () => { void returnToProfiles(); });
 elements.logout.addEventListener('click', () => { void logout(); });
 elements.moviesNav.addEventListener('click', () => enterMovieView(false));
+elements.seriesNav.addEventListener('click', () => { void enterSeriesView(); });
 elements.adultNav.addEventListener('click', () => { void openAdultSection(); });
 $$('.future-section').forEach(button => button.addEventListener('click', () => notice(`${button.dataset.future} já está estruturado e será ativado quando o catálogo correspondente for adicionado.`)));
 

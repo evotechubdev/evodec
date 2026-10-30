@@ -1,4 +1,4 @@
-const CACHE = 'evotv-catalogo-offline-v12';
+const CACHE = 'evotv-catalogo-offline-v13';
 const APP_SHELL = [
   './',
   './index.html',
@@ -7,12 +7,14 @@ const APP_SHELL = [
   './auth-api.js',
   './device-vault.js',
   './catalog-db.js',
+  './series-catalog-db.js',
   './manifest.webmanifest',
   './assets/poster-placeholder.svg',
   './assets/logo_evotv.png',
   './assets/icon-192.png',
   './assets/icon-512.png',
   './data/catalogo-offline.json',
+  './data/series-offline.json',
 ];
 
 self.addEventListener('install', (event) => {
