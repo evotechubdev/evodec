@@ -21,6 +21,7 @@ const MOVIE_RELEASES_CATEGORY = 'evo_movie_releases_2026';
 const RECENT_CATEGORY = 'evo_recent';
 const FAVORITES_CATEGORY = 'evo_content_favorites';
 const ALL_CATEGORY = 'all';
+const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const api = new EvoAuthApi();
 
 let storedView = 'grid';
@@ -59,6 +60,7 @@ const elements = {
   grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
   loadMore: $('#load-more'), seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
   seriesPlot: $('#series-plot'), seriesLoading: $('#series-loading'), seasonTabs: $('#season-tabs'), episodeList: $('#episode-list'),
+  liveChoiceList: $('#live-choice-list'),
   closeSeries: $('#close-series'), favoriteSeries: $('#favorite-series'), favoriteEpisodesFilter: $('#favorite-episodes-filter'),
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
@@ -73,6 +75,8 @@ function showScreen(name) {
 }
 
 function readableError(error) {
+  if (String(error?.message || error) === 'LIVE_STREAM_NOT_CONFIGURED') return 'Configure LIVE_RAUTH_TOKEN nas variáveis do backend no Render.';
+  if (String(error?.message || error) === 'SERVICE_NOT_CONFIGURED') return 'O backend do app ainda não concluiu a configuração de mídia.';
   return String(error?.message || error || 'Não foi possível concluir a operação.').replace(/\bIPTV\b/gi, 'TV');
 }
 
@@ -218,14 +222,17 @@ function renderCategoryFilters() {
     if (!state.liveCatalog) return;
     const source = state.liveCatalog.categories.filter(category => isAdultCategory(category) === state.adultView);
     const categories = [
+      ...(!state.adultView ? [{ category_id: LIVE_FAVORITES_CATEGORY, category_name: 'Canais Favoritos' }] : []),
       { category_id: ALL_CATEGORY, category_name: state.adultView ? 'Todos os canais adultos' : 'Todos os canais' },
-      { category_id: FAVORITES_CATEGORY, category_name: state.adultView ? 'Canais favoritos adultos' : 'Canais favoritos' },
+      { category_id: FAVORITES_CATEGORY, category_name: state.adultView ? 'Meus favoritos adultos' : 'Meus favoritos' },
       ...source,
     ];
+    const previous = elements.category.value;
     elements.category.replaceChildren(...categories.map(category => {
       const option = document.createElement('option'); option.value = String(category.category_id); option.textContent = category.category_name; return option;
     }));
-    elements.category.value = ALL_CATEGORY;
+    elements.category.value = categories.some(category => String(category.category_id) === previous)
+      ? previous : state.adultView ? ALL_CATEGORY : LIVE_FAVORITES_CATEGORY;
     elements.categoryStrip.replaceChildren(...categories.map(category => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
       button.dataset.category = String(category.category_id); button.textContent = category.category_name;
@@ -435,12 +442,37 @@ function openLiveChannel(item) {
   elements.playerMessage.textContent = '';
   elements.trailer.dataset.url = '';
   elements.trailer.disabled = true;
+  elements.liveChoiceList.replaceChildren();
+  const choices = Array.isArray(item.evo_live_choices) ? item.evo_live_choices : [];
+  if (choices.length > 1) {
+    elements.modalSynopsis.textContent = 'Escolha o canal que deseja assistir.';
+    elements.liveChoiceList.hidden = false;
+    elements.play.hidden = true;
+    choices.forEach((choice, index) => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'live-choice-button';
+      const title = document.createElement('strong'); title.textContent = choice.name || `Canal ${index + 1}`;
+      const detail = document.createElement('small'); detail.textContent = liveQualityNames(choice.evo_live_variants) || 'Qualidade padrão';
+      button.append(title, detail);
+      button.addEventListener('click', () => openLiveChannel(choice));
+      elements.liveChoiceList.append(button);
+    });
+    elements.video.hidden = true;
+    if (!elements.modal.open) elements.modal.showModal();
+    return;
+  }
+  elements.liveChoiceList.hidden = true;
   elements.video.removeAttribute('src');
   elements.video.load();
-  elements.video.hidden = true;
-  elements.play.hidden = false;
+  elements.video.hidden = false;
+  elements.play.hidden = true;
   elements.play.textContent = 'Assistir ao vivo';
-  elements.modal.showModal();
+  if (!elements.modal.open) elements.modal.showModal();
+  void tryCandidate();
+}
+
+function liveQualityNames(variants = []) {
+  const labels = ['Padrão', 'SD', 'HD', 'FHD', '4K', '8K'];
+  return [...new Set(variants.map(item => labels[Number(item.quality)] || 'Padrão'))].join(' · ');
 }
 
 function syncSeriesFavoriteControls() {
@@ -679,7 +711,7 @@ async function tryCandidate() {
   try {
     const playbackUrl = await mediaTicket(source, controller.signal);
     if (attempt !== state.playbackAttempt || !state.session) return;
-    state.ticketController = null; elements.playerMessage.textContent = '';
+    state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
       const mpegts = window.mpegts;
@@ -700,6 +732,7 @@ async function tryCandidate() {
     if (attempt !== state.playbackAttempt) return;
     state.ticketController = null; elements.video.hidden = true; elements.play.hidden = false;
     const aborted = error instanceof DOMException && error.name === 'AbortError';
+    elements.playerMessage.classList.remove('visually-hidden');
     elements.playerMessage.textContent = aborted ? 'O serviço demorou para responder. Tente novamente.'
       : `O serviço HTTPS ainda não conseguiu preparar esta mídia (${readableError(error)}).`;
   } finally { window.clearTimeout(timer); }

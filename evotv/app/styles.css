@@ -119,6 +119,10 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .load-sentinel { width: 100%; height: 2px; margin-top: 20px; }
 .media-modal { width: min(920px, calc(100% - 24px)); border: 1px solid var(--line); border-radius: 24px; padding: 0; color: inherit; background: #081725; box-shadow: var(--shadow); }
 .media-modal::backdrop { background: rgba(0, 5, 12, .82); backdrop-filter: blur(7px); }
+.live-choice-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; max-height: 260px; overflow: auto; margin-top: 14px; }
+.live-choice-button { display: grid; gap: 4px; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; background: #101f2c; color: inherit; text-align: left; cursor: pointer; }
+.live-choice-button:hover, .live-choice-button:focus-visible { border-color: #38a6ff; background: #142a3b; }
+.live-choice-button small { color: var(--muted); font-size: 11px; }
 .modal-close { position: absolute; z-index: 2; top: 14px; right: 14px; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; color: white; font-size: 1.6rem; background: rgba(0, 0, 0, .52); }
 .media-layout { display: grid; grid-template-columns: minmax(230px, 34%) 1fr; min-height: 520px; }
 .media-poster { width: 100%; height: 100%; min-height: 520px; object-fit: cover; background: #102840; }
