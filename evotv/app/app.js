@@ -815,9 +815,12 @@ function bindMainVideoEvents(video) {
   const isCurrentVideo = (event) => event.currentTarget === elements.video;
   video.addEventListener('enterpictureinpicture', (event) => {
     if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !elements.modal.open) return;
-    state.restoreModalAfterPictureInPicture = true;
-    state.preserveLiveOnModalClose = true;
-    elements.modal.close();
+    state.restoreModalAfterPictureInPicture = false;
+    const pictureInPictureVideo = video;
+    detachLivePlaybackToDock();
+    if (document.pictureInPictureElement === pictureInPictureVideo) {
+      void document.exitPictureInPicture().catch(() => {});
+    }
   });
   video.addEventListener('leavepictureinpicture', (event) => {
     if (!isCurrentVideo(event) || !state.restoreModalAfterPictureInPicture) return;
@@ -909,6 +912,13 @@ function detachLivePlaybackToDock() {
   const card = document.createElement('section');
   card.className = 'live-mini-player';
   card.setAttribute('aria-label', `Canal minimizado: ${state.selected.name || 'Canal'}`);
+  const position = state.miniLivePlayers.size;
+  const offset = Math.min(position * 34, Math.max(0, window.innerHeight - 320));
+  card.style.position = 'fixed';
+  card.style.right = `${14 + Math.min(offset, Math.max(0, window.innerWidth - 460))}px`;
+  card.style.bottom = `${14 + offset}px`;
+  card.style.width = 'min(420px, calc(100vw - 28px))';
+  card.style.zIndex = String(21 + position);
   const header = document.createElement('header');
   header.className = 'live-mini-player-header';
   const title = document.createElement('strong');
@@ -959,6 +969,7 @@ function detachLivePlaybackToDock() {
   video.id = '';
   video.classList.add('live-mini-player-video');
   video.hidden = false;
+  video.disablePictureInPicture = true;
   video.replaceWith(replacement);
   surface.append(video);
   elements.video = replacement;
