@@ -12,7 +12,7 @@ import {
   saveRememberedAuth,
 } from './device-vault.js';
 
-const PAGE_SIZE = 45;
+const PAGE_SIZE = 32;
 const MEDIA_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
 const MEDIA_PROXY_ORIGIN = 'https://evotv-offline-media-proxy.evotechubdev.workers.dev';
 const MEDIA_SOURCE_HOSTS = new Set(['89.222.120.168:34871', '89.222.120.168:30266']);
@@ -1398,7 +1398,7 @@ async function enterLiveView() {
     const idToken = await api.currentToken(state.auth);
     if (!state.liveCatalog || selectedLiveFavorites() === null) {
       const catalog = await liveCatalogPage(idToken, {
-        offset: 0, limit: 45, query: '', category: LIVE_FAVORITES_CATEGORY, adult: state.adultView,
+        offset: 0, limit: PAGE_SIZE, query: '', category: LIVE_FAVORITES_CATEGORY, adult: state.adultView,
         favoriteIds: state.favorites, liveFavoriteIds: selectedLiveFavorites(),
       });
       state.liveCatalog = { categories: catalog.categories || [] };
@@ -1667,8 +1667,8 @@ elements.categoryStrip.addEventListener('wheel', (event) => {
 }, { passive: false });
 const loadOnScroll = () => {
   if (!state.page.hasMore || state.page.loading) return;
-  const nearGridBottom = elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 700;
-  const nearPageBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 700;
+  const nearGridBottom = elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 200;
+  const nearPageBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 200;
   if (nearGridBottom || nearPageBottom) void loadCatalogPage();
 };
 elements.grid.addEventListener('scroll', loadOnScroll, { passive: true });
