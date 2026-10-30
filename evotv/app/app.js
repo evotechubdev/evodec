@@ -1074,7 +1074,7 @@ function createLivePlayer(playbackUrl, attempt, isLive = true) {
     enableStashBuffer: true,
     stashInitialSize: 2 * 1024 * 1024,
     isLive,
-    lazyLoad: !isLive,
+    lazyLoad: false,
     liveBufferLatencyChasing: isLive,
     liveSync: isLive,
     autoCleanupSourceBuffer: true,
@@ -1141,11 +1141,15 @@ async function tryCandidate() {
     } else if (state.selected.kind === 'show') {
       elements.liveNow.hidden = true;
       elements.video.controls = true;
-      // The private .ts entrypoint may redirect to an MP4 file. Keep the
-      // channel ticket/proxy path, but let the native video element read the
-      // final Content-Type and provide movie-style pause/seek controls.
-      elements.video.src = playbackUrl;
-      elements.video.load(); void playShowVideo(attempt);
+      const transportStream = /\.(?:ts|mpegts)$/i.test(new URL(playbackUrl).pathname);
+      if (transportStream) {
+        createLivePlayer(playbackUrl, attempt, false);
+      } else {
+        // The .ts channel entrypoint can redirect to a recorded MP4. The
+        // ticket now points at that final file so the native player can seek.
+        elements.video.src = playbackUrl;
+        elements.video.load(); void playShowVideo(attempt);
+      }
     } else {
       elements.video.src = playbackUrl;
       elements.video.load(); void elements.video.play().catch(() => {});
