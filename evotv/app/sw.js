@@ -1,4 +1,4 @@
-const CACHE = 'evotv-catalogo-offline-v14';
+const CACHE = 'evotv-catalogo-offline-v15';
 const APP_SHELL = [
   './',
   './index.html',
@@ -26,8 +26,14 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
-  event.respondWith(caches.match(event.request).then((cached) => cached || fetch(event.request).then((response) => {
-    if (response.ok) caches.open(CACHE).then((cache) => cache.put(event.request, response.clone()));
+  event.respondWith((async () => {
+    const cached = await caches.match(event.request);
+    if (cached) return cached;
+    const response = await fetch(event.request);
+    if (response.ok) {
+      const responseCopy = response.clone();
+      void caches.open(CACHE).then(cache => cache.put(event.request, responseCopy)).catch(() => {});
+    }
     return response;
-  })));
+  })());
 });

@@ -47,7 +47,7 @@ if (existsSync(offlineAppSource)) {
   mkdirSync(offlineAppBuild, { recursive: true });
   for (const entry of [
     'index.html', 'styles.css', 'app.js', 'auth-api.js', 'device-vault.js',
-    'catalog-db.js', 'sw.js', 'manifest.webmanifest', 'assets', 'data',
+    'catalog-db.js', 'series-catalog-db.js', 'sw.js', 'manifest.webmanifest', 'assets', 'data',
   ]) {
     const source = resolve(offlineAppSource, entry);
     if (existsSync(source)) cpSync(source, resolve(offlineAppBuild, entry), { recursive: true });
