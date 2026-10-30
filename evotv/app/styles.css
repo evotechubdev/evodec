@@ -124,10 +124,11 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .modal-close { position: absolute; z-index: 2; top: 14px; right: 14px; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; color: white; font-size: 1.6rem; background: rgba(0, 0, 0, .52); }
 .live-mini-dock:not([hidden]) { position: fixed; z-index: 20; right: 14px; bottom: 14px; display: grid; width: min(640px, calc(100vw - 28px)); max-height: 48vh; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; overflow: auto; pointer-events: none; }
 .live-mini-player { min-width: 0; overflow: hidden; border: 1px solid rgba(133, 172, 202, .4); border-radius: 12px; color: #fff; background: #07131f; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); pointer-events: auto; }
-.live-mini-player-header { display: flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 7px 4px 10px; }
+.live-mini-player-header { display: flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 7px 4px 10px; cursor: grab; touch-action: none; }
+.live-mini-player-header:active { cursor: grabbing; }
 .live-mini-player-header strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
 .live-mini-player-actions { display: flex; flex: 0 0 auto; align-items: center; gap: 5px; }
-.live-mini-player-actions button { min-height: 28px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 7px; color: inherit; background: #142433; font-size: 10px; }
+.live-mini-player-actions button { min-height: 28px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 7px; color: inherit; background: #142433; font-size: 10px; cursor: pointer; touch-action: manipulation; }
 .live-mini-player-actions .live-mini-player-close { width: 28px; padding: 0; font-size: 18px; }
 .live-mini-player-video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
 .live-now-button { display: inline-flex; min-height: 30px; align-items: center; justify-content: center; gap: 6px; padding: 4px 9px; border: 1px solid rgba(160, 175, 190, .45); border-radius: 8px; color: #fff; background: rgba(7, 19, 31, .92); font-size: 11px; font-weight: 750; }
@@ -447,6 +448,8 @@ body.catalog-page .catalog-card-copy small { display: block; margin-top: 5px; ov
 }
 .content-favorite-toggle:hover { color: #fff; background: #282f39; }
 .content-favorite-toggle.active { color: #ffc54d; border-color: rgba(255, 197, 77, .38); }
+.channel-favorite-move { width: 26px; height: 28px; padding: 0; border: 1px solid var(--pc-line); border-radius: 8px; color: #c5ced8; background: #1d222a; font-size: 16px; line-height: 1; cursor: pointer; }
+.channel-favorite-move:hover { color: #fff; background: #282f39; }
 .content-download {
   width: 28px;
   height: 28px;

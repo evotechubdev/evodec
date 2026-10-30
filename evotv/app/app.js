@@ -35,6 +35,7 @@ const state = {
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
   miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
+  liveFavorites: null, adultLiveFavorites: null,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
   busy: false, adultView: false, profileSettings: null, parentalSettings: null,
   parentalMode: 'settings', sessionWatcher: null, noticeTimer: null, rememberDevice: true,
@@ -155,6 +156,65 @@ function toggleFavorite(item) {
   if (elements.category.value === FAVORITES_CATEGORY) applyFilters(); else renderGrid();
 }
 
+function liveFavoritesStorageKey(adult = state.adultView) {
+  const profile = Number(state.session?.profile || 0);
+  if (!state.auth?.login || !profile) return '';
+  const scope = adult ? 'adult-channel-favorites' : 'channel-favorites';
+  return `evo:${scope}:v1:${accountFingerprint(state.auth.login)}:profile:${profile}`;
+}
+
+function cleanLiveFavoriteIds(items) {
+  return [...new Set((Array.isArray(items) ? items : []).map(String).filter(id => /^\d{1,20}$/.test(id)))].slice(0, 1500);
+}
+
+function selectedLiveFavorites() {
+  return state.adultView ? state.adultLiveFavorites : state.liveFavorites;
+}
+
+function setSelectedLiveFavorites(items) {
+  const list = cleanLiveFavoriteIds(items);
+  if (state.adultView) state.adultLiveFavorites = list;
+  else state.liveFavorites = list;
+  const key = liveFavoritesStorageKey();
+  if (key) try { localStorage.setItem(key, JSON.stringify({ version: 1, items: list })); } catch { /* optional */ }
+  return list;
+}
+
+function loadLiveFavorites() {
+  for (const adult of [false, true]) {
+    const key = liveFavoritesStorageKey(adult);
+    let value = null;
+    try {
+      const parsed = key ? JSON.parse(localStorage.getItem(key)) : null;
+      if (parsed?.version === 1 && Array.isArray(parsed.items)) value = cleanLiveFavoriteIds(parsed.items);
+    } catch { /* favoritos sÃ£o opcionais */ }
+    if (adult) state.adultLiveFavorites = value;
+    else state.liveFavorites = value;
+  }
+}
+
+function toggleLiveFavorite(item) {
+  const id = String(item?.stream_id || '');
+  if (!/^\d{1,20}$/.test(id)) return;
+  const items = [...(selectedLiveFavorites() || [])];
+  const index = items.indexOf(id);
+  if (index >= 0) items.splice(index, 1);
+  else items.push(id);
+  setSelectedLiveFavorites(items);
+  if (state.activeSection === 'live' && elements.category.value === LIVE_FAVORITES_CATEGORY) applyFilters();
+  else renderGrid();
+}
+
+function moveLiveFavorite(id, offset) {
+  const items = [...(selectedLiveFavorites() || [])];
+  const from = items.indexOf(String(id));
+  const to = from + Math.sign(Number(offset) || 0);
+  if (from < 0 || to < 0 || to >= items.length) return;
+  [items[from], items[to]] = [items[to], items[from]];
+  setSelectedLiveFavorites(items);
+  applyFilters();
+}
+
 function isEpisodeFavorite(episode) {
   return state.favorites.has(`${state.adultView ? 'adult-' : ''}episode:${episode.episode_id}`);
 }
@@ -230,9 +290,8 @@ function renderCategoryFilters() {
       String(category.category_id) === LIVE_MAINTENANCE_CATEGORY
       || isAdultCategory(category) === state.adultView);
     const categories = [
-      ...(!state.adultView ? [{ category_id: LIVE_FAVORITES_CATEGORY, category_name: 'Canais Favoritos' }] : []),
+      { category_id: LIVE_FAVORITES_CATEGORY, category_name: 'Canais Favoritos' },
       { category_id: ALL_CATEGORY, category_name: state.adultView ? 'Todos os canais adultos' : 'Todos os canais' },
-      { category_id: FAVORITES_CATEGORY, category_name: state.adultView ? 'Meus favoritos adultos' : 'Meus favoritos' },
       ...source,
     ];
     const previous = elements.category.value;
@@ -241,6 +300,7 @@ function renderCategoryFilters() {
     }));
     elements.category.value = categories.some(category => String(category.category_id) === previous)
       ? previous : state.adultView ? ALL_CATEGORY : LIVE_FAVORITES_CATEGORY;
+    if (selectedLiveFavorites() === null) elements.category.value = LIVE_FAVORITES_CATEGORY;
     elements.categoryStrip.replaceChildren(...categories.map(category => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
       button.dataset.category = String(category.category_id); button.textContent = category.category_name;
@@ -330,11 +390,24 @@ function renderGrid() {
     const actions = document.createElement('span'); actions.className = 'catalog-title-actions';
     const favorite = document.createElement('button'); favorite.type = 'button'; favorite.className = 'content-favorite-toggle';
     const favoriteId = item.kind === 'series' ? `series:${item.series_id}` : String(item.stream_id || '');
-    const active = state.favorites.has(favoriteId); favorite.classList.toggle('active', active);
+    const channelFavorites = item.kind === 'live' ? selectedLiveFavorites() || [] : null;
+    const active = item.kind === 'live' ? channelFavorites.includes(favoriteId) : state.favorites.has(favoriteId);
+    favorite.classList.toggle('active', active);
     favorite.textContent = active ? '★' : '☆'; favorite.title = active ? 'Desfavoritar' : 'Favoritar';
     favorite.setAttribute('aria-label', `${favorite.title}: ${item.name || 'filme'}`); favorite.setAttribute('aria-pressed', String(active));
-    favorite.addEventListener('click', (event) => { event.stopPropagation(); toggleFavorite(item); });
+    favorite.addEventListener('click', (event) => {
+      event.stopPropagation();
+      if (item.kind === 'live') toggleLiveFavorite(item); else toggleFavorite(item);
+    });
     actions.append(favorite);
+    if (item.kind === 'live' && elements.category.value === LIVE_FAVORITES_CATEGORY) {
+      for (const [offset, label, glyph] of [[-1, 'Mover canal para cima', '↑'], [1, 'Mover canal para baixo', '↓']]) {
+        const move = document.createElement('button'); move.type = 'button'; move.className = 'channel-favorite-move';
+        move.textContent = glyph; move.title = label; move.setAttribute('aria-label', `${label}: ${item.name || 'canal'}`);
+        move.addEventListener('click', event => { event.stopPropagation(); moveLiveFavorite(favoriteId, offset); });
+        actions.append(move);
+      }
+    }
     if (!['series', 'live'].includes(item.kind) && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
       const download = document.createElement('button'); download.type = 'button'; download.className = 'content-download';
       download.title = 'Baixar filme · PREMIUM'; download.setAttribute('aria-label', `Baixar ${item.name || 'filme'}`);
@@ -359,7 +432,7 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
   const offset = firstPage ? 0 : state.page.offset;
   const params = {
     offset, limit: PAGE_SIZE, query: elements.search.value.trim(), category: elements.category.value,
-    adult: state.adultView, favoriteIds: state.favorites,
+    adult: state.adultView, favoriteIds: state.favorites, liveFavoriteIds: selectedLiveFavorites(),
   };
   state.page.loading = true; renderGrid();
   try {
@@ -408,6 +481,14 @@ async function fetchCatalogPage(path, idToken, params) {
   if (params.category === FAVORITES_CATEGORY && params.favoriteIds?.size) {
     search.set('favorites', [...params.favoriteIds].filter(id => /^\d{1,20}$/.test(id) || /^series:\d{1,20}$/.test(id)).join(','));
   }
+  if (path === '/api/catalog/live/page' && params.category === LIVE_FAVORITES_CATEGORY
+    && params.liveFavoriteIds !== null) {
+    search.set('favorites', cleanLiveFavoriteIds(params.liveFavoriteIds).join(','));
+  }
+  if (path === '/api/catalog/live/page' && params.category === LIVE_FAVORITES_CATEGORY
+    && params.liveFavoriteIds === null && params.favoriteIds?.size) {
+    search.set('legacy_favorites', [...params.favoriteIds].filter(id => /^\d{1,20}$/.test(id)).join(','));
+  }
   const response = await fetch(`${MEDIA_BACKEND_URL}${path}?${search}`, {
     headers: { authorization: `Bearer ${idToken}`, accept: 'application/json' }, credentials: 'omit', cache: 'no-store',
   });
@@ -440,6 +521,15 @@ function openItem(item) {
 }
 
 function openLiveChannel(item) {
+  const currentVideo = elements.video;
+  if (state.selected?.kind === 'live' && state.mpegtsPlayer
+    && document.pictureInPictureElement === currentVideo) {
+    state.restoreModalAfterPictureInPicture = false;
+    detachLivePlaybackToDock();
+    if (document.pictureInPictureElement === currentVideo) {
+      void document.exitPictureInPicture().catch(() => {});
+    }
+  }
   stopPlayback();
   if (elements.seriesDialog.open) closeSeriesDetails();
   state.selected = { ...item, kind: 'live' };
@@ -780,6 +870,38 @@ function stopAllMiniLivePlayers() {
   for (const id of state.miniLivePlayers.keys()) stopMiniLivePlayer(id);
 }
 
+function makeLivePlayerDraggable(card, handle) {
+  let drag = null;
+  handle.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0 || event.target.closest('button')) return;
+    const bounds = card.getBoundingClientRect();
+    card.style.position = 'fixed';
+    card.style.left = `${bounds.left}px`;
+    card.style.top = `${bounds.top}px`;
+    card.style.right = 'auto';
+    card.style.bottom = 'auto';
+    card.style.width = `min(420px, calc(100vw - 28px))`;
+    card.style.zIndex = '21';
+    drag = { pointerId: event.pointerId, x: event.clientX - bounds.left, y: event.clientY - bounds.top };
+    handle.setPointerCapture(event.pointerId);
+    event.preventDefault();
+  });
+  handle.addEventListener('pointermove', (event) => {
+    if (!drag || event.pointerId !== drag.pointerId) return;
+    const maxLeft = Math.max(0, window.innerWidth - card.offsetWidth);
+    const maxTop = Math.max(0, window.innerHeight - card.offsetHeight);
+    card.style.left = `${Math.max(0, Math.min(maxLeft, event.clientX - drag.x))}px`;
+    card.style.top = `${Math.max(0, Math.min(maxTop, event.clientY - drag.y))}px`;
+  });
+  const finishDrag = (event) => {
+    if (drag?.pointerId !== event.pointerId) return;
+    drag = null;
+    if (handle.hasPointerCapture(event.pointerId)) handle.releasePointerCapture(event.pointerId);
+  };
+  handle.addEventListener('pointerup', finishDrag);
+  handle.addEventListener('pointercancel', finishDrag);
+}
+
 function detachLivePlaybackToDock() {
   if (state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
   const id = ++state.nextMiniLivePlayerId;
@@ -823,6 +945,7 @@ function detachLivePlaybackToDock() {
   close.addEventListener('click', () => stopMiniLivePlayer(id));
   actions.append(liveNow, mute, close);
   header.append(title, actions);
+  makeLivePlayerDraggable(card, header);
   const surface = document.createElement('div');
   surface.className = 'live-mini-player-surface';
   card.append(header, surface);
@@ -1015,6 +1138,7 @@ async function selectProfileWithPin(profile, pin, rememberPin, fromVault = false
     state.session = await api.selectProfile(state.auth, profile, pin);
     state.account.accountType = state.session.accountType || state.account.accountType;
     loadFavorites();
+    loadLiveFavorites();
     if (rememberPin) {
       try { await saveProfilePin(state.auth.login, profile, pin); }
       catch { notice('O perfil foi aberto, mas este aparelho não disponibilizou o cofre protegido para o PIN.'); }
@@ -1056,7 +1180,8 @@ function startSessionWatcher() {
 function endLocalProfile() {
   state.sessionWatcher?.abort(); state.sessionWatcher = null; stopPlayback(); stopAllMiniLivePlayers();
   if (elements.modal.open) elements.modal.close();
-  state.session = null; state.adultView = false; state.selected = null; state.filtered = []; state.favorites = new Set(); elements.grid.replaceChildren();
+  state.session = null; state.adultView = false; state.selected = null; state.filtered = []; state.favorites = new Set();
+  state.liveFavorites = null; state.adultLiveFavorites = null; elements.grid.replaceChildren();
 }
 
 async function releaseProfile() {
@@ -1158,9 +1283,15 @@ async function enterLiveView() {
   elements.status.parentElement.hidden = false; elements.status.classList.remove('error');
   try {
     const idToken = await api.currentToken(state.auth);
-    if (!state.liveCatalog) {
-      const catalog = await liveCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: state.adultView, favoriteIds: state.favorites });
+    if (!state.liveCatalog || selectedLiveFavorites() === null) {
+      const catalog = await liveCatalogPage(idToken, {
+        offset: 0, limit: 45, query: '', category: LIVE_FAVORITES_CATEGORY, adult: state.adultView,
+        favoriteIds: state.favorites, liveFavoriteIds: selectedLiveFavorites(),
+      });
       state.liveCatalog = { categories: catalog.categories || [] };
+      if (selectedLiveFavorites() === null) {
+        setSelectedLiveFavorites(catalog.liveFavoriteIds || catalog.items.map(item => item.stream_id));
+      }
     }
     if (state.activeSection !== 'live' || !state.session) return;
     elements.status.textContent = ''; elements.status.parentElement.hidden = true;
