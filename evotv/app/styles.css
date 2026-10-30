@@ -122,7 +122,6 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .live-choice-button:hover, .live-choice-button:focus-visible { border-color: #38a6ff; background: #142a3b; }
 .live-choice-button small { color: var(--muted); font-size: 11px; }
 .modal-close { position: absolute; z-index: 2; top: 14px; right: 14px; width: 42px; height: 42px; border: 1px solid var(--line); border-radius: 50%; color: white; font-size: 1.6rem; background: rgba(0, 0, 0, .52); }
-.modal-minimize { position: absolute; z-index: 2; top: 14px; right: 64px; min-height: 42px; padding: 0 12px; border: 1px solid var(--line); border-radius: 22px; color: white; background: rgba(0, 0, 0, .6); font-size: 12px; font-weight: 700; }
 .live-mini-dock:not([hidden]) { position: fixed; z-index: 20; right: 14px; bottom: 14px; display: grid; width: min(640px, calc(100vw - 28px)); max-height: 48vh; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; overflow: auto; pointer-events: none; }
 .live-mini-player { min-width: 0; overflow: hidden; border: 1px solid rgba(133, 172, 202, .4); border-radius: 12px; color: #fff; background: #07131f; box-shadow: 0 10px 30px rgba(0, 0, 0, .45); pointer-events: auto; }
 .live-mini-player-header { display: flex; min-height: 36px; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 7px 4px 10px; }

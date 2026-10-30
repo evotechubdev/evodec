@@ -34,6 +34,7 @@ const state = {
   activeSection: 'movies', seriesCatalog: null, liveCatalog: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
   miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
+  restoreModalAfterPictureInPicture: false,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
   busy: false, adultView: false, profileSettings: null, parentalSettings: null,
   parentalMode: 'settings', sessionWatcher: null, noticeTimer: null, rememberDevice: true,
@@ -67,7 +68,7 @@ const elements = {
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
   mediaKind: $('#media-kind'),
-  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), minimizeLive: $('#minimize-live'), liveNow: $('#live-now'),
+  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), liveNow: $('#live-now'),
   miniLiveDock: $('#live-mini-dock'), viewButtons: $$('[data-view]'),
 };
 
@@ -421,7 +422,6 @@ function openItem(item) {
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
-  elements.minimizeLive.hidden = true;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
   elements.mediaKind.textContent = 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
@@ -445,7 +445,6 @@ function openLiveChannel(item) {
   state.selected = { ...item, kind: 'live' };
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
-  elements.minimizeLive.hidden = true;
   elements.modalTitle.textContent = item.name || 'Canal';
   elements.modalMeta.textContent = item.category_name || 'Televisão ao vivo';
   elements.modalSynopsis.textContent = '';
@@ -679,7 +678,10 @@ function closeSeriesDetails() {
 
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
-  elements.minimizeLive.hidden = true;
+  state.restoreModalAfterPictureInPicture = false;
+  if (document.pictureInPictureElement === elements.video) {
+    void document.exitPictureInPicture().catch(() => {});
+  }
   elements.liveNow.hidden = true;
   elements.liveNow.classList.remove('is-live');
   elements.liveNow.setAttribute('aria-pressed', 'false');
@@ -721,6 +723,19 @@ function seekVideoToLive(video, button) {
 
 function bindMainVideoEvents(video) {
   const isCurrentVideo = (event) => event.currentTarget === elements.video;
+  video.addEventListener('enterpictureinpicture', (event) => {
+    if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !elements.modal.open) return;
+    state.restoreModalAfterPictureInPicture = true;
+    state.preserveLiveOnModalClose = true;
+    elements.modal.close();
+  });
+  video.addEventListener('leavepictureinpicture', (event) => {
+    if (!isCurrentVideo(event) || !state.restoreModalAfterPictureInPicture) return;
+    state.restoreModalAfterPictureInPicture = false;
+    if (state.selected?.kind === 'live' && state.mpegtsPlayer && !elements.modal.open) {
+      elements.modal.showModal();
+    }
+  });
   video.addEventListener('playing', (event) => {
     if (!isCurrentVideo(event)) return;
     elements.playerMessage.textContent = '';
@@ -765,7 +780,7 @@ function stopAllMiniLivePlayers() {
   for (const id of state.miniLivePlayers.keys()) stopMiniLivePlayer(id);
 }
 
-function minimizeLivePlayback() {
+function detachLivePlaybackToDock() {
   if (state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
   const id = ++state.nextMiniLivePlayerId;
   const video = elements.video;
@@ -831,7 +846,6 @@ function minimizeLivePlayback() {
   elements.miniLiveDock.hidden = false;
   state.miniLivePlayers.set(id, { player: state.mpegtsPlayer, video, card });
   state.mpegtsPlayer = null;
-  elements.minimizeLive.hidden = true;
   if (elements.modal.open) {
     state.preserveLiveOnModalClose = true;
     elements.modal.close();
@@ -934,7 +948,6 @@ async function tryCandidate() {
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
       createLivePlayer(playbackUrl, attempt);
-      elements.minimizeLive.hidden = false;
       elements.liveNow.hidden = false;
       elements.liveNow.classList.remove('is-live');
       elements.liveNow.setAttribute('aria-pressed', 'false');
@@ -1340,7 +1353,6 @@ elements.trailer.addEventListener('click', () => {
   if (!url) return;
   window.open(url, '_blank', 'noopener,noreferrer');
 });
-elements.minimizeLive.addEventListener('click', minimizeLivePlayback);
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', () => {
   if (state.preserveLiveOnModalClose) {
@@ -1348,7 +1360,7 @@ elements.modal.addEventListener('close', () => {
     return;
   }
   if (state.selected?.kind === 'live' && state.mpegtsPlayer) {
-    minimizeLivePlayback();
+    detachLivePlaybackToDock();
     return;
   }
   stopPlayback();
