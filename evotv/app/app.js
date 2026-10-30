@@ -211,12 +211,22 @@ function toggleLiveFavorite(item) {
 
 function moveLiveFavorite(id, offset) {
   const items = [...(selectedLiveFavorites() || [])];
+  const visible = state.filtered.findIndex(item => String(item.stream_id) === String(id));
+  const neighbor = visible + Math.sign(Number(offset) || 0);
+  if (visible < 0 || neighbor < 0 || neighbor >= state.filtered.length) return;
+  const otherId = String(state.filtered[neighbor].stream_id);
   const from = items.indexOf(String(id));
-  const to = from + Math.sign(Number(offset) || 0);
-  if (from < 0 || to < 0 || to >= items.length) return;
+  const to = items.indexOf(otherId);
+  if (from < 0 || to < 0) return;
   [items[from], items[to]] = [items[to], items[from]];
   setSelectedLiveFavorites(items);
-  applyFilters();
+  [state.filtered[visible], state.filtered[neighbor]] = [state.filtered[neighbor], state.filtered[visible]];
+  const cards = [...elements.grid.querySelectorAll('.catalog-card')];
+  const firstCard = cards[visible];
+  const secondCard = cards[neighbor];
+  if (!firstCard || !secondCard) return;
+  if (visible < neighbor) elements.grid.insertBefore(secondCard, firstCard);
+  else elements.grid.insertBefore(firstCard, secondCard);
 }
 
 function isEpisodeFavorite(episode) {
@@ -433,7 +443,7 @@ function renderGrid() {
     });
     actions.append(favorite);
     if (item.kind === 'live' && elements.category.value === LIVE_FAVORITES_CATEGORY) {
-      for (const [offset, label, glyph] of [[-1, 'Mover canal para cima', '↑'], [1, 'Mover canal para baixo', '↓']]) {
+      for (const [offset, label, glyph] of [[-1, 'Mover canal para a esquerda', '←'], [1, 'Mover canal para a direita', '→']]) {
         const move = document.createElement('button'); move.type = 'button'; move.className = 'channel-favorite-move';
         move.textContent = glyph; move.title = label; move.setAttribute('aria-label', `${label}: ${item.name || 'canal'}`);
         move.addEventListener('click', event => { event.stopPropagation(); moveLiveFavorite(favoriteId, offset); });
@@ -564,6 +574,7 @@ function openItem(item) {
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
+  elements.video.parentElement?.querySelector('.live-playback-controls')?.remove();
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
   elements.mediaKind.textContent = item.kind === 'show' ? 'SHOW' : 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
@@ -583,6 +594,43 @@ function openItem(item) {
   elements.modal.showModal();
 }
 
+function createLiveControls(video, surface) {
+  const controls = document.createElement('div');
+  controls.className = 'live-playback-controls';
+  const volumeLabel = document.createElement('label');
+  volumeLabel.className = 'live-volume-control';
+  const volumeText = document.createElement('span');
+  volumeText.textContent = 'Volume';
+  const volume = document.createElement('input');
+  volume.type = 'range';
+  volume.min = '0'; volume.max = '1'; volume.step = '0.05';
+  volume.value = String(video.muted ? 0 : video.volume);
+  volume.setAttribute('aria-label', 'Volume do canal');
+  volume.addEventListener('input', () => {
+    video.volume = Number(volume.value);
+    video.muted = Number(volume.value) === 0;
+  });
+  volumeLabel.append(volumeText, volume);
+  const fullscreen = document.createElement('button');
+  fullscreen.type = 'button';
+  fullscreen.className = 'live-fullscreen-button';
+  fullscreen.textContent = '⛶';
+  fullscreen.title = 'Tela cheia';
+  fullscreen.setAttribute('aria-label', 'Tela cheia');
+  fullscreen.addEventListener('click', () => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen().catch(() => {});
+      return;
+    }
+    if (typeof surface.requestFullscreen === 'function') void surface.requestFullscreen().catch(() => {});
+    else if (typeof video.webkitEnterFullscreen === 'function') video.webkitEnterFullscreen();
+  });
+  controls.append(volumeLabel, fullscreen);
+  surface.classList.add('has-live-controls');
+  surface.append(controls);
+  return controls;
+}
+
 function openLiveChannel(item) {
   const currentVideo = elements.video;
   if (state.selected?.kind === 'live' && state.mpegtsPlayer
@@ -595,6 +643,7 @@ function openLiveChannel(item) {
   }
   stopPlayback();
   if (elements.seriesDialog.open) closeSeriesDetails();
+  elements.video.parentElement?.querySelector('.live-playback-controls')?.remove();
   state.selected = { ...item, kind: 'live' };
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
@@ -633,6 +682,7 @@ function openLiveChannel(item) {
   elements.video.controls = false;
   elements.video.hidden = false;
   elements.play.hidden = true;
+  createLiveControls(elements.video, elements.video.parentElement);
   if (!elements.modal.open) elements.modal.showModal();
   void tryCandidate();
 }
@@ -655,6 +705,7 @@ function syncSeriesFavoriteControls() {
 async function openSeries(series) {
   if (!state.session || !state.seriesCatalog) return;
   stopPlayback();
+  elements.video.parentElement?.querySelector('.live-playback-controls')?.remove();
   state.selected = null;
   state.activeSeries = series;
   state.activeSeriesEpisodes = [];
@@ -978,9 +1029,11 @@ function detachLivePlaybackToDock() {
   video.id = '';
   video.classList.add('live-mini-player-video');
   video.hidden = false;
+  video.controls = false;
   video.disablePictureInPicture = true;
   video.replaceWith(replacement);
   surface.append(video);
+  createLiveControls(video, surface);
   elements.video = replacement;
   bindMainVideoEvents(replacement);
 
