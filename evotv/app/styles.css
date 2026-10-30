@@ -535,6 +535,7 @@ body.catalog-page .media-content .status { margin: 10px 0 0; color: #727a87; fon
 .season-button.active { color: #fff; border-color: rgba(0,174,255,.55); background: rgba(0,147,255,.14); }
 .episode-list { display: grid; gap: 8px; padding: 0 28px; }
 .episode-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; }
+.episode-actions { display: flex; align-items: center; gap: 6px; }
 .episode-button { width: 100%; min-height: 62px; display: grid; grid-template-columns: 46px minmax(0, 1fr) 31px; align-items: center; gap: 14px; padding: 9px 14px; border: 1px solid var(--pc-line); border-radius: 11px; color: #fff; background: #14171c; cursor: pointer; text-align: left; transition: .2s; }
 .episode-button:hover { border-color: rgba(0,174,255,.45); background: #1a1e25; transform: translateX(2px); }
 .episode-number { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 9px; color: #7cd8ff; background: rgba(0,161,255,.12); font-size: 11px; font-weight: 800; }

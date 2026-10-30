@@ -53,7 +53,7 @@ const elements = {
   switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'), serverLabel: $('#server-label'),
   adultNav: $('#adult-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
-  grid: $('#catalog-grid'), count: $('#catalog-count'), status: $('#app-status'), sentinel: $('#load-sentinel'),
+  grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
   loadMore: $('#load-more'), seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
   seriesPlot: $('#series-plot'), seriesLoading: $('#series-loading'), seasonTabs: $('#season-tabs'), episodeList: $('#episode-list'),
   closeSeries: $('#close-series'), favoriteSeries: $('#favorite-series'), favoriteEpisodesFilter: $('#favorite-episodes-filter'),
@@ -156,18 +156,22 @@ function synopsisFrom(item = {}) {
 
 function trailerFrom(item = {}) {
   const value = String(item.youtube_trailer || item.trailer || item.trailer_url || item.youtubeTrailer || '').trim();
-  let id = /^[a-zA-Z0-9_-]{6,20}$/.test(value) ? value : '';
-  if (!id) {
-    try {
-      const url = new URL(value);
-      if (url.protocol !== 'https:') return '';
-      if (['youtu.be', 'www.youtu.be'].includes(url.hostname)) id = url.pathname.split('/').filter(Boolean)[0] || '';
-      else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com'].includes(url.hostname)) {
-        id = url.searchParams.get('v') || (/^\/embed\/([^/]+)/.exec(url.pathname)?.[1] || '');
-      }
-    } catch { return ''; }
-  }
-  return /^[a-zA-Z0-9_-]{6,20}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${encodeURIComponent(id)}?autoplay=1&rel=0` : '';
+  if (/^[a-zA-Z0-9_-]{6,20}$/.test(value)) return `https://www.youtube.com/watch?v=${encodeURIComponent(value)}`;
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) throw new Error('TRAILER_INVALID');
+    if (['youtu.be', 'www.youtu.be'].includes(url.hostname)) {
+      const id = url.pathname.split('/').filter(Boolean)[0] || '';
+      if (/^[a-zA-Z0-9_-]{6,20}$/.test(id)) return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+    } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com'].includes(url.hostname)) {
+      const id = url.searchParams.get('v') || (/^\/embed\/([^/]+)/.exec(url.pathname)?.[1] || '');
+      if (/^[a-zA-Z0-9_-]{6,20}$/.test(id)) return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
+      url.protocol = 'https:';
+      return url.href;
+    }
+  } catch { /* busca no YouTube pelo título abaixo */ }
+  const query = `${String(item.name || item.title || 'filme').trim()} trailer oficial`;
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 }
 
 function safeImage(value) {
@@ -301,7 +305,7 @@ function renderGrid() {
     favorite.setAttribute('aria-label', `${favorite.title}: ${item.name || 'filme'}`); favorite.setAttribute('aria-pressed', String(active));
     favorite.addEventListener('click', (event) => { event.stopPropagation(); toggleFavorite(item); });
     actions.append(favorite);
-    if (String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
+    if (item.kind !== 'series' && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
       const download = document.createElement('button'); download.type = 'button'; download.className = 'content-download';
       download.title = 'Baixar filme · PREMIUM'; download.setAttribute('aria-label', `Baixar ${item.name || 'filme'}`);
       download.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17V3ZM5 19h14v2H5v-2Z"/></svg>';
@@ -314,8 +318,6 @@ function renderGrid() {
       : item.category_name || 'Filme'; copy.append(titleRow, meta);
     card.append(poster, copy); return card;
   }));
-  elements.count.textContent = `${state.filtered.length.toLocaleString('pt-BR')} ${state.activeSection === 'series' ? 'séries' : 'filmes'}`;
-  elements.count.parentElement.hidden = false;
   elements.sentinel.hidden = true; elements.loadMore.hidden = state.visible >= state.filtered.length;
 }
 
@@ -443,6 +445,18 @@ function renderEpisodes(season = state.seriesSeason) {
     button.setAttribute('aria-label', `Reproduzir temporada ${state.seriesSeason}, episódio ${number}: ${heading.textContent}`);
     button.addEventListener('click', () => openSeriesEpisode(episode));
 
+    const actions = document.createElement('span');
+    actions.className = 'episode-actions';
+    if (String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
+      const download = document.createElement('button');
+      download.type = 'button';
+      download.className = 'content-download episode-download';
+      download.title = 'Baixar episódio · PREMIUM';
+      download.setAttribute('aria-label', `Baixar ${heading.textContent}`);
+      download.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17V3ZM5 19h14v2H5v-2Z"/></svg>';
+      download.addEventListener('click', () => { void downloadItem({ ...episode, kind: 'series', name: heading.textContent }, download); });
+      actions.append(download);
+    }
     const favorite = document.createElement('button');
     favorite.type = 'button';
     favorite.className = 'episode-favorite-toggle';
@@ -456,7 +470,8 @@ function renderEpisodes(season = state.seriesSeason) {
       syncSeriesFavoriteControls();
       renderEpisodes(state.seriesSeason);
     });
-    row.append(button, favorite);
+    actions.append(favorite);
+    row.append(button, actions);
     return row;
   }));
   if (!episodes.length && state.favoriteEpisodesOnly) {
@@ -903,8 +918,7 @@ elements.play.addEventListener('click', () => { void tryCandidate(); });
 elements.trailer.addEventListener('click', () => {
   const url = elements.trailer.dataset.url;
   if (!url) return;
-  stopPlayback(); elements.play.hidden = false;
-  elements.trailerPlayer.src = url; elements.trailerPlayer.hidden = false;
+  window.open(url, '_blank', 'noopener,noreferrer');
 });
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', stopPlayback);
