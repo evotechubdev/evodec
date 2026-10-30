@@ -722,9 +722,18 @@ async function tryCandidate() {
       if (!mpegts?.getFeatureList?.().mseLivePlayback) throw new Error('LIVE_MPEGTS_UNSUPPORTED');
       const player = mpegts.createPlayer({ type: 'mpegts', isLive: true, url: playbackUrl }, {
         enableWorker: false,
+        enableStashBuffer: true,
+        lazyLoad: false,
         liveBufferLatencyChasing: true,
+        liveBufferLatencyMaxLatency: 5,
+        liveBufferLatencyMinRemain: 1.5,
       });
       state.mpegtsPlayer = player;
+      player.on(mpegts.Events.ERROR, (type, detail) => {
+        if (attempt !== state.playbackAttempt) return;
+        elements.playerMessage.classList.remove('visually-hidden');
+        elements.playerMessage.textContent = `A transmissão do canal encontrou um erro (${String(type || 'desconhecido')}${detail ? `: ${String(detail)}` : ''}).`;
+      });
       player.attachMediaElement(elements.video);
       player.load();
       await player.play();
@@ -1122,7 +1131,21 @@ elements.favoriteEpisodesFilter.addEventListener('click', () => {
 });
 $$('.future-section').forEach(button => button.addEventListener('click', () => notice(`${button.dataset.future} já está estruturado e será ativado quando o catálogo correspondente for adicionado.`)));
 
-elements.video.addEventListener('playing', () => { elements.playerMessage.textContent = ''; elements.play.hidden = true; });
+elements.video.addEventListener('playing', () => {
+  elements.playerMessage.textContent = '';
+  elements.playerMessage.classList.add('visually-hidden');
+  elements.play.hidden = true;
+});
+elements.video.addEventListener('waiting', () => {
+  if (state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
+  elements.playerMessage.textContent = 'O canal está aguardando novos dados da transmissão…';
+  elements.playerMessage.classList.remove('visually-hidden');
+});
+elements.video.addEventListener('stalled', () => {
+  if (state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
+  elements.playerMessage.textContent = 'A transmissão parou de enviar dados. Verifique a conexão com o serviço de canais.';
+  elements.playerMessage.classList.remove('visually-hidden');
+});
 elements.video.addEventListener('canplay', () => { void elements.video.play().catch(() => {}); });
 elements.video.addEventListener('error', () => { state.candidateIndex += 1; void tryCandidate(); });
 elements.play.addEventListener('click', () => { void tryCandidate(); });
