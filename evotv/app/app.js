@@ -556,10 +556,11 @@ function openItem(item) {
   elements.modalSynopsis.textContent = synopsisFrom(item);
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = '';
-  elements.trailer.dataset.url = trailerFrom(item);
-  elements.trailer.hidden = false;
-  elements.trailer.disabled = !elements.trailer.dataset.url;
-  elements.trailer.classList.toggle('has-trailer', Boolean(elements.trailer.dataset.url));
+  const hasTrailer = item.kind !== 'show' && Boolean(trailerFrom(item));
+  elements.trailer.dataset.url = hasTrailer ? trailerFrom(item) : '';
+  elements.trailer.hidden = item.kind === 'show';
+  elements.trailer.disabled = !hasTrailer;
+  elements.trailer.classList.toggle('has-trailer', hasTrailer);
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
   elements.modal.showModal();
 }
@@ -1136,7 +1137,11 @@ async function tryCandidate() {
     } else if (state.selected.kind === 'show') {
       elements.liveNow.hidden = true;
       elements.video.controls = true;
-      createLivePlayer(playbackUrl, attempt, false);
+      // The private .ts entrypoint may redirect to an MP4 file. Keep the
+      // channel ticket/proxy path, but let the native video element read the
+      // final Content-Type and provide movie-style pause/seek controls.
+      elements.video.src = playbackUrl;
+      elements.video.load(); void elements.video.play().catch(() => {});
     } else {
       elements.video.src = playbackUrl;
       elements.video.load(); void elements.video.play().catch(() => {});
