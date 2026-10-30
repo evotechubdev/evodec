@@ -264,6 +264,7 @@ function mediaSourceTarget(value) {
 
 function mediaCandidates(item) {
   if (item.kind === 'live') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`live:${item.stream_id}`] : [];
+  if (item.kind === 'show') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`show:${item.stream_id}`] : [];
   const candidates = [];
   const direct = mediaSourceTarget(item.url_final);
   if (direct) candidates.push(direct);
@@ -317,7 +318,7 @@ function renderCategoryFilters() {
     elements.category.replaceChildren(...categories.map(category => {
       const option = document.createElement('option');
       option.value = String(category.evo_show_category_key || category.category_id);
-      option.textContent = `${category.category_name || 'Shows'}${category.evo_show_kind === 'live' ? ' • Ao vivo' : ''}`;
+      option.textContent = category.category_name || 'Shows';
       return option;
     }));
     elements.category.value = categories.some(category => String(category.evo_show_category_key || category.category_id) === previous)
@@ -325,7 +326,7 @@ function renderCategoryFilters() {
     elements.categoryStrip.replaceChildren(...categories.map(category => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
       button.dataset.category = String(category.evo_show_category_key || category.category_id);
-      button.textContent = `${category.category_name || 'Shows'}${category.evo_show_kind === 'live' ? ' • Ao vivo' : ''}`;
+      button.textContent = category.category_name || 'Shows';
       button.addEventListener('click', () => { elements.category.value = button.dataset.category; applyFilters(); });
       return button;
     }));
@@ -405,7 +406,9 @@ function renderGrid() {
     const poster = document.createElement('span'); poster.className = 'catalog-poster';
     const image = document.createElement('img'); image.loading = 'lazy'; image.decoding = 'async'; image.alt = '';
     image.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
-    image.addEventListener('error', () => { image.src = './assets/poster-placeholder.svg'; }, { once: true });
+    image.addEventListener('error', () => {
+      image.src = item.evo_show_kind ? './assets/fallback-shows.png' : './assets/poster-placeholder.svg';
+    }, { once: true });
     const play = document.createElement('span'); play.className = 'poster-play'; poster.append(image, play);
     const copy = document.createElement('span'); copy.className = 'catalog-card-copy';
     const title = document.createElement('strong'); title.textContent = item.name || 'Sem título';
@@ -431,7 +434,7 @@ function renderGrid() {
         actions.append(move);
       }
     }
-    if (!['series', 'live'].includes(item.kind) && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
+    if (!['series', 'live', 'show'].includes(item.kind) && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
       const download = document.createElement('button'); download.type = 'button'; download.className = 'content-download';
       download.title = 'Baixar filme · PREMIUM'; download.setAttribute('aria-label', `Baixar ${item.name || 'filme'}`);
       download.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17V3ZM5 19h14v2H5v-2Z"/></svg>';
@@ -473,7 +476,7 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
     } else if (section === 'live') {
       page.items = page.items.map(item => ({ ...item, kind: 'live', stream_id: String(item.stream_id) }));
     } else if (section === 'shows') {
-      page.items = page.items.map(item => ({ ...item, kind: item.evo_show_kind === 'live' ? 'live' : 'movie', stream_id: String(item.stream_id) }));
+      page.items = page.items.map(item => ({ ...item, kind: 'show', stream_id: String(item.stream_id) }));
     }
     state.filtered.push(...page.items);
     state.page.offset = offset + page.items.length;
@@ -545,10 +548,10 @@ function openItem(item) {
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
-  elements.mediaKind.textContent = 'FILME';
+  elements.mediaKind.textContent = item.kind === 'show' ? 'SHOW' : 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
   elements.play.textContent = 'Reproduzir';
-  elements.modalMeta.textContent = item.category_name || 'Filme';
+  elements.modalMeta.textContent = item.category_name || (item.kind === 'show' ? 'Shows' : 'Filme');
   elements.modalSynopsis.hidden = false;
   elements.modalSynopsis.textContent = synopsisFrom(item);
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
@@ -1035,11 +1038,12 @@ async function mediaTicket(source, signal, download = false) {
   const headers = { 'content-type': 'application/json' };
   let endpoint = '/api/media-ticket';
   let body = { target: source, download };
-  if (liveMatch) {
+  const showMatch = /^show:(\d{1,20})$/.exec(String(source));
+  if (liveMatch || showMatch) {
     const idToken = await api.currentToken(state.auth);
-    endpoint = '/api/live-ticket';
+    endpoint = showMatch ? '/api/show-ticket' : '/api/live-ticket';
     headers.authorization = `Bearer ${idToken}`;
-    body = { stream_id: liveMatch[1] };
+    body = { stream_id: (showMatch || liveMatch)[1] };
   }
   const response = await fetch(`${MEDIA_BACKEND_URL}${endpoint}`, {
     method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
@@ -1055,12 +1059,12 @@ async function mediaTicket(source, signal, download = false) {
   return playbackUrl.href;
 }
 
-function createLivePlayer(playbackUrl, attempt) {
+function createLivePlayer(playbackUrl, attempt, isLive = true) {
   const mpegts = window.mpegts;
   if (!mpegts?.getFeatureList?.().mseLivePlayback) throw new Error('LIVE_MPEGTS_UNSUPPORTED');
   const player = mpegts.createPlayer({
     type: 'mpegts',
-    isLive: true,
+    isLive,
     cors: true,
     withCredentials: false,
     url: playbackUrl,
@@ -1068,10 +1072,10 @@ function createLivePlayer(playbackUrl, attempt) {
     enableWorker: false,
     enableStashBuffer: true,
     stashInitialSize: 2 * 1024 * 1024,
-    isLive: true,
-    lazyLoad: false,
-    liveBufferLatencyChasing: false,
-    liveSync: false,
+    isLive,
+    lazyLoad: !isLive,
+    liveBufferLatencyChasing: isLive,
+    liveSync: isLive,
     autoCleanupSourceBuffer: true,
     autoCleanupMaxBackwardDuration: 120,
     autoCleanupMinBackwardDuration: 60,
@@ -1089,7 +1093,9 @@ function createLivePlayer(playbackUrl, attempt) {
     if (pausedByUser) return;
     void video.play().catch(() => {
       if (attempt !== state.playbackAttempt) return;
-      elements.playerMessage.textContent = 'Toque em reproduzir no video para iniciar o canal.';
+      elements.playerMessage.textContent = isLive
+        ? 'Toque em reproduzir no video para iniciar o canal.'
+        : 'Toque em reproduzir no video para iniciar o show.';
       elements.playerMessage.classList.remove('visually-hidden');
     });
   };
@@ -1097,7 +1103,8 @@ function createLivePlayer(playbackUrl, attempt) {
   player.on(mpegts.Events.ERROR, (type, detail) => {
     if (attempt !== state.playbackAttempt) return;
     elements.playerMessage.classList.remove('visually-hidden');
-    elements.playerMessage.textContent = `A transmissao do canal encontrou um erro (${String(type || 'desconhecido')}${detail ? `: ${String(detail)}` : ''}).`;
+    const mediaLabel = state.selected?.kind === 'show' ? 'O show' : 'A transmissao do canal';
+    elements.playerMessage.textContent = `${mediaLabel} encontrou um erro (${String(type || 'desconhecido')}${detail ? `: ${String(detail)}` : ''}).`;
   });
   player.attachMediaElement(elements.video);
   player.load();
@@ -1122,10 +1129,14 @@ async function tryCandidate() {
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
-      createLivePlayer(playbackUrl, attempt);
+      createLivePlayer(playbackUrl, attempt, true);
       elements.liveNow.hidden = false;
       elements.liveNow.classList.remove('is-live');
       elements.liveNow.setAttribute('aria-pressed', 'false');
+    } else if (state.selected.kind === 'show') {
+      elements.liveNow.hidden = true;
+      elements.video.controls = true;
+      createLivePlayer(playbackUrl, attempt, false);
     } else {
       elements.video.src = playbackUrl;
       elements.video.load(); void elements.video.play().catch(() => {});
