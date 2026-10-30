@@ -58,7 +58,7 @@ const elements = {
   adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
-  loadMore: $('#load-more'), seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
+  seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
   seriesPlot: $('#series-plot'), seriesLoading: $('#series-loading'), seasonTabs: $('#season-tabs'), episodeList: $('#episode-list'),
   liveChoiceList: $('#live-choice-list'),
   closeSeries: $('#close-series'), favoriteSeries: $('#favorite-series'), favoriteEpisodesFilter: $('#favorite-episodes-filter'),
@@ -156,12 +156,14 @@ function isEpisodeFavorite(episode) {
 }
 
 function synopsisFrom(item = {}) {
-  return String(item.plot || item.description || item.overview || item.info?.plot || item.info?.description || '').trim()
+  return String(item.plot || item.description || item.overview || item.info?.plot || item.info?.description
+    || item.movie_data?.plot || item.movie_data?.description || '').trim()
     || 'Sinopse não informada neste catálogo.';
 }
 
 function trailerFrom(item = {}) {
-  const value = String(item.youtube_trailer || item.trailer || item.trailer_url || item.youtubeTrailer || '').trim();
+  const value = String(item.youtube_trailer || item.trailer || item.trailer_url || item.youtubeTrailer
+    || item.info?.youtube_trailer || item.info?.trailer || item.movie_data?.youtube_trailer || '').trim();
   if (/^[a-zA-Z0-9_-]{6,20}$/.test(value)) return `https://www.youtube.com/watch?v=${encodeURIComponent(value)}`;
   try {
     const url = new URL(value);
@@ -295,7 +297,7 @@ function applyFilters() {
   state.page.offset = 0; state.page.hasMore = false; state.page.loading = false;
   state.filtered = [];
   elements.grid.replaceChildren();
-  elements.status.textContent = 'Carregando conteudos...'; elements.status.parentElement.hidden = false; elements.status.classList.remove('error');
+  elements.status.textContent = ''; elements.status.parentElement.hidden = true; elements.status.classList.remove('error');
   const category = elements.category.value;
   elements.categoryStrip.querySelectorAll('[data-category]').forEach(button => button.classList.toggle('active', button.dataset.category === category));
   renderGrid();
@@ -342,8 +344,6 @@ function renderGrid() {
     card.append(poster, copy); return card;
   }));
   elements.sentinel.hidden = !state.page.hasMore;
-  elements.loadMore.hidden = !state.page.hasMore;
-  elements.loadMore.disabled = state.page.loading;
 }
 
 async function loadCatalogPage(generation = state.page.generation, firstPage = false) {
@@ -424,7 +424,9 @@ function openItem(item) {
   elements.modalSynopsis.textContent = synopsisFrom(item);
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = '';
-  elements.trailer.dataset.url = trailerFrom(item); elements.trailer.disabled = !elements.trailer.dataset.url;
+  elements.trailer.dataset.url = trailerFrom(item);
+  elements.trailer.disabled = !elements.trailer.dataset.url;
+  elements.trailer.classList.toggle('has-trailer', Boolean(elements.trailer.dataset.url));
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
   elements.modal.showModal();
 }
@@ -442,6 +444,7 @@ function openLiveChannel(item) {
   elements.playerMessage.textContent = '';
   elements.trailer.dataset.url = '';
   elements.trailer.disabled = true;
+  elements.trailer.classList.remove('has-trailer');
   elements.liveChoiceList.replaceChildren();
   const choices = Array.isArray(item.evo_live_choices) ? item.evo_live_choices : [];
   if (choices.length > 1) {
@@ -642,6 +645,7 @@ function openSeriesEpisode(episode) {
   elements.playerMessage.textContent = '';
   elements.trailer.dataset.url = trailerFrom(series);
   elements.trailer.disabled = !elements.trailer.dataset.url;
+  elements.trailer.classList.toggle('has-trailer', Boolean(elements.trailer.dataset.url));
   elements.video.removeAttribute('src');
   elements.video.load();
   elements.video.hidden = true;
@@ -1146,7 +1150,6 @@ elements.categoryStrip.addEventListener('wheel', (event) => {
   if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
   event.preventDefault(); elements.categoryStrip.scrollLeft += event.deltaY;
 }, { passive: false });
-elements.loadMore.addEventListener('click', () => { void loadCatalogPage(); });
 const loadOnScroll = () => {
   if (!state.page.hasMore || state.page.loading) return;
   const nearGridBottom = elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 700;

@@ -73,7 +73,6 @@
       <div id="category-strip" class="pc-category-strip" tabindex="0" aria-label="Categorias"></div>
       <div class="pc-status-line" role="status" hidden><span id="app-status"></span></div>
       <div id="catalog-grid" class="catalog-grid" aria-live="polite"></div><div id="load-sentinel" class="load-sentinel" aria-hidden="true"></div>
-      <button id="load-more" class="secondary-action" type="button" hidden>Carregar mais</button>
     </section>
   </main>
 
@@ -98,7 +97,7 @@
     </div>
   </dialog>
 
-  <dialog id="media-modal" class="media-modal"><button id="close-modal" class="modal-close" type="button" aria-label="Fechar">×</button><div class="media-layout"><img id="media-image" class="media-poster" alt=""><div class="media-content"><p id="media-kind" class="eyebrow">FILME</p><h2 id="media-title"></h2><p id="media-meta" class="media-meta"></p><p id="media-synopsis" class="media-synopsis"></p><div id="live-choice-list" class="live-choice-list" hidden></div><div class="media-detail-actions"><button id="play-media" class="primary-action" type="button">Reproduzir</button><button id="trailer-media" class="detail-action" type="button" disabled>Trailer</button></div><p id="player-message" class="visually-hidden" aria-live="polite"></p></div><div class="media-player-surface"><video id="media-player" controls playsinline hidden></video><iframe id="trailer-player" title="Trailer" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen hidden></iframe></div></div></dialog>
+  <dialog id="media-modal" class="media-modal"><button id="close-modal" class="modal-close" type="button" aria-label="Fechar">×</button><div class="media-layout"><img id="media-image" class="media-poster" alt=""><div class="media-content"><p id="media-kind" class="eyebrow">FILME</p><h2 id="media-title"></h2><p id="media-meta" class="media-meta"></p><p id="media-synopsis" class="media-synopsis"></p><div id="live-choice-list" class="live-choice-list" hidden></div><div class="media-detail-actions"><button id="play-media" class="primary-action" type="button">Reproduzir</button><button id="trailer-media" class="detail-action" type="button" disabled>Trailer</button></div><p id="player-message" class="visually-hidden" aria-live="polite"></p></div><div class="media-player-surface"><video id="media-player" controls controlslist="nodownload" playsinline hidden></video><iframe id="trailer-player" title="Trailer" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen hidden></iframe></div></div></dialog>
 
   <dialog id="profile-pin-dialog" class="settings-dialog"><form id="profile-pin-form" novalidate><button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button><span class="eyebrow">PERFIL PROTEGIDO</span><h2 id="profile-pin-title">Digite o PIN do perfil</h2><label class="field"><span>PIN DO PERFIL</span><input id="profile-pin" type="password" minlength="4" maxlength="128" autocomplete="off" required></label><label class="remember-login"><input id="remember-profile-pin" type="checkbox" checked><span>Lembrar este PIN com o cofre protegido do aparelho</span></label><p id="profile-pin-error" class="form-error" role="alert"></p><button class="primary-button" type="submit">ENTRAR NO PERFIL</button></form></dialog>
 
