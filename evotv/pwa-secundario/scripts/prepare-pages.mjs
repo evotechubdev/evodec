@@ -46,7 +46,7 @@ location.replace('../pwa-secundario/index.html' + location.search + location.has
 if (existsSync(offlineAppSource)) {
   mkdirSync(offlineAppBuild, { recursive: true });
   for (const entry of [
-    'index.html', 'styles.css', 'app.js', 'auth-api.js', 'device-vault.js',
+    'index.html', 'styles.css', 'app.js', 'shows-catalog.js', 'auth-api.js', 'device-vault.js',
     'catalog-db.js', 'series-catalog-db.js', 'sw.js', 'manifest.webmanifest', 'assets', 'data', 'vendor',
   ]) {
     const source = resolve(offlineAppSource, entry);
