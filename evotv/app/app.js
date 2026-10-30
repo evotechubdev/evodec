@@ -33,7 +33,6 @@ const state = {
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'movies', seriesCatalog: null, liveCatalog: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
-  liveStallTimer: null, liveLastProgressAt: 0, liveLastCurrentTime: 0, liveRecoveryCount: 0,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
   busy: false, adultView: false, profileSettings: null, parentalSettings: null,
   parentalMode: 'settings', sessionWatcher: null, noticeTimer: null, rememberDevice: true,
@@ -669,8 +668,6 @@ function closeSeriesDetails() {
 
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
-  window.clearInterval(state.liveStallTimer); state.liveStallTimer = null;
-  state.liveLastProgressAt = 0; state.liveLastCurrentTime = 0; state.liveRecoveryCount = 0;
   if (state.mpegtsPlayer) {
     try { state.mpegtsPlayer.pause(); state.mpegtsPlayer.unload(); state.mpegtsPlayer.detachMediaElement(); state.mpegtsPlayer.destroy(); } catch { /* player already stopped */ }
     state.mpegtsPlayer = null;
@@ -710,97 +707,43 @@ async function mediaTicket(source, signal, download = false) {
 function createLivePlayer(playbackUrl, attempt) {
   const mpegts = window.mpegts;
   if (!mpegts?.getFeatureList?.().mseLivePlayback) throw new Error('LIVE_MPEGTS_UNSUPPORTED');
-  const player = mpegts.createPlayer({ type: 'mpegts', isLive: true, url: playbackUrl }, {
-    enableWorker: true,
+  const player = mpegts.createPlayer({
+    type: 'mpegts',
+    isLive: true,
+    cors: true,
+    withCredentials: false,
+    url: playbackUrl,
+  }, {
+    enableWorker: false,
     enableStashBuffer: true,
-    stashInitialSize: 256 * 1024,
+    stashInitialSize: 2 * 1024 * 1024,
+    isLive: true,
     lazyLoad: false,
-    liveBufferLatencyChasing: true,
-    liveBufferLatencyMaxLatency: 12,
-    liveBufferLatencyMinRemain: 3,
+    liveBufferLatencyChasing: false,
+    liveSync: false,
     autoCleanupSourceBuffer: true,
-    autoCleanupMaxBackwardDuration: 30,
-    autoCleanupMinBackwardDuration: 15,
+    autoCleanupMaxBackwardDuration: 120,
+    autoCleanupMinBackwardDuration: 60,
   });
   state.mpegtsPlayer = player;
+  const startPlayback = () => {
+    if (attempt !== state.playbackAttempt) return;
+    void elements.video.play().catch(() => {
+      if (attempt !== state.playbackAttempt) return;
+      elements.playerMessage.textContent = 'Toque em reproduzir no video para iniciar o canal.';
+      elements.playerMessage.classList.remove('visually-hidden');
+    });
+  };
+  player.on(mpegts.Events.MEDIA_INFO, startPlayback);
   player.on(mpegts.Events.ERROR, (type, detail) => {
     if (attempt !== state.playbackAttempt) return;
     elements.playerMessage.classList.remove('visually-hidden');
-    elements.playerMessage.textContent = `A transmissao do canal encontrou um erro (${String(type || 'desconhecido')}${detail ? `: ${String(detail)}` : ''}). Tentando recuperar...`;
+    elements.playerMessage.textContent = `A transmissao do canal encontrou um erro (${String(type || 'desconhecido')}${detail ? `: ${String(detail)}` : ''}).`;
   });
   player.attachMediaElement(elements.video);
   player.load();
+  startPlayback();
   return player;
-}
-
-function startLiveStallMonitor(source, attempt) {
-  window.clearInterval(state.liveStallTimer);
-  state.liveLastCurrentTime = elements.video.currentTime;
-  state.liveLastProgressAt = Date.now();
-  state.liveStallTimer = window.setInterval(() => {
-    if (attempt !== state.playbackAttempt || !state.mpegtsPlayer || elements.video.paused) return;
-    const now = Date.now();
-    const currentTime = elements.video.currentTime;
-    if (currentTime > state.liveLastCurrentTime + 0.15) {
-      state.liveLastCurrentTime = currentTime;
-      state.liveLastProgressAt = now;
-      return;
-    }
-    if (now - state.liveLastProgressAt < 15_000) return;
-
-    const video = elements.video;
-    if (video.buffered.length) {
-      const edge = video.buffered.end(video.buffered.length - 1);
-      if (edge - currentTime > 2) {
-        try {
-          video.currentTime = Math.max(currentTime, edge - 1.5);
-          state.liveLastCurrentTime = video.currentTime;
-          state.liveLastProgressAt = now;
-          elements.playerMessage.textContent = 'Ajustando a reproducao ao ponto mais recente da transmissao...';
-          elements.playerMessage.classList.remove('visually-hidden');
-          return;
-        } catch { /* o navegador pode bloquear a busca durante o carregamento */ }
-      }
-    }
-    void recoverLivePlayback(source, attempt);
-  }, 5_000);
-}
-
-async function recoverLivePlayback(source, attempt) {
-  if (attempt !== state.playbackAttempt || !state.mpegtsPlayer || state.ticketController) return;
-  if (state.liveRecoveryCount >= 2) {
-    elements.playerMessage.textContent = 'O canal continua sem avancar. Tente iniciar a reproducao novamente.';
-    elements.playerMessage.classList.remove('visually-hidden');
-    return;
-  }
-
-  state.liveRecoveryCount += 1;
-  elements.playerMessage.textContent = 'A transmissao parou. Reconectando ao canal...';
-  elements.playerMessage.classList.remove('visually-hidden');
-  const controller = new AbortController();
-  state.ticketController = controller;
-  const timeout = window.setTimeout(() => controller.abort(), TICKET_TIMEOUT_MS);
-  try {
-    const playbackUrl = await mediaTicket(source, controller.signal);
-    if (attempt !== state.playbackAttempt || !state.session) return;
-    const previousPlayer = state.mpegtsPlayer;
-    state.mpegtsPlayer = null;
-    if (previousPlayer) {
-      try { previousPlayer.pause(); previousPlayer.unload(); previousPlayer.detachMediaElement(); previousPlayer.destroy(); }
-      catch { /* player already stopped */ }
-    }
-    const player = createLivePlayer(playbackUrl, attempt);
-    state.liveLastCurrentTime = elements.video.currentTime;
-    state.liveLastProgressAt = Date.now();
-    await player.play();
-  } catch (error) {
-    if (attempt !== state.playbackAttempt) return;
-    elements.playerMessage.textContent = `Nao foi possivel reconectar (${readableError(error)}).`;
-    elements.playerMessage.classList.remove('visually-hidden');
-  } finally {
-    window.clearTimeout(timeout);
-    if (state.ticketController === controller) state.ticketController = null;
-  }
 }
 
 async function tryCandidate() {
@@ -820,9 +763,7 @@ async function tryCandidate() {
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
-      const player = createLivePlayer(playbackUrl, attempt);
-      startLiveStallMonitor(source, attempt);
-      await player.play();
+      createLivePlayer(playbackUrl, attempt);
     } else {
       elements.video.src = playbackUrl;
       elements.video.load(); void elements.video.play().catch(() => {});
