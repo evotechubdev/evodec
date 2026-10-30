@@ -71,7 +71,7 @@ const elements = {
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
   mediaKind: $('#media-kind'),
-  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), liveNow: $('#live-now'),
+  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'),
   miniLiveDock: $('#live-mini-dock'), viewButtons: $$('[data-view]'),
 };
 
@@ -579,6 +579,7 @@ function openItem(item) {
   elements.trailer.disabled = !hasTrailer;
   elements.trailer.classList.toggle('has-trailer', hasTrailer);
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
+  elements.video.controls = true;
   elements.modal.showModal();
 }
 
@@ -629,9 +630,9 @@ function openLiveChannel(item) {
   elements.liveChoiceList.hidden = true;
   elements.video.removeAttribute('src');
   elements.video.load();
+  elements.video.controls = false;
   elements.video.hidden = false;
   elements.play.hidden = true;
-  elements.play.textContent = 'Assistir ao vivo';
   if (!elements.modal.open) elements.modal.showModal();
   void tryCandidate();
 }
@@ -834,43 +835,12 @@ function stopPlayback() {
   if (document.pictureInPictureElement === elements.video) {
     void document.exitPictureInPicture().catch(() => {});
   }
-  elements.liveNow.hidden = true;
-  elements.liveNow.classList.remove('is-live');
-  elements.liveNow.setAttribute('aria-pressed', 'false');
   if (state.mpegtsPlayer) {
     try { state.mpegtsPlayer.pause(); state.mpegtsPlayer.unload(); state.mpegtsPlayer.detachMediaElement(); state.mpegtsPlayer.destroy(); } catch { /* player already stopped */ }
     state.mpegtsPlayer = null;
   }
   elements.video.pause(); elements.video.removeAttribute('src'); elements.video.load();
   elements.trailerPlayer.removeAttribute('src'); elements.trailerPlayer.hidden = true;
-}
-
-function liveVideoRange(video) {
-  for (const ranges of [video.buffered, video.seekable]) {
-    if (ranges.length) {
-      const index = ranges.length - 1;
-      return { start: ranges.start(index), end: ranges.end(index) };
-    }
-  }
-  return null;
-}
-
-function updateLiveNowButton(video, button) {
-  const range = liveVideoRange(video);
-  const isLive = Boolean(range && range.end - video.currentTime <= 8);
-  button.classList.toggle('is-live', isLive);
-  button.setAttribute('aria-pressed', String(isLive));
-}
-
-function seekVideoToLive(video, button) {
-  const range = liveVideoRange(video);
-  if (!range) return;
-  try {
-    video.currentTime = Math.max(range.start, range.end - 0.25);
-    button.classList.add('is-live');
-    button.setAttribute('aria-pressed', 'true');
-    void video.play().catch(() => {});
-  } catch { /* o navegador pode bloquear a busca durante o carregamento */ }
 }
 
 function bindMainVideoEvents(video) {
@@ -896,7 +866,6 @@ function bindMainVideoEvents(video) {
     elements.playerMessage.textContent = '';
     elements.playerMessage.classList.add('visually-hidden');
     elements.play.hidden = true;
-    updateLiveNowButton(video, elements.liveNow);
   });
   video.addEventListener('waiting', (event) => {
     if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
@@ -918,11 +887,6 @@ function bindMainVideoEvents(video) {
     state.candidateIndex += 1;
     void tryCandidate();
   });
-  for (const eventName of ['timeupdate', 'progress', 'seeking', 'seeked']) {
-    video.addEventListener(eventName, (event) => {
-      if (isCurrentVideo(event)) updateLiveNowButton(video, elements.liveNow);
-    });
-  }
 }
 
 function stopMiniLivePlayer(id) {
@@ -992,35 +956,13 @@ function detachLivePlaybackToDock() {
   title.textContent = state.selected.name || 'Canal ao vivo';
   const actions = document.createElement('div');
   actions.className = 'live-mini-player-actions';
-  const mute = document.createElement('button');
-  mute.type = 'button';
-  mute.textContent = video.muted ? 'Ativar som' : 'Silenciar';
-  mute.setAttribute('aria-label', video.muted ? 'Ativar som do canal' : 'Silenciar canal');
-  mute.addEventListener('click', () => {
-    video.muted = !video.muted;
-    mute.textContent = video.muted ? 'Ativar som' : 'Silenciar';
-    mute.setAttribute('aria-label', video.muted ? 'Ativar som do canal' : 'Silenciar canal');
-  });
-  const liveNow = document.createElement('button');
-  liveNow.type = 'button';
-  liveNow.className = 'live-now-button';
-  liveNow.setAttribute('aria-label', 'Ir para a transmissao ao vivo');
-  liveNow.setAttribute('aria-pressed', 'false');
-  const liveDot = document.createElement('span');
-  liveDot.className = 'live-now-dot';
-  liveDot.setAttribute('aria-hidden', 'true');
-  liveNow.append(liveDot, document.createTextNode('Ao Vivo'));
-  liveNow.addEventListener('click', () => seekVideoToLive(video, liveNow));
-  for (const eventName of ['timeupdate', 'progress', 'seeking', 'seeked']) {
-    video.addEventListener(eventName, () => updateLiveNowButton(video, liveNow));
-  }
   const close = document.createElement('button');
   close.type = 'button';
   close.className = 'live-mini-player-close';
   close.textContent = '×';
   close.setAttribute('aria-label', `Parar ${state.selected.name || 'canal'}`);
   close.addEventListener('click', () => stopMiniLivePlayer(id));
-  actions.append(liveNow, mute, close);
+  actions.append(close);
   header.append(title, actions);
   makeLivePlayerDraggable(card, header);
   const surface = document.createElement('div');
@@ -1029,7 +971,7 @@ function detachLivePlaybackToDock() {
 
   const replacement = document.createElement('video');
   replacement.id = 'media-player';
-  replacement.controls = true;
+  replacement.controls = false;
   replacement.playsInline = true;
   replacement.setAttribute('controlslist', 'nodownload');
   replacement.hidden = true;
@@ -1040,7 +982,6 @@ function detachLivePlaybackToDock() {
   video.replaceWith(replacement);
   surface.append(video);
   elements.video = replacement;
-  elements.liveNow.hidden = true;
   bindMainVideoEvents(replacement);
 
   elements.miniLiveDock.append(card);
@@ -1120,7 +1061,7 @@ function createLivePlayer(playbackUrl, attempt, isLive = true) {
     void video.play().catch(() => {
       if (attempt !== state.playbackAttempt) return;
       elements.playerMessage.textContent = isLive
-        ? 'Toque em reproduzir no video para iniciar o canal.'
+        ? 'Não foi possível iniciar a reprodução do canal neste navegador.'
         : 'Toque em reproduzir no video para iniciar o show.';
       elements.playerMessage.classList.remove('visually-hidden');
     });
@@ -1148,7 +1089,7 @@ async function tryCandidate() {
     if (state.selected.kind === 'show') {
       elements.playerMessage.textContent = 'A grava\u00e7\u00e3o n\u00e3o p\u00f4de ser carregada. Verifique o link .ts do show no backend.';
     }
-    elements.video.hidden = true; elements.play.hidden = false; return;
+    elements.video.hidden = true; elements.play.hidden = state.selected.kind === 'live'; return;
   }
   elements.playerMessage.textContent = ''; elements.play.hidden = true;
   const controller = new AbortController(); state.ticketController = controller;
@@ -1159,12 +1100,9 @@ async function tryCandidate() {
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
+      elements.video.controls = false;
       createLivePlayer(playbackUrl, attempt, true);
-      elements.liveNow.hidden = false;
-      elements.liveNow.classList.remove('is-live');
-      elements.liveNow.setAttribute('aria-pressed', 'false');
     } else if (state.selected.kind === 'show') {
-      elements.liveNow.hidden = true;
       elements.video.controls = true;
       const transportStream = /\.(?:ts|mpegts)$/i.test(new URL(playbackUrl).pathname);
       if (transportStream) {
@@ -1176,12 +1114,13 @@ async function tryCandidate() {
         elements.video.load(); void playShowVideo(attempt);
       }
     } else {
+      elements.video.controls = true;
       elements.video.src = playbackUrl;
       elements.video.load(); void elements.video.play().catch(() => {});
     }
   } catch (error) {
     if (attempt !== state.playbackAttempt) return;
-    state.ticketController = null; elements.video.hidden = true; elements.play.hidden = false;
+    state.ticketController = null; elements.video.hidden = true; elements.play.hidden = state.selected.kind === 'live';
     const aborted = error instanceof DOMException && error.name === 'AbortError';
     elements.playerMessage.classList.remove('visually-hidden');
     elements.playerMessage.textContent = aborted ? 'O serviço demorou para responder. Tente novamente.'
@@ -1632,7 +1571,6 @@ elements.favoriteEpisodesFilter.addEventListener('click', () => {
 $$('.future-section').forEach(button => button.addEventListener('click', () => notice(`${button.dataset.future} já está estruturado e será ativado quando o catálogo correspondente for adicionado.`)));
 
 bindMainVideoEvents(elements.video);
-elements.liveNow.addEventListener('click', () => seekVideoToLive(elements.video, elements.liveNow));
 elements.play.addEventListener('click', () => {
   if (state.selected?.kind === 'show' && elements.video.getAttribute('src')) {
     void playShowVideo();
