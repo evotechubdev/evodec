@@ -910,6 +910,11 @@ function bindMainVideoEvents(video) {
   });
   video.addEventListener('error', (event) => {
     if (!isCurrentVideo(event)) return;
+    if (state.selected?.kind === 'live') {
+      elements.playerMessage.textContent = 'A transmissão encontrou um erro. Tente trocar de canal e voltar para reconectar.';
+      elements.playerMessage.classList.remove('visually-hidden');
+      return;
+    }
     state.candidateIndex += 1;
     void tryCandidate();
   });
@@ -1092,11 +1097,11 @@ function createLivePlayer(playbackUrl, attempt, isLive = true) {
   }, {
     enableWorker: false,
     enableStashBuffer: true,
-    stashInitialSize: 2 * 1024 * 1024,
+    stashInitialSize: 384 * 1024,
     isLive,
     lazyLoad: false,
-    liveBufferLatencyChasing: isLive,
-    liveSync: isLive,
+    liveBufferLatencyChasing: false,
+    liveSync: false,
     autoCleanupSourceBuffer: true,
     autoCleanupMaxBackwardDuration: 120,
     autoCleanupMinBackwardDuration: 60,
