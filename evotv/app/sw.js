@@ -1,9 +1,10 @@
-const CACHE = 'evotv-catalogo-offline-v31';
+const CACHE = 'evotv-catalogo-offline-v33';
 const APP_SHELL = [
   './',
   './index.html',
   './styles.css',
   './app.js',
+  './shows-catalog.js',
   './auth-api.js',
   './device-vault.js',
   './catalog-db.js',
@@ -11,6 +12,7 @@ const APP_SHELL = [
   './vendor/mpegts.js',
   './manifest.webmanifest',
   './assets/poster-placeholder.svg',
+  './assets/fallback-shows.png',
   './assets/logo_evotv.png',
   './assets/icon-192.png',
   './assets/icon-512.png',

@@ -1,4 +1,5 @@
 import { EvoAuthApi } from './auth-api.js';
+import { SHOWS_CATALOG } from './shows-catalog.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
 import {
@@ -31,7 +32,7 @@ try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list
 const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
-  activeSection: 'movies', seriesCatalog: null, liveCatalog: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
+  activeSection: 'movies', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
   miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
@@ -59,7 +60,7 @@ const elements = {
   parentalError: $('#parental-error'), parentalSubmit: $('#parental-submit'),
   profileSettingsButton: $('#profile-settings'), parentalSettingsButton: $('#parental-settings'),
   switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'), serverLabel: $('#server-label'),
-  adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
+  adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
   seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
@@ -268,7 +269,7 @@ function mediaCandidates(item) {
   if (direct) candidates.push(direct);
   const extension = String(item.container_extension || 'mp4').replace(/[^a-z0-9]/gi, '') || 'mp4';
   const id = String(item.stream_id || '');
-  const sourcePatterns = item.kind === 'series' ? state.seriesCatalog?.patterns || [] : state.catalog.patterns;
+  const sourcePatterns = item.kind === 'series' ? state.seriesCatalog?.patterns || [] : state.catalog?.patterns || [];
   const patterns = [...sourcePatterns].sort((left, right) => {
     if (left.id === item.url_padrao) return -1;
     if (right.id === item.url_padrao) return 1;
@@ -304,6 +305,27 @@ function renderCategoryFilters() {
     elements.categoryStrip.replaceChildren(...categories.map(category => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
       button.dataset.category = String(category.category_id); button.textContent = category.category_name;
+      button.addEventListener('click', () => { elements.category.value = button.dataset.category; applyFilters(); });
+      return button;
+    }));
+    return;
+  }
+  if (state.activeSection === 'shows') {
+    if (!state.showCatalog) return;
+    const categories = state.showCatalog.categories.filter(category => isAdultCategory(category) === state.adultView);
+    const previous = elements.category.value;
+    elements.category.replaceChildren(...categories.map(category => {
+      const option = document.createElement('option');
+      option.value = String(category.evo_show_category_key || category.category_id);
+      option.textContent = `${category.category_name || 'Shows'}${category.evo_show_kind === 'live' ? ' • Ao vivo' : ''}`;
+      return option;
+    }));
+    elements.category.value = categories.some(category => String(category.evo_show_category_key || category.category_id) === previous)
+      ? previous : String(categories[0]?.evo_show_category_key || categories[0]?.category_id || '');
+    elements.categoryStrip.replaceChildren(...categories.map(category => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
+      button.dataset.category = String(category.evo_show_category_key || category.category_id);
+      button.textContent = `${category.category_name || 'Shows'}${category.evo_show_kind === 'live' ? ' • Ao vivo' : ''}`;
       button.addEventListener('click', () => { elements.category.value = button.dataset.category; applyFilters(); });
       return button;
     }));
@@ -358,6 +380,7 @@ function renderCategoryFilters() {
 function applyFilters() {
   if (!state.session || (state.activeSection === 'movies' && !state.catalog)
     || (state.activeSection === 'series' && !state.seriesCatalog)
+    || (state.activeSection === 'shows' && !state.showCatalog)
     || (state.activeSection === 'live' && !state.liveCatalog)) return;
   const generation = ++state.page.generation;
   state.page.offset = 0; state.page.hasMore = false; state.page.loading = false;
@@ -436,16 +459,21 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
   };
   state.page.loading = true; renderGrid();
   try {
-    const idToken = await api.currentToken(auth);
-    const page = section === 'series'
-      ? await seriesCatalogPage(idToken, params)
-      : section === 'live' ? await liveCatalogPage(idToken, params)
-        : await movieCatalogPage(idToken, params);
+    let page;
+    if (section === 'shows') page = showsCatalogPage(params);
+    else {
+      const idToken = await api.currentToken(auth);
+      page = section === 'series' ? await seriesCatalogPage(idToken, params)
+        : section === 'live' ? await liveCatalogPage(idToken, params)
+          : await movieCatalogPage(idToken, params);
+    }
     if (generation !== state.page.generation || section !== state.activeSection || auth !== state.auth) return;
     if (section === 'series') {
       page.items = page.items.map(item => ({ ...item, kind: 'series', stream_id: String(item.series_id), stream_icon: item.cover || '', mappedEpisodeCount: Number(item.mappedEpisodeCount || 0) }));
     } else if (section === 'live') {
       page.items = page.items.map(item => ({ ...item, kind: 'live', stream_id: String(item.stream_id) }));
+    } else if (section === 'shows') {
+      page.items = page.items.map(item => ({ ...item, kind: item.evo_show_kind === 'live' ? 'live' : 'movie', stream_id: String(item.stream_id) }));
     }
     state.filtered.push(...page.items);
     state.page.offset = offset + page.items.length;
@@ -471,6 +499,19 @@ function movieCatalogPage(idToken, params) {
 
 function liveCatalogPage(idToken, params) {
   return fetchCatalogPage('/api/catalog/live/page', idToken, params);
+}
+
+function showsCatalogPage(params) {
+  const categories = state.showCatalog.categories.filter(category => isAdultCategory(category) === params.adult);
+  const allowed = new Set(categories.map(category => String(category.evo_show_category_key)));
+  const query = normalized(params.query);
+  const filtered = state.showCatalog.items.filter(item => {
+    const key = String(item.evo_show_category_key || '');
+    return allowed.has(key) && (params.category === ALL_CATEGORY || key === params.category)
+      && (!query || normalized(item.name).includes(query));
+  });
+  const items = filtered.slice(params.offset, params.offset + params.limit);
+  return { items, categories, offset: params.offset, limit: params.limit, hasMore: params.offset + items.length < filtered.length };
 }
 
 async function fetchCatalogPage(path, idToken, params) {
@@ -1209,7 +1250,7 @@ async function logout() {
   if (state.busy) return;
   const login = state.auth?.login || elements.username.value;
   setBusy(true); await releaseProfile(); await forgetDevice(login);
-  state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null;
+  state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null; state.showCatalog = SHOWS_CATALOG;
   state.page.generation += 1; state.page.offset = 0; state.page.hasMore = false; state.page.loading = false; state.filtered = [];
   clearSeriesCatalogCache(); clearLegacyCatalog();
   state.auth = null; state.account = null; state.rememberDevice = false; elements.password.value = '';
@@ -1235,7 +1276,7 @@ async function loadMovieCatalog() {
 async function enterMovieView(adult = false) {
   state.activeSection = 'movies';
   state.adultView = adult;
-  elements.moviesNav.classList.toggle('active', !adult); elements.seriesNav.classList.remove('active'); elements.adultNav.classList.toggle('active', adult);
+  elements.moviesNav.classList.toggle('active', !adult); elements.seriesNav.classList.remove('active'); elements.showsNav.classList.remove('active'); elements.channelsNav.classList.remove('active'); elements.adultNav.classList.toggle('active', adult);
   elements.heading.textContent = adult ? 'Filmes Adulto' : 'Filmes';
   elements.kicker.textContent = adult ? 'CONTEUDO ADULTO 18+' : 'CATALOGO ON DEMAND';
   elements.searchLabel.setAttribute('aria-label', adult ? 'Buscar filmes adultos' : 'Buscar filmes');
@@ -1256,7 +1297,7 @@ async function enterMovieView(adult = false) {
 async function enterSeriesView() {
   if (!state.session) return;
   state.activeSection = 'series';
-  elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.add('active'); elements.adultNav.classList.toggle('active', state.adultView);
+  elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.add('active'); elements.showsNav.classList.remove('active'); elements.channelsNav.classList.remove('active'); elements.adultNav.classList.toggle('active', state.adultView);
   elements.heading.textContent = state.adultView ? 'Séries Adulto' : 'Séries'; elements.kicker.textContent = state.adultView ? 'SÉRIES · CONTEÚDO ADULTO 18+' : 'SÉRIES E EPISÓDIOS';
   elements.searchLabel.setAttribute('aria-label', state.adultView ? 'Buscar séries adultas' : 'Buscar séries');
   elements.search.placeholder = state.adultView ? 'Buscar séries adultas...' : 'Buscar séries...'; elements.search.value = '';
@@ -1283,7 +1324,7 @@ async function enterLiveView() {
   if (!state.session) return;
   state.activeSection = 'live';
   elements.channelsNav.classList.add('active');
-  elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.remove('active');
+  elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.remove('active'); elements.showsNav.classList.remove('active');
   elements.adultNav.classList.toggle('active', state.adultView);
   elements.heading.textContent = state.adultView ? 'Canais Adulto' : 'Canais';
   elements.kicker.textContent = state.adultView ? 'CANAIS AO VIVO · CONTEÚDO 18+' : 'TELEVISÃO AO VIVO';
@@ -1310,6 +1351,38 @@ async function enterLiveView() {
   } catch (error) {
     if (state.activeSection !== 'live') return;
     elements.status.textContent = `Não foi possível carregar canais (${readableError(error)}).`;
+    elements.status.parentElement.hidden = false; elements.status.classList.add('error');
+  }
+}
+
+function enterShowsView() {
+  if (!state.session) return;
+  state.activeSection = 'shows';
+  elements.showsNav.classList.add('active');
+  elements.channelsNav.classList.remove('active'); elements.moviesNav.classList.remove('active');
+  elements.seriesNav.classList.remove('active'); elements.adultNav.classList.toggle('active', state.adultView);
+  elements.heading.textContent = 'Shows';
+  elements.kicker.textContent = 'APRESENTAÇÕES ON DEMAND';
+  elements.searchLabel.setAttribute('aria-label', 'Buscar shows');
+  elements.search.placeholder = 'Buscar shows...'; elements.search.value = '';
+  elements.status.textContent = 'Carregando catálogo de shows...';
+  elements.status.parentElement.hidden = false; elements.status.classList.remove('error');
+  try {
+    state.showCatalog ||= SHOWS_CATALOG;
+    if (state.activeSection !== 'shows' || !state.session) return;
+    elements.status.textContent = ''; elements.status.parentElement.hidden = true;
+    elements.status.classList.remove('error');
+    if (!state.showCatalog.categories.length) {
+      elements.category.replaceChildren(); elements.categoryStrip.replaceChildren();
+      state.filtered = []; renderGrid();
+      elements.status.textContent = 'Este catálogo ainda não tem shows disponíveis.';
+      elements.status.parentElement.hidden = false;
+      return;
+    }
+    renderCategoryFilters(); applyFilters();
+  } catch (error) {
+    if (state.activeSection !== 'shows') return;
+    elements.status.textContent = `Não foi possível carregar shows (${readableError(error)}).`;
     elements.status.parentElement.hidden = false; elements.status.classList.add('error');
   }
 }
@@ -1469,6 +1542,7 @@ elements.logout.addEventListener('click', () => { void logout(); });
 elements.channelsNav.addEventListener('click', () => { void enterLiveView(); });
 elements.moviesNav.addEventListener('click', () => enterMovieView(false));
 elements.seriesNav.addEventListener('click', () => { void enterSeriesView(); });
+elements.showsNav.addEventListener('click', () => { void enterShowsView(); });
 elements.adultNav.addEventListener('click', () => { void openAdultSection(); });
 elements.closeSeries.addEventListener('click', closeSeriesDetails);
 elements.seriesDialog.addEventListener('cancel', (event) => { event.preventDefault(); closeSeriesDetails(); });
