@@ -33,6 +33,7 @@ const state = {
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'movies', seriesCatalog: null, liveCatalog: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
+  miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
   busy: false, adultView: false, profileSettings: null, parentalSettings: null,
   parentalMode: 'settings', sessionWatcher: null, noticeTimer: null, rememberDevice: true,
@@ -66,7 +67,8 @@ const elements = {
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
   mediaKind: $('#media-kind'),
-  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), viewButtons: $$('[data-view]'),
+  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'), minimizeLive: $('#minimize-live'), liveNow: $('#live-now'),
+  miniLiveDock: $('#live-mini-dock'), viewButtons: $$('[data-view]'),
 };
 
 function showScreen(name) {
@@ -342,7 +344,7 @@ function renderGrid() {
     titleRow.append(title, actions);
     const meta = document.createElement('small'); meta.textContent = item.kind === 'series'
       ? `${item.category_name || 'Série'} · ${item.mappedEpisodeCount} episódios`
-      : item.kind === 'live' ? `${item.category_name || 'Canal'} · AO VIVO`
+      : item.kind === 'live' ? (item.category_name || 'Canal')
         : item.category_name || 'Filme'; copy.append(titleRow, meta);
     card.append(poster, copy); return card;
   }));
@@ -419,15 +421,18 @@ function openItem(item) {
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
+  elements.minimizeLive.hidden = true;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
   elements.mediaKind.textContent = 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
   elements.play.textContent = 'Reproduzir';
   elements.modalMeta.textContent = item.category_name || 'Filme';
+  elements.modalSynopsis.hidden = false;
   elements.modalSynopsis.textContent = synopsisFrom(item);
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = '';
   elements.trailer.dataset.url = trailerFrom(item);
+  elements.trailer.hidden = false;
   elements.trailer.disabled = !elements.trailer.dataset.url;
   elements.trailer.classList.toggle('has-trailer', Boolean(elements.trailer.dataset.url));
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
@@ -440,17 +445,21 @@ function openLiveChannel(item) {
   state.selected = { ...item, kind: 'live' };
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
+  elements.minimizeLive.hidden = true;
   elements.modalTitle.textContent = item.name || 'Canal';
   elements.modalMeta.textContent = item.category_name || 'Televisão ao vivo';
-  elements.modalSynopsis.textContent = 'Reprodução ao vivo protegida pelo EVOTV.';
+  elements.modalSynopsis.textContent = '';
+  elements.modalSynopsis.hidden = true;
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = '';
   elements.trailer.dataset.url = '';
+  elements.trailer.hidden = true;
   elements.trailer.disabled = true;
   elements.trailer.classList.remove('has-trailer');
   elements.liveChoiceList.replaceChildren();
   const choices = Array.isArray(item.evo_live_choices) ? item.evo_live_choices : [];
   if (choices.length > 1) {
+    elements.modalSynopsis.hidden = false;
     elements.modalSynopsis.textContent = 'Escolha o canal que deseja assistir.';
     elements.liveChoiceList.hidden = false;
     elements.play.hidden = true;
@@ -643,10 +652,12 @@ function openSeriesEpisode(episode) {
   elements.mediaKind.textContent = 'SÉRIE';
   elements.modalTitle.textContent = state.selected.seriesName;
   elements.modalMeta.textContent = `Temporada ${episode.season} · Episódio ${episode.episode_num}`;
+  elements.modalSynopsis.hidden = false;
   elements.modalSynopsis.textContent = synopsisFrom(series);
   elements.modalImage.src = safeImage(series.cover) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = '';
   elements.trailer.dataset.url = trailerFrom(series);
+  elements.trailer.hidden = false;
   elements.trailer.disabled = !elements.trailer.dataset.url;
   elements.trailer.classList.toggle('has-trailer', Boolean(elements.trailer.dataset.url));
   elements.video.removeAttribute('src');
@@ -668,12 +679,163 @@ function closeSeriesDetails() {
 
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
+  elements.minimizeLive.hidden = true;
+  elements.liveNow.hidden = true;
+  elements.liveNow.classList.remove('is-live');
+  elements.liveNow.setAttribute('aria-pressed', 'false');
   if (state.mpegtsPlayer) {
     try { state.mpegtsPlayer.pause(); state.mpegtsPlayer.unload(); state.mpegtsPlayer.detachMediaElement(); state.mpegtsPlayer.destroy(); } catch { /* player already stopped */ }
     state.mpegtsPlayer = null;
   }
   elements.video.pause(); elements.video.removeAttribute('src'); elements.video.load();
   elements.trailerPlayer.removeAttribute('src'); elements.trailerPlayer.hidden = true;
+}
+
+function liveVideoRange(video) {
+  for (const ranges of [video.buffered, video.seekable]) {
+    if (ranges.length) {
+      const index = ranges.length - 1;
+      return { start: ranges.start(index), end: ranges.end(index) };
+    }
+  }
+  return null;
+}
+
+function updateLiveNowButton(video, button) {
+  const range = liveVideoRange(video);
+  const isLive = Boolean(range && range.end - video.currentTime <= 8);
+  button.classList.toggle('is-live', isLive);
+  button.setAttribute('aria-pressed', String(isLive));
+}
+
+function seekVideoToLive(video, button) {
+  const range = liveVideoRange(video);
+  if (!range) return;
+  try {
+    video.currentTime = Math.max(range.start, range.end - 0.25);
+    button.classList.add('is-live');
+    button.setAttribute('aria-pressed', 'true');
+    void video.play().catch(() => {});
+  } catch { /* o navegador pode bloquear a busca durante o carregamento */ }
+}
+
+function bindMainVideoEvents(video) {
+  const isCurrentVideo = (event) => event.currentTarget === elements.video;
+  video.addEventListener('playing', (event) => {
+    if (!isCurrentVideo(event)) return;
+    elements.playerMessage.textContent = '';
+    elements.playerMessage.classList.add('visually-hidden');
+    elements.play.hidden = true;
+    updateLiveNowButton(video, elements.liveNow);
+  });
+  video.addEventListener('waiting', (event) => {
+    if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
+    elements.playerMessage.textContent = 'O canal está aguardando novos dados da transmissão…';
+    elements.playerMessage.classList.remove('visually-hidden');
+  });
+  video.addEventListener('stalled', (event) => {
+    if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
+    elements.playerMessage.textContent = 'A transmissão parou de enviar dados. Verifique a conexão com o serviço de canais.';
+    elements.playerMessage.classList.remove('visually-hidden');
+  });
+  video.addEventListener('error', (event) => {
+    if (!isCurrentVideo(event)) return;
+    state.candidateIndex += 1;
+    void tryCandidate();
+  });
+  for (const eventName of ['timeupdate', 'progress', 'seeking', 'seeked']) {
+    video.addEventListener(eventName, (event) => {
+      if (isCurrentVideo(event)) updateLiveNowButton(video, elements.liveNow);
+    });
+  }
+}
+
+function stopMiniLivePlayer(id) {
+  const entry = state.miniLivePlayers.get(id);
+  if (!entry) return;
+  try { entry.player.pause(); entry.player.unload(); entry.player.detachMediaElement(); entry.player.destroy(); }
+  catch { /* player already stopped */ }
+  entry.video.pause(); entry.video.removeAttribute('src'); entry.video.load();
+  entry.card.remove();
+  state.miniLivePlayers.delete(id);
+  elements.miniLiveDock.hidden = state.miniLivePlayers.size === 0;
+}
+
+function stopAllMiniLivePlayers() {
+  for (const id of state.miniLivePlayers.keys()) stopMiniLivePlayer(id);
+}
+
+function minimizeLivePlayback() {
+  if (state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
+  const id = ++state.nextMiniLivePlayerId;
+  const video = elements.video;
+  const card = document.createElement('section');
+  card.className = 'live-mini-player';
+  card.setAttribute('aria-label', `Canal minimizado: ${state.selected.name || 'Canal'}`);
+  const header = document.createElement('header');
+  header.className = 'live-mini-player-header';
+  const title = document.createElement('strong');
+  title.textContent = state.selected.name || 'Canal ao vivo';
+  const actions = document.createElement('div');
+  actions.className = 'live-mini-player-actions';
+  const mute = document.createElement('button');
+  mute.type = 'button';
+  mute.textContent = video.muted ? 'Ativar som' : 'Silenciar';
+  mute.setAttribute('aria-label', video.muted ? 'Ativar som do canal' : 'Silenciar canal');
+  mute.addEventListener('click', () => {
+    video.muted = !video.muted;
+    mute.textContent = video.muted ? 'Ativar som' : 'Silenciar';
+    mute.setAttribute('aria-label', video.muted ? 'Ativar som do canal' : 'Silenciar canal');
+  });
+  const liveNow = document.createElement('button');
+  liveNow.type = 'button';
+  liveNow.className = 'live-now-button';
+  liveNow.setAttribute('aria-label', 'Ir para a transmissao ao vivo');
+  liveNow.setAttribute('aria-pressed', 'false');
+  const liveDot = document.createElement('span');
+  liveDot.className = 'live-now-dot';
+  liveDot.setAttribute('aria-hidden', 'true');
+  liveNow.append(liveDot, document.createTextNode('Ao Vivo'));
+  liveNow.addEventListener('click', () => seekVideoToLive(video, liveNow));
+  for (const eventName of ['timeupdate', 'progress', 'seeking', 'seeked']) {
+    video.addEventListener(eventName, () => updateLiveNowButton(video, liveNow));
+  }
+  const close = document.createElement('button');
+  close.type = 'button';
+  close.className = 'live-mini-player-close';
+  close.textContent = '×';
+  close.setAttribute('aria-label', `Parar ${state.selected.name || 'canal'}`);
+  close.addEventListener('click', () => stopMiniLivePlayer(id));
+  actions.append(liveNow, mute, close);
+  header.append(title, actions);
+  const surface = document.createElement('div');
+  surface.className = 'live-mini-player-surface';
+  card.append(header, surface);
+
+  const replacement = document.createElement('video');
+  replacement.id = 'media-player';
+  replacement.controls = true;
+  replacement.playsInline = true;
+  replacement.setAttribute('controlslist', 'nodownload');
+  replacement.hidden = true;
+  video.id = '';
+  video.classList.add('live-mini-player-video');
+  video.hidden = false;
+  video.replaceWith(replacement);
+  surface.append(video);
+  elements.video = replacement;
+  elements.liveNow.hidden = true;
+  bindMainVideoEvents(replacement);
+
+  elements.miniLiveDock.append(card);
+  elements.miniLiveDock.hidden = false;
+  state.miniLivePlayers.set(id, { player: state.mpegtsPlayer, video, card });
+  state.mpegtsPlayer = null;
+  elements.minimizeLive.hidden = true;
+  if (elements.modal.open) {
+    state.preserveLiveOnModalClose = true;
+    elements.modal.close();
+  }
 }
 
 async function mediaTicket(source, signal, download = false) {
@@ -726,9 +888,17 @@ function createLivePlayer(playbackUrl, attempt) {
     autoCleanupMinBackwardDuration: 60,
   });
   state.mpegtsPlayer = player;
+  const video = elements.video;
+  let pausedByUser = false;
+  let hasStartedPlayback = false;
+  video.addEventListener('pause', () => {
+    if (hasStartedPlayback) pausedByUser = true;
+  });
+  video.addEventListener('play', () => { hasStartedPlayback = true; pausedByUser = false; });
   const startPlayback = () => {
-    if (attempt !== state.playbackAttempt) return;
-    void elements.video.play().catch(() => {
+    if (attempt !== state.playbackAttempt || pausedByUser || (hasStartedPlayback && video.paused)) return;
+    if (pausedByUser) return;
+    void video.play().catch(() => {
       if (attempt !== state.playbackAttempt) return;
       elements.playerMessage.textContent = 'Toque em reproduzir no video para iniciar o canal.';
       elements.playerMessage.classList.remove('visually-hidden');
@@ -764,6 +934,10 @@ async function tryCandidate() {
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
       createLivePlayer(playbackUrl, attempt);
+      elements.minimizeLive.hidden = false;
+      elements.liveNow.hidden = false;
+      elements.liveNow.classList.remove('is-live');
+      elements.liveNow.setAttribute('aria-pressed', 'false');
     } else {
       elements.video.src = playbackUrl;
       elements.video.load(); void elements.video.play().catch(() => {});
@@ -867,7 +1041,7 @@ function startSessionWatcher() {
 }
 
 function endLocalProfile() {
-  state.sessionWatcher?.abort(); state.sessionWatcher = null; stopPlayback();
+  state.sessionWatcher?.abort(); state.sessionWatcher = null; stopPlayback(); stopAllMiniLivePlayers();
   if (elements.modal.open) elements.modal.close();
   state.session = null; state.adultView = false; state.selected = null; state.filtered = []; state.favorites = new Set(); elements.grid.replaceChildren();
 }
@@ -1158,31 +1332,27 @@ elements.favoriteEpisodesFilter.addEventListener('click', () => {
 });
 $$('.future-section').forEach(button => button.addEventListener('click', () => notice(`${button.dataset.future} já está estruturado e será ativado quando o catálogo correspondente for adicionado.`)));
 
-elements.video.addEventListener('playing', () => {
-  elements.playerMessage.textContent = '';
-  elements.playerMessage.classList.add('visually-hidden');
-  elements.play.hidden = true;
-});
-elements.video.addEventListener('waiting', () => {
-  if (state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
-  elements.playerMessage.textContent = 'O canal está aguardando novos dados da transmissão…';
-  elements.playerMessage.classList.remove('visually-hidden');
-});
-elements.video.addEventListener('stalled', () => {
-  if (state.selected?.kind !== 'live' || !state.mpegtsPlayer) return;
-  elements.playerMessage.textContent = 'A transmissão parou de enviar dados. Verifique a conexão com o serviço de canais.';
-  elements.playerMessage.classList.remove('visually-hidden');
-});
-elements.video.addEventListener('canplay', () => { void elements.video.play().catch(() => {}); });
-elements.video.addEventListener('error', () => { state.candidateIndex += 1; void tryCandidate(); });
+bindMainVideoEvents(elements.video);
+elements.liveNow.addEventListener('click', () => seekVideoToLive(elements.video, elements.liveNow));
 elements.play.addEventListener('click', () => { void tryCandidate(); });
 elements.trailer.addEventListener('click', () => {
   const url = elements.trailer.dataset.url;
   if (!url) return;
   window.open(url, '_blank', 'noopener,noreferrer');
 });
+elements.minimizeLive.addEventListener('click', minimizeLivePlayback);
 elements.close.addEventListener('click', () => elements.modal.close());
-elements.modal.addEventListener('close', stopPlayback);
+elements.modal.addEventListener('close', () => {
+  if (state.preserveLiveOnModalClose) {
+    state.preserveLiveOnModalClose = false;
+    return;
+  }
+  if (state.selected?.kind === 'live' && state.mpegtsPlayer) {
+    minimizeLivePlayback();
+    return;
+  }
+  stopPlayback();
+});
 elements.search.addEventListener('input', () => {
   window.clearTimeout(state.searchTimer);
   state.searchTimer = window.setTimeout(applyFilters, 250);
