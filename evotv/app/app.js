@@ -1,6 +1,6 @@
 import { EvoAuthApi } from './auth-api.js';
-import { clearLegacyCatalog, currentCatalog, normalized } from './catalog-db.js';
-import { clearSeriesCatalogCache, currentSeriesCatalog, episodesForSeries } from './series-catalog-db.js';
+import { clearLegacyCatalog, normalized } from './catalog-db.js';
+import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
 import {
   clearProfilePins,
   clearRememberedAuth,
@@ -25,7 +25,8 @@ let storedView = 'grid';
 try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list' : 'grid'; } catch { /* opcional */ }
 
 const state = {
-  catalog: null, catalogLoad: null, categories: [], filtered: [], visible: PAGE_SIZE,
+  catalog: null, catalogLoad: null, categories: [], filtered: [],
+  page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'movies', seriesCatalog: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, playbackAttempt: 0,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
@@ -102,7 +103,6 @@ const profileName = (profile) => state.account?.profileNames?.[profile - 1]?.tri
 const validParentalPin = (value) => /^\d{4,8}$/.test(value);
 const isAdultCategory = (category) => /(^|\s)(adultos?|hentai|18)(\s|$)/.test(normalized(category?.category_name));
 const isReleaseCategory = (category) => normalized(category?.category_name).replace(/[^a-z0-9]+/g, ' ').trim() === 'filmes lancamentos 2026';
-const recentValue = (item) => Number(item?.added || 0) || 0;
 
 function accountFingerprint(value) {
   let hash = 2166136261;
@@ -159,19 +159,17 @@ function trailerFrom(item = {}) {
   if (/^[a-zA-Z0-9_-]{6,20}$/.test(value)) return `https://www.youtube.com/watch?v=${encodeURIComponent(value)}`;
   try {
     const url = new URL(value);
-    if (!['http:', 'https:'].includes(url.protocol)) throw new Error('TRAILER_INVALID');
+    if (url.protocol !== 'https:') throw new Error('TRAILER_INVALID');
     if (['youtu.be', 'www.youtu.be'].includes(url.hostname)) {
       const id = url.pathname.split('/').filter(Boolean)[0] || '';
       if (/^[a-zA-Z0-9_-]{6,20}$/.test(id)) return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
     } else if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'www.youtube-nocookie.com'].includes(url.hostname)) {
-      const id = url.searchParams.get('v') || (/^\/embed\/([^/]+)/.exec(url.pathname)?.[1] || '');
+      const id = url.searchParams.get('v')
+        || (/^\/(?:embed|shorts|live)\/([^/]+)/.exec(url.pathname)?.[1] || '');
       if (/^[a-zA-Z0-9_-]{6,20}$/.test(id)) return `https://www.youtube.com/watch?v=${encodeURIComponent(id)}`;
-      url.protocol = 'https:';
-      return url.href;
     }
-  } catch { /* busca no YouTube pelo título abaixo */ }
-  const query = `${String(item.name || item.title || 'filme').trim()} trailer oficial`;
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+  } catch { /* sem ID de vídeo não há link direto confiável */ }
+  return '';
 }
 
 function safeImage(value) {
@@ -205,6 +203,7 @@ function renderCategoryFilters() {
     if (!state.seriesCatalog) return;
     const source = state.seriesCatalog.categories.filter(category => isAdultCategory(category) === state.adultView);
     const categories = [
+      { category_id: RECENT_CATEGORY, category_name: 'Recém Adicionadas' },
       { category_id: ALL_CATEGORY, category_name: state.adultView ? 'Todas as séries adultas' : 'Todas as séries' },
       { category_id: FAVORITES_CATEGORY, category_name: state.adultView ? 'Favoritas adultas' : 'Favoritas' },
       ...source,
@@ -212,7 +211,7 @@ function renderCategoryFilters() {
     elements.category.replaceChildren(...categories.map(category => {
       const option = document.createElement('option'); option.value = String(category.category_id); option.textContent = category.category_name; return option;
     }));
-    elements.category.value = ALL_CATEGORY;
+    elements.category.value = RECENT_CATEGORY;
     elements.categoryStrip.replaceChildren(...categories.map(category => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
       button.dataset.category = String(category.category_id); button.textContent = category.category_name;
@@ -248,40 +247,19 @@ function renderCategoryFilters() {
 
 function applyFilters() {
   if (!state.session || (state.activeSection === 'movies' && !state.catalog) || (state.activeSection === 'series' && !state.seriesCatalog)) return;
-  const query = normalized(elements.search.value.trim());
+  const generation = ++state.page.generation;
+  state.page.offset = 0; state.page.hasMore = false; state.page.loading = false;
+  state.filtered = [];
+  elements.grid.replaceChildren();
+  elements.status.textContent = 'Carregando conteudos...'; elements.status.parentElement.hidden = false; elements.status.classList.remove('error');
   const category = elements.category.value;
-  if (state.activeSection === 'series') {
-    const categoryMap = new Map(state.seriesCatalog.categories.map(item => [String(item.category_id), item]));
-    state.filtered = state.seriesCatalog.series.filter(item => isAdultCategory(categoryMap.get(String(item.category_id))) === state.adultView
-      && (!query || normalized(item.name).includes(query))
-      && (category === ALL_CATEGORY || (category === FAVORITES_CATEGORY
-        ? state.favorites.has(`series:${item.series_id}`) : String(item.category_id) === category)))
-      .map(item => ({ ...item, kind: 'series', stream_id: String(item.series_id), stream_icon: item.cover || '', mappedEpisodeCount: Number(item.mappedEpisodeCount || 0) }));
-    if (category === RECENT_CATEGORY) state.filtered.sort((left, right) => Number(right.last_modified || 0) - Number(left.last_modified || 0));
-    state.visible = PAGE_SIZE;
-    elements.categoryStrip.querySelectorAll('[data-category]').forEach(button => button.classList.toggle('active', button.dataset.category === category));
-    renderGrid();
-    return;
-  }
-  const categoryMap = new Map(state.categories.map(item => [String(item.category_id || ''), item]));
-  state.filtered = state.catalog.items.filter((item) => {
-    const adult = isAdultCategory(categoryMap.get(String(item.category_id || '')));
-    return adult === state.adultView && (!query || normalized(item.name).includes(query))
-      && (category === MOVIE_RELEASES_CATEGORY ? isReleaseCategory(categoryMap.get(String(item.category_id || '')))
-        : category === RECENT_CATEGORY || category === ALL_CATEGORY ? true
-          : category === FAVORITES_CATEGORY ? state.favorites.has(String(item.stream_id || ''))
-            : String(item.category_id || '') === category);
-  });
-  if ([MOVIE_RELEASES_CATEGORY, RECENT_CATEGORY].includes(category)) {
-    state.filtered.sort((left, right) => recentValue(right) - recentValue(left) || Number(right.stream_id || 0) - Number(left.stream_id || 0));
-  }
-  state.visible = PAGE_SIZE;
   elements.categoryStrip.querySelectorAll('[data-category]').forEach(button => button.classList.toggle('active', button.dataset.category === category));
   renderGrid();
+  void loadCatalogPage(generation, true);
 }
 
 function renderGrid() {
-  const items = state.filtered.slice(0, state.visible);
+  const items = state.filtered;
   elements.grid.classList.toggle('list-view', state.view === 'list');
   elements.grid.replaceChildren(...items.map((item) => {
     const card = document.createElement('article'); card.className = 'catalog-card'; card.tabIndex = 0; card.setAttribute('role', 'button');
@@ -318,7 +296,67 @@ function renderGrid() {
       : item.category_name || 'Filme'; copy.append(titleRow, meta);
     card.append(poster, copy); return card;
   }));
-  elements.sentinel.hidden = true; elements.loadMore.hidden = state.visible >= state.filtered.length;
+  elements.sentinel.hidden = !state.page.hasMore;
+  elements.loadMore.hidden = !state.page.hasMore;
+  elements.loadMore.disabled = state.page.loading;
+}
+
+async function loadCatalogPage(generation = state.page.generation, firstPage = false) {
+  if (state.page.loading || (!firstPage && !state.page.hasMore)) return;
+  const section = state.activeSection;
+  const auth = state.auth;
+  const offset = firstPage ? 0 : state.page.offset;
+  const params = {
+    offset, limit: PAGE_SIZE, query: elements.search.value.trim(), category: elements.category.value,
+    adult: state.adultView, favoriteIds: state.favorites,
+  };
+  state.page.loading = true; renderGrid();
+  try {
+    const idToken = await api.currentToken(auth);
+    const page = section === 'series'
+      ? await seriesCatalogPage(idToken, params)
+      : await movieCatalogPage(idToken, params);
+    if (generation !== state.page.generation || section !== state.activeSection || auth !== state.auth) return;
+    if (section === 'series') {
+      page.items = page.items.map(item => ({ ...item, kind: 'series', stream_id: String(item.series_id), stream_icon: item.cover || '', mappedEpisodeCount: Number(item.mappedEpisodeCount || 0) }));
+    }
+    state.filtered.push(...page.items);
+    state.page.offset = offset + page.items.length;
+    state.page.hasMore = Boolean(page.hasMore);
+    elements.status.textContent = ''; elements.status.parentElement.hidden = true; elements.status.classList.remove('error');
+  } catch (error) {
+    if (generation !== state.page.generation) return;
+    elements.status.textContent = `Nao foi possivel carregar conteudos (${readableError(error)}).`;
+    elements.status.parentElement.hidden = false; elements.status.classList.add('error');
+    if (firstPage) state.page.hasMore = false;
+  } finally {
+    if (generation === state.page.generation) { state.page.loading = false; renderGrid(); }
+  }
+}
+
+function seriesCatalogPage(idToken, params) {
+  return fetchCatalogPage('/api/catalog/series/page', idToken, params);
+}
+
+function movieCatalogPage(idToken, params) {
+  return fetchCatalogPage('/api/catalog/movies/page', idToken, params);
+}
+
+async function fetchCatalogPage(path, idToken, params) {
+  const search = new URLSearchParams({
+    offset: String(params.offset), limit: String(params.limit), q: params.query,
+    category: params.category, adult: params.adult ? '1' : '0',
+  });
+  if (params.category === FAVORITES_CATEGORY && params.favoriteIds?.size) {
+    search.set('favorites', [...params.favoriteIds].filter(id => /^\d{1,20}$/.test(id) || /^series:\d{1,20}$/.test(id)).join(','));
+  }
+  const response = await fetch(`${MEDIA_BACKEND_URL}${path}?${search}`, {
+    headers: { authorization: `Bearer ${idToken}`, accept: 'application/json' }, credentials: 'omit', cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(data?.error || `Falha no catalogo (${response.status}).`));
+  if (!Array.isArray(data.items)) throw new Error('Resposta de pagina do catalogo invalida.');
+  return data;
 }
 
 function openItem(item) {
@@ -673,6 +711,7 @@ async function logout() {
   const login = state.auth?.login || elements.username.value;
   setBusy(true); await releaseProfile(); await forgetDevice(login);
   state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null;
+  state.page.generation += 1; state.page.offset = 0; state.page.hasMore = false; state.page.loading = false; state.filtered = [];
   clearSeriesCatalogCache(); clearLegacyCatalog();
   state.auth = null; state.account = null; state.rememberDevice = false; elements.password.value = '';
   elements.rememberLogin.checked = false;
@@ -685,11 +724,11 @@ async function loadMovieCatalog() {
   const auth = state.auth;
   state.catalogLoad = (async () => {
     const idToken = await api.currentToken(auth);
-    const catalog = await currentCatalog(idToken);
+    const catalog = await movieCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: false, favoriteIds: state.favorites });
     if (state.auth !== auth) throw new Error('A sessao mudou durante o carregamento.');
-    state.catalog = catalog;
+    state.catalog = { patterns: catalog.patterns || [] };
     state.categories = Array.isArray(catalog.categories) ? [...catalog.categories] : [];
-    return catalog;
+    return state.catalog;
   })().finally(() => { state.catalogLoad = null; });
   return state.catalogLoad;
 }
@@ -713,7 +752,6 @@ async function enterMovieView(adult = false) {
     }
   }
   if (state.activeSection !== 'movies' || !state.session) return;
-  elements.status.textContent = ''; elements.status.parentElement.hidden = true; elements.status.classList.remove('error');
   renderCategoryFilters(); applyFilters();
 }
 async function enterSeriesView() {
@@ -726,7 +764,10 @@ async function enterSeriesView() {
   elements.status.textContent = 'Carregando catálogo de séries…'; elements.status.parentElement.hidden = false;
   try {
     const idToken = await api.currentToken(state.auth);
-    state.seriesCatalog ||= await currentSeriesCatalog(idToken);
+    if (!state.seriesCatalog) {
+      const catalog = await seriesCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: false, favoriteIds: state.favorites });
+      state.seriesCatalog = { categories: catalog.categories || [], segments: catalog.segments || [], patterns: [] };
+    }
     if (state.activeSection !== 'series' || !state.session) return;
     elements.status.textContent = '';
     elements.status.parentElement.hidden = true;
@@ -922,7 +963,11 @@ elements.trailer.addEventListener('click', () => {
 });
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', stopPlayback);
-elements.search.addEventListener('input', applyFilters); elements.category.addEventListener('change', applyFilters);
+elements.search.addEventListener('input', () => {
+  window.clearTimeout(state.searchTimer);
+  state.searchTimer = window.setTimeout(applyFilters, 250);
+});
+elements.category.addEventListener('change', applyFilters);
 elements.viewButtons.forEach(button => {
   button.classList.toggle('active', button.dataset.view === state.view);
   button.addEventListener('click', () => {
@@ -935,12 +980,15 @@ elements.categoryStrip.addEventListener('wheel', (event) => {
   if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) return;
   event.preventDefault(); elements.categoryStrip.scrollLeft += event.deltaY;
 }, { passive: false });
-elements.loadMore.addEventListener('click', () => { state.visible += PAGE_SIZE; renderGrid(); });
-elements.grid.addEventListener('scroll', () => {
-  if (state.visible < state.filtered.length && elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 700) {
-    state.visible += PAGE_SIZE; renderGrid();
-  }
-});
+elements.loadMore.addEventListener('click', () => { void loadCatalogPage(); });
+const loadOnScroll = () => {
+  if (!state.page.hasMore || state.page.loading) return;
+  const nearGridBottom = elements.grid.scrollTop + elements.grid.clientHeight >= elements.grid.scrollHeight - 700;
+  const nearPageBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 700;
+  if (nearGridBottom || nearPageBottom) void loadCatalogPage();
+};
+elements.grid.addEventListener('scroll', loadOnScroll, { passive: true });
+window.addEventListener('scroll', loadOnScroll, { passive: true });
 
 async function start() {
   clearLegacyCatalog();
