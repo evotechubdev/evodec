@@ -1,4 +1,4 @@
-const CACHE = 'evotv-catalogo-offline-v82';
+const CACHE = 'evotv-catalogo-offline-v83';
 const APP_SHELL = [
   './',
   './index.html',
@@ -18,6 +18,18 @@ const APP_SHELL = [
   './assets/icon-512.png',
 ];
 
+function isolateNavigation(response) {
+  if (!response || response.type === 'opaque' || response.status === 0) return response;
+  const headers = new Headers(response.headers);
+  headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  headers.set('Cross-Origin-Embedder-Policy', 'credentialless');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()));
 });
@@ -31,12 +43,12 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
   event.respondWith((async () => {
     const cached = await caches.match(event.request);
-    if (cached) return cached;
+    if (cached) return event.request.mode === 'navigate' ? isolateNavigation(cached) : cached;
     const response = await fetch(event.request);
     if (response.ok) {
       const responseCopy = response.clone();
       void caches.open(CACHE).then(cache => cache.put(event.request, responseCopy)).catch(() => {});
     }
-    return response;
+    return event.request.mode === 'navigate' ? isolateNavigation(response) : response;
   })());
 });

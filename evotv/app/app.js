@@ -839,6 +839,11 @@ async function openEmbeddedGame(game) {
     notice('O endereço deste game não é válido.');
     return;
   }
+  if (game.id === 'bt3' && !window.crossOriginIsolated) {
+    notice('Atualize ou reabra o PWA para habilitar o isolamento exigido pelo game.');
+    return;
+  }
+  if (activeGameFrame) await closeEmbeddedGame(false);
   stopGameMusic();
   const panel = document.createElement('section');
   panel.className = 'embedded-game-panel';
@@ -856,7 +861,7 @@ async function openEmbeddedGame(game) {
   loading.append(loadingTitle, loadingDetail);
   const frame = document.createElement('iframe');
   frame.className = 'embedded-game-frame'; frame.title = game.title || 'Game';
-  frame.allow = 'autoplay; fullscreen; gamepad; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
+  frame.allow = 'autoplay; fullscreen; gamepad; cross-origin-isolated; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
   frame.referrerPolicy = 'strict-origin-when-cross-origin'; frame.loading = 'eager';
   frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals');
   frame.addEventListener('load', () => { loading.hidden = true; }, { once: true });
@@ -887,8 +892,12 @@ async function toggleGameFullscreen() {
 }
 
 async function closeEmbeddedGame(restoreCatalog = false) {
-  const panel = activeGameFrame?.panel;
+  const active = activeGameFrame;
+  const panel = active?.panel;
+  if (!active) return;
   activeGameFrame = null;
+  active.frame.src = 'about:blank';
+  panel.remove();
   if (document.fullscreenElement === panel) await document.exitFullscreen().catch(() => {});
   if (restoreCatalog && state.activeSection === 'games') renderGrid();
 }
