@@ -33,7 +33,7 @@ try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list
 const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
-  activeSection: 'movies', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
+  activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
   livePlaybackUrl: '',
   miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
@@ -1251,7 +1251,7 @@ async function selectProfileWithPin(profile, pin, rememberPin, fromVault = false
     await persistAuthOnDevice();
     state.pendingProfile = 0; elements.profilePin.value = '';
     if (elements.profilePinDialog.open) elements.profilePinDialog.close();
-    updateSessionUi(); showScreen('app'); void enterMovieView(false); startSessionWatcher();
+    updateSessionUi(); showScreen('app'); void enterLiveView(); startSessionWatcher();
   } catch (error) {
     state.session = null;
     if (fromVault) {
