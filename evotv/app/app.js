@@ -1505,7 +1505,15 @@ function renderProfiles() {
   elements.profileUser.textContent = `${state.account.screens} ${state.account.screens === 1 ? 'perfil disponível' : 'perfis disponíveis'}`;
   for (let profile = 1; profile <= state.account.screens; profile += 1) {
     const button = document.createElement('button'); button.type = 'button'; button.className = 'profile-card';
-    button.innerHTML = '<span class="profile-avatar"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg></span><strong></strong><small></small>';
+    button.innerHTML = '<span class="profile-avatar"><svg class="profile-avatar-fallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg><img class="profile-avatar-photo" alt="" hidden></span><strong></strong><small></small>';
+    const photo = button.querySelector('.profile-avatar-photo');
+    const fallback = button.querySelector('.profile-avatar-fallback');
+    const avatarKey = profileAvatarStorageKey(profile);
+    let savedAvatar = '';
+    try { savedAvatar = avatarKey ? localStorage.getItem(avatarKey) || '' : ''; } catch { /* foto opcional */ }
+    if (savedAvatar) photo.src = savedAvatar;
+    photo.hidden = !savedAvatar;
+    fallback.hidden = Boolean(savedAvatar);
     button.querySelector('strong').textContent = profileName(profile); button.querySelector('small').textContent = `Perfil ${profile}`;
     button.addEventListener('click', () => { void requestProfilePin(profile); }); elements.profileGrid.append(button);
   }

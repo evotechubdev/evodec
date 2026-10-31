@@ -929,12 +929,13 @@ body.catalog-page .input-shell input { height: 42px; }
 .contact-links [hidden] { display: none !important; }
 
 .profile-panel { position: relative; z-index: 1; width: min(920px, 100%); text-align: center; }
-.profile-logo { width: 190px; height: 72px; margin-bottom: 34px; object-fit: contain; }
+.profile-logo { display: block; width: 190px; height: 72px; margin: 0 auto 34px; object-fit: contain; }
 .profile-panel h1 { margin: 9px 0 7px; font-size: clamp(30px, 4vw, 40px); letter-spacing: -.045em; }
 .profile-panel > p { margin: 0; color: var(--pc-muted); font-size: 13px; }
 .profile-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 28px; margin: 40px 0 24px; }
 .profile-card { width: 168px; padding: 0; border: 0; color: #fff; background: transparent; }
 .profile-avatar {
+  position: relative;
   width: 150px;
   height: 150px;
   margin: 0 auto 15px;
@@ -950,6 +951,8 @@ body.catalog-page .input-shell input { height: 42px; }
 .profile-card:nth-child(2) .profile-avatar { background: radial-gradient(circle at 65% 25%, rgba(111,92,255,.62), transparent 32%), linear-gradient(145deg, #6549e9, #17134f); }
 .profile-card:nth-child(3n) .profile-avatar { background: radial-gradient(circle at 65% 25%, rgba(33,232,166,.6), transparent 32%), linear-gradient(145deg, #08a876, #0b3d42); }
 .profile-avatar svg { width: 78px; height: 78px; fill: rgba(255,255,255,.92); }
+.profile-avatar-photo { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; object-fit: cover; }
+.profile-avatar [hidden] { display: none !important; }
 .profile-card strong, .profile-card small { display: block; }
 .profile-card strong { font-size: 13px; }
 .profile-card small { margin-top: 5px; color: #747b86; font-size: 10px; }
@@ -1005,7 +1008,7 @@ body.catalog-page .input-shell input { height: 42px; }
   .login-card { padding: 26px 22px 23px; }
   .login-logo-button { margin-bottom: 20px; }
   .login-logo { width: 160px; margin-bottom: 0; }
-  .profile-logo { width: 160px; margin-bottom: 24px; }
+  .profile-logo { width: 160px; margin: 0 auto 24px; }
   .profile-grid { gap: 13px; margin-top: 28px; }
   .profile-card { width: 122px; }
   .profile-avatar { width: 108px; height: 108px; }
