@@ -34,8 +34,8 @@ const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
-  selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0, livePlaybackUrl: '',
-  miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
+  selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
+  miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, nextOwnScreenId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
   liveFavorites: null, adultLiveFavorites: null,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
@@ -71,7 +71,7 @@ const elements = {
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
   mediaKind: $('#media-kind'),
-  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'),
+  play: $('#play-media'), trailer: $('#trailer-media'), openLiveScreen: $('#open-live-screen'), close: $('#close-modal'),
   miniLiveDock: $('#live-mini-dock'), viewButtons: $$('[data-view]'),
 };
 
@@ -575,7 +575,7 @@ function openItem(item) {
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
   elements.video.classList.remove('live-controls-no-seek');
-  elements.video.disablePictureInPicture = false;
+  elements.video.disablePictureInPicture = true;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
   elements.mediaKind.textContent = item.kind === 'show' ? 'SHOW' : 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
@@ -603,6 +603,7 @@ function openLiveChannel(item) {
   }
   if (elements.seriesDialog.open) closeSeriesDetails();
   state.selected = { ...item, kind: 'live' };
+  elements.openLiveScreen.hidden = true;
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
   elements.modalTitle.textContent = item.name || 'Canal';
@@ -639,7 +640,7 @@ function openLiveChannel(item) {
   elements.video.load();
   elements.video.controls = true;
   elements.video.classList.add('live-controls-no-seek');
-  elements.video.disablePictureInPicture = false;
+  elements.video.disablePictureInPicture = true;
   elements.video.hidden = false;
   elements.play.hidden = true;
   if (!elements.modal.open) elements.modal.showModal();
@@ -666,7 +667,7 @@ async function openSeries(series) {
   stopPlayback();
   elements.video.controls = true;
   elements.video.classList.remove('live-controls-no-seek');
-  elements.video.disablePictureInPicture = false;
+  elements.video.disablePictureInPicture = true;
   state.selected = null;
   state.activeSeries = series;
   state.activeSeriesEpisodes = [];
@@ -815,7 +816,7 @@ function openSeriesEpisode(episode) {
   stopPlayback();
   elements.video.controls = true;
   elements.video.classList.remove('live-controls-no-seek');
-  elements.video.disablePictureInPicture = false;
+  elements.video.disablePictureInPicture = true;
   elements.mediaKind.textContent = 'SÉRIE';
   elements.modalTitle.textContent = state.selected.seriesName;
   elements.modalMeta.textContent = `Temporada ${episode.season} · Episódio ${episode.episode_num}`;
@@ -846,7 +847,8 @@ function closeSeriesDetails() {
 
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
-  state.livePlaybackUrl = '';
+  state.screenPlaybackUrl = '';
+  if (elements.openLiveScreen) elements.openLiveScreen.hidden = true;
   state.restoreModalAfterPictureInPicture = false;
   if (document.pictureInPictureElement === elements.video) {
     void document.exitPictureInPicture().catch(() => {});
@@ -861,10 +863,6 @@ function stopPlayback() {
 
 function bindMainVideoEvents(video) {
   const isCurrentVideo = (event) => event.currentTarget === elements.video;
-  video.addEventListener('enterpictureinpicture', (event) => {
-    if (!isCurrentVideo(event) || state.selected?.kind !== 'live') return;
-    openOwnLiveScreen(video);
-  });
   video.addEventListener('playing', (event) => {
     if (!isCurrentVideo(event)) return;
     elements.playerMessage.textContent = '';
@@ -893,19 +891,20 @@ function bindMainVideoEvents(video) {
   });
 }
 
-function openOwnLiveScreen(video) {
-  if (!state.livePlaybackUrl || state.selected?.kind !== 'live') return;
-  const screenName = `evotv-live-${Date.now()}-${state.nextMiniLivePlayerId + 1}`;
+function openOwnMediaScreen(video) {
+  if (!state.screenPlaybackUrl || !state.selected) return;
+  const screenName = `evotv-screen-${Date.now()}-${++state.nextOwnScreenId}`;
   const screen = window.open('./live-screen.html', screenName, 'popup=yes,width=960,height=600,resizable=yes');
   if (!screen) {
-    elements.playerMessage.textContent = 'O navegador bloqueou a janela do canal. Permita janelas pop-up para abrir este ecrã.';
+    elements.playerMessage.textContent = 'O navegador bloqueou a janela. Permita janelas pop-up para abrir este ecrã.';
     elements.playerMessage.classList.remove('visually-hidden');
     return;
   }
 
   const origin = location.origin;
-  const playbackUrl = state.livePlaybackUrl;
-  const title = state.selected.name || 'Canal ao vivo';
+  const playbackUrl = state.screenPlaybackUrl;
+  const title = state.selected.name || (state.selected.kind === 'live' ? 'Canal ao vivo' : 'EVOTV');
+  const mediaKind = state.selected.kind;
   let initialized = false;
   let completed = false;
   const cleanup = () => {
@@ -929,7 +928,7 @@ function openOwnLiveScreen(video) {
     if (event.origin !== origin || event.source !== screen || !event.data) return;
     if (event.data.type === 'EVOTV_LIVE_SCREEN_READY' && !initialized) {
       initialized = true;
-      screen.postMessage({ type: 'EVOTV_LIVE_SCREEN_START', playbackUrl, title }, origin);
+      screen.postMessage({ type: 'EVOTV_LIVE_SCREEN_START', playbackUrl, title, mediaKind, volume: video.volume, muted: video.muted }, origin);
       return;
     }
     if (event.data.type === 'EVOTV_LIVE_SCREEN_STARTED' && !completed) {
@@ -945,7 +944,7 @@ function openOwnLiveScreen(video) {
   const readyTimer = window.setTimeout(() => {
     if (initialized) return;
     if (!screen.closed) screen.close();
-    elements.playerMessage.textContent = 'A janela do canal não respondeu. Tente novamente.';
+    elements.playerMessage.textContent = 'A janela do ecrã não respondeu. Tente novamente.';
     elements.playerMessage.classList.remove('visually-hidden');
     closeSourceChannel();
   }, 15000);
@@ -1043,7 +1042,7 @@ function detachLivePlaybackToDock() {
   video.classList.add('live-mini-player-video');
   video.hidden = false;
   video.controls = true;
-  video.disablePictureInPicture = false;
+  video.disablePictureInPicture = true;
   video.replaceWith(replacement);
   surface.append(video);
   elements.video = replacement;
@@ -1162,7 +1161,8 @@ async function tryCandidate() {
   try {
     const playbackUrl = await mediaTicket(source, controller.signal);
     if (attempt !== state.playbackAttempt || !state.session) return;
-    state.livePlaybackUrl = state.selected.kind === 'live' ? playbackUrl : '';
+    state.screenPlaybackUrl = playbackUrl;
+    elements.openLiveScreen.hidden = false;
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
@@ -1187,7 +1187,7 @@ async function tryCandidate() {
     }
   } catch (error) {
     if (attempt !== state.playbackAttempt) return;
-    state.ticketController = null; elements.video.hidden = true; elements.play.hidden = state.selected.kind === 'live';
+    state.ticketController = null; state.screenPlaybackUrl = ''; elements.openLiveScreen.hidden = true; elements.video.hidden = true; elements.play.hidden = state.selected.kind === 'live';
     const aborted = error instanceof DOMException && error.name === 'AbortError';
     elements.playerMessage.classList.remove('visually-hidden');
     elements.playerMessage.textContent = aborted ? 'O serviço demorou para responder. Tente novamente.'
@@ -1651,6 +1651,7 @@ elements.trailer.addEventListener('click', () => {
   window.open(url, '_blank', 'noopener,noreferrer');
 });
 elements.close.addEventListener('click', () => elements.modal.close());
+elements.openLiveScreen.addEventListener('click', () => openOwnMediaScreen(elements.video));
 elements.modal.addEventListener('close', () => {
   if (state.preserveLiveOnModalClose) {
     state.preserveLiveOnModalClose = false;

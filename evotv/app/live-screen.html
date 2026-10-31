@@ -9,8 +9,25 @@
 </head>
 <body>
   <main class="screen-player">
-    <header><h1 id="screen-title">Canal ao vivo</h1><span id="screen-status" role="status">Aguardando o canal…</span></header>
-    <video id="screen-video" controls controlslist="nodownload" disablepictureinpicture playsinline></video>
+    <video id="screen-video" playsinline disablepictureinpicture></video>
+    <header id="screen-topbar" class="screen-chrome screen-topbar" aria-label="Mover ecrã">
+      <img src="./assets/logo_evotv.png" alt="EVOTV">
+      <span id="screen-title">EVOTV</span>
+      <button id="screen-close" class="screen-icon-button close-button" type="button" aria-label="Fechar ecrã" title="Fechar">×</button>
+    </header>
+    <div id="screen-status" class="screen-status" role="status"></div>
+    <footer class="screen-chrome screen-toolbar" aria-label="Controles do ecrã">
+      <div class="screen-volume-control">
+        <button id="screen-volume-button" class="screen-icon-button" type="button" aria-label="Silenciar" title="Volume">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path class="volume-muted" d="M4 9v6h4l5 4V5L8 9H4zm12.5 3 3 3 1.5-1.5-3-3 3-3L19.5 6l-3 3-3-3L12 7.5l3 3-3 3 1.5 1.5 3-3z"/><path class="volume-on" d="M3 9v6h4l5 4V5L7 9H3zm12.5 3a3.5 3.5 0 0 0-2-3.16v6.31a3.5 3.5 0 0 0 2-3.15zm-2-8.46v2.06a7 7 0 0 1 0 12.8v2.06a9 9 0 0 0 0-16.92z"/></svg>
+        </button>
+        <input id="screen-volume" type="range" min="0" max="1" step="0.02" value="1" aria-label="Volume">
+      </div>
+      <button id="screen-size-button" class="screen-icon-button" type="button" aria-label="Maximizar ecrã" title="Maximizar ecrã">
+        <svg class="maximize-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5M4 9l6-6m10 6-6-6m6 12-6 6M4 15l6 6"/></svg>
+        <svg class="restore-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 3H3v5m0-5 7 7M16 21h5v-5m0 5-7-7M21 8V3h-5m5 0-7 7M3 16v5h5m-5 0 7-7"/></svg>
+      </button>
+    </footer>
   </main>
   <script src="./vendor/mpegts.js"></script>
   <script src="./live-screen.js"></script>

@@ -605,6 +605,8 @@ body.catalog-page #play-media {
 .detail-action.has-trailer:disabled { border-color: #087fff; color: #fff; background: linear-gradient(135deg, #168fff, #0759d8); opacity: 1; }
 .detail-action.has-trailer:hover { border-color: #55adff; background: linear-gradient(135deg, #35a2ff, #0870f5); }
 .detail-action:disabled { cursor: default; opacity: .42; }
+.live-screen-launch { border-color: rgba(0, 145, 255, .55); color: #eaf6ff; background: linear-gradient(135deg, #087fff, #0759d8); }
+.live-screen-launch:hover { border-color: #68b8ff; background: linear-gradient(135deg, #2296ff, #0870ed); }
 .premium-download span { color: #ffc54d; }
 .premium-download small { margin-left: 5px; color: #ffc54d; font-size: 8px; letter-spacing: .08em; }
 .media-player-surface { grid-column: 1 / -1; width: calc(100% + 56px); margin: 3px -28px -28px; background: #000; }
