@@ -29,7 +29,7 @@ const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
 const EXTRA_FAVORITES_CATEGORY = 'evo_extra_favorites';
 const EXTRA_GAMES_FALLBACK = [
-  { id: 'nfsu2', title: 'Need for Speed Underground 2', description: 'Jogo eletrônico de corrida, desenvolvido em 2004 pela EA Black Box e publicado pela Electronic Arts, sendo a oitava edição da série Need for Speed.', targetUrl: 'https://nfsu-2.online/#play', imageFile: 'nfsu2-cover-hd.png', musicTitle: 'Get Low', musicArtist: 'Lil Jon & The East Side Boyz com Ying Yang Twins', musicFile: 'get-low.mp3' },
+  { id: 'nfsu2', title: 'Need for Speed Underground 2', description: 'Versão recompilada para navegador com WebAssembly e WebGPU, modo carreira, free roam e partidas online.', targetUrl: 'https://nfsu2.xyz/#play', imageFile: 'nfsu2-cover-hd.png', musicTitle: 'Get Low', musicArtist: 'Lil Jon & The East Side Boyz com Ying Yang Twins', musicFile: 'get-low.mp3' },
   { id: 'bt3', title: 'Dragon Ball Z: Budokai Tenkaichi 3', description: 'Dragon Ball Z: Budokai Tenkaichi 3 é um jogo eletrônico para PlayStation 2 e Wii em 3D, dos gêneros ação e luta, desenvolvido pela Spike e publicado pela Atari. Foi lançado em 2007.', targetUrl: 'https://dragonballbt3.online/', imageFile: 'bt3-cover-hd.png', musicTitle: 'Temos a Força', musicArtist: '', musicFile: 'temos-a-forca.m4a' },
 ];
 const gameMusicAudio = new Audio();
@@ -833,10 +833,10 @@ async function toggleGameMusic(game) {
 }
 
 async function openEmbeddedGame(game) {
-  const allowedHosts = { nfsu2: 'nfsu-2.online', bt3: 'dragonballbt3.online' };
+  const allowedHosts = { nfsu2: new Set(['nfsu2.xyz', 'nfsu-2.online']), bt3: new Set(['dragonballbt3.online']) };
   let target;
   try { target = new URL(String(game?.targetUrl || '')); } catch { notice('O endereço deste game não é válido.'); return; }
-  if (target.protocol !== 'https:' || target.hostname !== allowedHosts[game?.id] || target.port || target.search || target.username || target.password) {
+  if (target.protocol !== 'https:' || !allowedHosts[game?.id]?.has(target.hostname) || target.port || target.search || target.username || target.password) {
     notice('O endereço deste game não é válido.');
     return;
   }
@@ -862,7 +862,7 @@ async function openEmbeddedGame(game) {
   loading.append(loadingTitle, loadingDetail);
   const frame = document.createElement('iframe');
   frame.className = 'embedded-game-frame'; frame.title = game.title || 'Game';
-  frame.allow = 'autoplay; fullscreen; gamepad; cross-origin-isolated https://evotv-offline-media-proxy.evotechubdev.workers.dev; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
+  frame.allow = 'autoplay; fullscreen; gamepad; keyboard-map; screen-wake-lock; cross-origin-isolated https://evotv-offline-media-proxy.evotechubdev.workers.dev; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
   frame.referrerPolicy = 'strict-origin-when-cross-origin'; frame.loading = 'eager';
   frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals');
   frame.addEventListener('load', () => { loading.hidden = true; }, { once: true });
