@@ -1610,12 +1610,26 @@ async function returnToProfiles(message = '') {
 async function logout() {
   if (state.busy) return;
   const login = state.auth?.login || elements.username.value;
-  setBusy(true); await releaseProfile(); await forgetDevice(login);
+  const rememberOnDevice = state.rememberDevice && elements.rememberLogin.checked;
+  setBusy(true); await releaseProfile();
+  if (rememberOnDevice) {
+    // Sair encerra a sessão, mas preserva as credenciais e os PINs marcados para este aparelho.
+    await clearRememberedAuth().catch(() => {});
+  } else await forgetDevice(login);
   state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null; state.showCatalog = SHOWS_CATALOG;
   state.page.generation += 1; state.page.offset = 0; state.page.hasMore = false; state.page.loading = false; state.filtered = [];
   clearSeriesCatalogCache(); clearLegacyCatalog();
-  state.auth = null; state.account = null; state.rememberDevice = false; elements.password.value = '';
-  elements.rememberLogin.checked = false;
+  state.auth = null; state.account = null; state.rememberDevice = rememberOnDevice;
+  elements.rememberLogin.checked = rememberOnDevice;
+  if (rememberOnDevice) {
+    let credentials = null;
+    try { credentials = await readRememberedCredentials(); } catch { /* cofre indisponível */ }
+    elements.username.value = credentials?.login || login;
+    elements.password.value = credentials?.password || '';
+  } else {
+    elements.password.value = '';
+    elements.rememberLogin.checked = false;
+  }
   elements.loginError.textContent = ''; showScreen('login'); setBusy(false);
 }
 
