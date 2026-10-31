@@ -2,6 +2,7 @@ const DB_NAME = 'evotv-device-vault';
 const DB_VERSION = 1;
 const MASTER_KEY_ID = 'device-master-key';
 const AUTH_SECRET_ID = 'firebase-session';
+const CREDENTIALS_SECRET_ID = 'login-credentials';
 
 function requestResult(request) {
   return new Promise((resolve, reject) => {
@@ -113,6 +114,21 @@ export async function readRememberedAuth() {
 }
 
 export function clearRememberedAuth() { return deleteSecret(AUTH_SECRET_ID); }
+
+export function saveRememberedCredentials(login, password) {
+  if (typeof login !== 'string' || !login.trim() || typeof password !== 'string' || !password) {
+    throw new Error('DEVICE_CREDENTIALS_INVALID');
+  }
+  return saveSecret(CREDENTIALS_SECRET_ID, { login: login.trim(), password });
+}
+
+export async function readRememberedCredentials() {
+  const saved = await readSecret(CREDENTIALS_SECRET_ID);
+  if (!saved?.login || typeof saved.password !== 'string' || !saved.password) return null;
+  return { login: String(saved.login), password: saved.password };
+}
+
+export function clearRememberedCredentials() { return deleteSecret(CREDENTIALS_SECRET_ID); }
 
 export function saveProfilePin(login, profile, pin) {
   if (typeof pin !== 'string' || pin.length < 4 || pin.length > 128) throw new Error('DEVICE_PIN_INVALID');

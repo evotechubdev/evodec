@@ -4,11 +4,13 @@ import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
 import {
   clearProfilePins,
+  clearRememberedCredentials,
   clearRememberedAuth,
   deleteProfilePin,
   readProfilePin,
-  readRememberedAuth,
+  readRememberedCredentials,
   saveProfilePin,
+  saveRememberedCredentials,
   saveRememberedAuth,
 } from './device-vault.js';
 
@@ -109,6 +111,7 @@ async function persistAuthOnDevice() {
 
 async function forgetDevice(login = state.auth?.login || elements.username.value) {
   await clearRememberedAuth().catch(() => {});
+  await clearRememberedCredentials().catch(() => {});
   await clearProfilePins(login).catch(() => {});
   try { localStorage.removeItem(SAVED_LOGIN_KEY); } catch { /* opcional */ }
 }
@@ -1364,8 +1367,8 @@ function renderProfiles() {
   }
 }
 
-function showProfilePinDialog(profile, message = '') {
-  state.pendingProfile = profile; elements.profilePin.value = ''; elements.profilePinError.textContent = message;
+function showProfilePinDialog(profile, message = '', rememberedPin = '') {
+  state.pendingProfile = profile; elements.profilePin.value = rememberedPin; elements.profilePinError.textContent = message;
   elements.rememberProfilePin.checked = true;
   elements.profilePinTitle.textContent = `Entrar em ${profileName(profile)}`; elements.profilePinDialog.showModal(); elements.profilePin.focus();
 }
@@ -1375,8 +1378,7 @@ async function requestProfilePin(profile) {
   state.pendingProfile = profile; setBusy(true); elements.profileError.textContent = 'Abrindo perfil protegido…';
   const rememberedPin = await readProfilePin(state.auth?.login, profile).catch(() => '');
   setBusy(false); elements.profileError.textContent = '';
-  if (rememberedPin) return selectProfileWithPin(profile, rememberedPin, true, true);
-  showProfilePinDialog(profile);
+  showProfilePinDialog(profile, '', rememberedPin);
 }
 
 async function selectProfileWithPin(profile, pin, rememberPin, fromVault = false) {
@@ -1663,6 +1665,8 @@ elements.loginForm.addEventListener('submit', async (event) => {
     state.rememberDevice = elements.rememberLogin.checked;
     if (state.rememberDevice) {
       try { localStorage.setItem(SAVED_LOGIN_KEY, state.auth.login); } catch { /* opcional */ }
+      try { await saveRememberedCredentials(state.auth.login, password); }
+      catch { notice('Não foi possível guardar login e senha neste aparelho.'); }
       await persistAuthOnDevice();
     } else await forgetDevice(state.auth.login);
     elements.password.value = ''; renderProfiles(); elements.profileError.textContent = ''; showScreen('profiles');
@@ -1843,23 +1847,15 @@ async function start() {
   let fallbackLogin = '';
   try {
     fallbackLogin = localStorage.getItem(SAVED_LOGIN_KEY) || '';
-    elements.username.value = fallbackLogin;
   } catch { /* armazenamento opcional */ }
-  let restored = null;
-  try { restored = await readRememberedAuth(); } catch { /* cofre indisponível */ }
-  if (restored) {
-    elements.username.value = restored.login; elements.rememberLogin.checked = true; state.rememberDevice = true;
-    elements.loginError.textContent = 'Restaurando o acesso protegido neste aparelho…';
-    try {
-      state.auth = restored; state.account = await api.account(state.auth); await persistAuthOnDevice();
-      renderProfiles(); elements.profileError.textContent = 'Acesso restaurado neste aparelho.'; showScreen('profiles');
-    } catch {
-      await forgetDevice(restored.login); state.auth = null; state.account = null; state.rememberDevice = true;
-      elements.rememberLogin.checked = true; elements.loginError.textContent = 'O acesso salvo expirou. Entre novamente.'; showScreen('login');
-    }
-  } else {
-    elements.rememberLogin.checked = true; state.rememberDevice = true; elements.username.value = fallbackLogin; showScreen('login');
-  }
+  let credentials = null;
+  try { credentials = await readRememberedCredentials(); } catch { /* cofre indisponível */ }
+  const savedLogin = credentials?.login || fallbackLogin;
+  elements.username.value = savedLogin;
+  if (credentials) elements.password.value = credentials.password;
+  elements.rememberLogin.checked = true;
+  state.rememberDevice = elements.rememberLogin.checked;
+  showScreen('login');
 }
 
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
