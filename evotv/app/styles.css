@@ -131,6 +131,34 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .live-mini-player-actions button { min-height: 28px; padding: 3px 7px; border: 1px solid var(--line); border-radius: 7px; color: inherit; background: #142433; font-size: 10px; cursor: pointer; touch-action: manipulation; }
 .live-mini-player-actions .live-mini-player-close { width: 28px; padding: 0; font-size: 18px; }
 .live-mini-player-video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
+.own-live-screen { position: fixed; z-index: 40; display: grid; grid-template-rows: 44px auto 48px; width: min(760px, calc(100vw - 32px)); overflow: hidden; border: 1px solid rgba(133, 172, 202, .48); border-radius: 13px; color: #f5f8fb; background: #05080c; box-shadow: 0 18px 60px rgba(0, 0, 0, .62); pointer-events: auto; }
+.own-live-screen-header { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 5px 8px 5px 12px; background: linear-gradient(180deg, #101820, #0a1016); cursor: grab; touch-action: none; }
+.own-live-screen-header:active { cursor: grabbing; }
+.own-live-screen-header img { width: 76px; height: 28px; object-fit: contain; pointer-events: none; }
+.own-live-screen-header strong { overflow: hidden; flex: 1; font-size: 12px; font-weight: 650; text-overflow: ellipsis; white-space: nowrap; pointer-events: none; }
+.own-live-screen-icon { display: inline-grid; width: 34px; height: 34px; flex: 0 0 auto; place-items: center; padding: 0; border: 0; border-radius: 8px; color: #f5f8fb; background: rgba(255, 255, 255, .1); cursor: pointer; }
+.own-live-screen-icon:hover, .own-live-screen-icon:focus-visible { outline: none; background: rgba(255, 255, 255, .23); }
+.own-live-screen-header .own-live-screen-icon { width: 30px; height: 30px; font-size: 24px; line-height: 1; }
+.own-live-screen-surface { position: relative; min-height: 0; aspect-ratio: 16 / 9; background: #000; }
+.own-live-screen-video { display: block; width: 100%; height: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
+.own-live-screen-status { position: absolute; top: 50%; left: 50%; max-width: calc(100% - 32px); margin: 0; padding: 9px 12px; transform: translate(-50%, -50%); border-radius: 8px; color: #fff; background: rgba(5, 10, 16, .8); font-size: 13px; text-align: center; }
+.own-live-screen-status[hidden] { display: none; }
+.own-live-screen-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 6px 10px; background: linear-gradient(0deg, #101820, #0a1016); }
+.own-live-screen-header, .own-live-screen-toolbar { opacity: 0; transition: opacity 150ms ease; }
+.own-live-screen:hover .own-live-screen-header, .own-live-screen:hover .own-live-screen-toolbar, .own-live-screen:focus-within .own-live-screen-header, .own-live-screen:focus-within .own-live-screen-toolbar { opacity: 1; }
+.own-live-screen-volume { display: flex; align-items: center; gap: 8px; }
+.own-live-screen-volume svg, .own-live-screen-size svg { width: 21px; height: 21px; fill: currentColor; }
+.own-live-screen-size svg { fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
+.own-live-screen-size .own-restore-icon, .own-live-screen-size[aria-pressed="false"] .own-restore-icon { display: none; }
+.own-live-screen-size[aria-pressed="true"] .own-maximize-icon { display: none; }
+.own-live-screen-size[aria-pressed="true"] .own-restore-icon { display: block; }
+.own-live-screen-volume .own-volume-muted, .own-live-screen-volume button[aria-pressed="true"] .own-volume-on { display: none; }
+.own-live-screen-volume button[aria-pressed="true"] .own-volume-muted { display: block; }
+.own-live-screen-volume input { width: 100px; height: 4px; accent-color: #1597ff; cursor: pointer; }
+.own-live-screen-maximized { position: fixed !important; z-index: 10000 !important; inset: 0 !important; width: 100vw !important; height: 100vh !important; height: 100dvh !important; max-height: none !important; border: 0; border-radius: 0; }
+.own-live-screen-maximized { grid-template-rows: 44px minmax(0, 1fr) 48px; }
+.own-live-screen-maximized .own-live-screen-surface { min-height: 0; aspect-ratio: auto; }
+.own-live-screen-maximized .own-live-screen-video { aspect-ratio: auto; }
 .media-player-surface { position: relative; }
 .live-mini-player-surface { position: relative; }
 video.live-controls-no-seek::-webkit-media-controls-play-button,
@@ -705,6 +733,10 @@ body.catalog-page #trailer-player[hidden] { display: none; }
   body.catalog-page .media-content h2 { font-size: 18px; }
   body.catalog-page .media-content .status { display: none; }
   .media-player-surface { width: calc(100% + 36px); margin: 4px -18px -18px; }
+}
+
+@media (hover: none) {
+  .own-live-screen-header, .own-live-screen-toolbar { opacity: 1; }
 }
 
 /* Autenticação, perfis e controle parental compartilhados com o EVOTV. */

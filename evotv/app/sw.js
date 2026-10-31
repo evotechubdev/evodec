@@ -1,10 +1,7 @@
-const CACHE = 'evotv-catalogo-offline-v55';
+const CACHE = 'evotv-catalogo-offline-v56';
 const APP_SHELL = [
   './',
   './index.html',
-  './live-screen.html',
-  './live-screen.css',
-  './live-screen.js',
   './styles.css',
   './app.js',
   './shows-catalog.js',
