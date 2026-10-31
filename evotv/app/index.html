@@ -18,13 +18,13 @@
       <img class="login-logo" src="./assets/logo_evotv.png" alt="EVOTV">
       <div class="login-heading"><span class="eyebrow">BEM-VINDO</span><h1 id="login-title">Entrar no EVOTV</h1><p>Use o mesmo acesso do Programa de PC.</p></div>
       <form id="login-form" novalidate>
-        <label class="field"><span>LOGIN</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg><input id="username" type="text" placeholder="Digite seu login" autocomplete="username" required></span></label>
+        <label class="field"><span>LOGIN</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg><input id="username" type="password" placeholder="Digite seu login" autocomplete="username" required></span></label>
         <label class="field"><span>SENHA</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4V6Zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8Z"/></svg><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
         <label class="remember-login"><input id="remember-login" type="checkbox" checked><span>Manter meu acesso neste aparelho</span></label>
         <p id="login-error" class="form-error" role="alert"></p>
         <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
       </form>
-      <p class="login-version">Versão: Saturno-56</p>
+      <p class="login-version">Versão: Saturno-59</p>
     </section>
   </main>
 
@@ -48,15 +48,15 @@
         <button id="series-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span></button>
         <button id="shows-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v4a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-5 5.91V19h3v2H8v-2h3v-3.09A6 6 0 0 1 6 10h2a4 4 0 0 0 8 0h2Z"/></svg><span>Shows</span></button>
         <button class="pc-nav-item future-section" type="button" data-future="Conteúdo Extra"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg><span>Conteúdo Extra</span></button>
-        <button id="adult-nav" class="pc-nav-item adult-nav" type="button"><strong aria-hidden="true">18+</strong><span>Adulto 18+</span></button>
       </nav>
+      <button id="adult-nav" class="pc-nav-item adult-nav" type="button"><strong aria-hidden="true">18+</strong><span>Adulto 18+</span></button>
       <div class="pc-sidebar-bottom">
         <span id="account-type" class="pc-account-type">STANDARD</span>
         <button id="profile-settings" class="sidebar-action" type="button" hidden>Gerenciar perfis</button>
         <button id="parental-settings" class="sidebar-action" type="button" hidden>Controle parental</button>
         <div class="pc-connection"><i></i><span><strong>Conectado</strong><small id="server-label">Perfil</small></span></div>
-        <button id="switch-profile" class="sidebar-action" type="button">Trocar perfil</button>
-        <button id="logout-button" class="sidebar-action" type="button">Sair</button>
+        <button id="switch-profile" class="sidebar-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h2v-3c0-.92 1.9-3 6-3s6 2.08 6 3v3h2v-3c0-2.5-3-5-8-5Z"/></svg>Trocar perfil</button>
+        <button id="logout-button" class="sidebar-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17v-2h5V9h-5V7l-5 5 5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg>Sair</button>
       </div>
     </aside>
 

@@ -856,17 +856,22 @@ body.catalog-page .input-shell input { height: 42px; }
 
 .sidebar-action {
   width: 100%;
-  min-height: 34px;
-  margin: 3px 0;
-  padding: 7px 11px;
-  border: 1px solid var(--pc-line);
-  border-radius: 8px;
-  color: #858c98;
-  background: rgba(255,255,255,.025);
+  min-height: 38px;
+  padding: 11px 12px;
+  border: 0;
+  color: #737984;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 11px;
   text-align: left;
-  font-size: 10px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: color .2s;
 }
-.sidebar-action:hover { color: #fff; border-color: rgba(0,145,255,.45); }
+.sidebar-action:hover, .sidebar-action:focus-visible { color: #fff; }
+.sidebar-action:focus-visible { outline: 2px solid var(--pc-accent-2); outline-offset: -2px; }
+.sidebar-action svg { width: 20px; height: 20px; flex: 0 0 auto; fill: currentColor; }
 .adult-nav strong { min-width: 25px; color: #ff647d; font-size: 11px; }
 .adult-nav.active { color: #fff; background: linear-gradient(90deg, rgba(255,55,88,.18), rgba(255,55,88,.03)); box-shadow: inset 3px 0 0 #ff4968; }
 
@@ -899,12 +904,8 @@ body.catalog-page .input-shell input { height: 42px; }
 .app-notice { position: fixed; z-index: 100; right: 22px; bottom: 22px; max-width: min(430px, calc(100% - 44px)); margin: 0; padding: 13px 16px; border: 1px solid rgba(37,216,255,.28); border-radius: 10px; color: #e9f9ff; background: rgba(13,25,38,.96); box-shadow: 0 15px 45px #000; font-size: 12px; }
 
 @media (max-width: 1100px) {
-  .sidebar-action { width: 44px; height: 38px; margin-inline: auto; padding: 0; overflow: hidden; color: transparent; text-align: center; font-size: 0; }
-  .sidebar-action::before { color: #8e96a3; font-size: 16px; }
-  #profile-settings::before { content: "⚙"; }
-  #parental-settings::before { content: "🔒"; }
-  #switch-profile::before { content: "♙"; }
-  #logout-button::before { content: "↪"; }
+  .sidebar-action { display: none; }
+  #parental-settings:not([hidden]) { display: block; width: 100%; min-height: 38px; padding: 9px 2px; text-align: center; font-size: 10px; }
 }
 
 @media (max-width: 700px) {
