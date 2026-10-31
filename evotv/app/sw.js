@@ -1,4 +1,4 @@
-const CACHE = 'evotv-catalogo-offline-v87';
+const CACHE = 'evotv-catalogo-offline-v88';
 const ISOLATION_CACHE = 'evotv-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
 const APP_SHELL = [
@@ -32,6 +32,7 @@ async function isolateNavigation(response) {
   const headers = new Headers(response.headers);
   headers.set('Cross-Origin-Opener-Policy', 'same-origin');
   headers.set('Cross-Origin-Embedder-Policy', policy);
+  headers.set('Permissions-Policy', 'cross-origin-isolated=(self "https://evotv-offline-media-proxy.evotechubdev.workers.dev")');
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

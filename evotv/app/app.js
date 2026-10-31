@@ -862,7 +862,7 @@ async function openEmbeddedGame(game) {
   loading.append(loadingTitle, loadingDetail);
   const frame = document.createElement('iframe');
   frame.className = 'embedded-game-frame'; frame.title = game.title || 'Game';
-  frame.allow = 'autoplay; fullscreen; gamepad; cross-origin-isolated; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
+  frame.allow = 'autoplay; fullscreen; gamepad; cross-origin-isolated https://evotv-offline-media-proxy.evotechubdev.workers.dev; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
   frame.referrerPolicy = 'strict-origin-when-cross-origin'; frame.loading = 'eager';
   frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals');
   frame.addEventListener('load', () => { loading.hidden = true; }, { once: true });
@@ -2456,7 +2456,7 @@ async function start() {
 }
 
 if ('serviceWorker' in navigator) {
-  const isolationReloadKey = 'evotv:cross-origin-isolation-reload:v2';
+  const isolationReloadKey = 'evotv:cross-origin-isolation-reload:v3';
   const reloadWithPolicy = (policy) => {
     const controller = navigator.serviceWorker.controller;
     if (!controller) return false;
