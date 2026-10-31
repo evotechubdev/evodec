@@ -855,12 +855,14 @@ async function openEmbeddedGame(game) {
   const loadingDetail = document.createElement('span'); loadingDetail.textContent = 'A primeira abertura pode demorar enquanto os arquivos são carregados.';
   loading.append(loadingTitle, loadingDetail);
   const frame = document.createElement('iframe');
-  frame.className = 'embedded-game-frame'; frame.title = game.title || 'Game'; frame.allowFullscreen = true;
-  frame.allow = 'autoplay; fullscreen; gamepad; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
-  frame.referrerPolicy = 'no-referrer'; frame.loading = 'eager';
-  frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-popups');
+  frame.className = 'embedded-game-frame'; frame.title = game.title || 'Game';
+  frame.allow = 'autoplay; fullscreen; gamepad; pointer-lock; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
+  frame.referrerPolicy = 'strict-origin-when-cross-origin'; frame.loading = 'eager';
+  frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals');
   frame.addEventListener('load', () => { loading.hidden = true; }, { once: true });
-  frame.src = target.href;
+  const proxiedTarget = new URL(`/game/${game.id}/`, MEDIA_PROXY_ORIGIN);
+  if (game.id === 'nfsu2') proxiedTarget.hash = 'play';
+  frame.src = proxiedTarget.href;
   viewport.append(loading, frame); panel.append(toolbar, viewport);
   elements.grid.classList.add('game-mode');
   elements.grid.replaceChildren(panel);
@@ -890,6 +892,14 @@ async function closeEmbeddedGame(restoreCatalog = false) {
   if (document.fullscreenElement === panel) await document.exitFullscreen().catch(() => {});
   if (restoreCatalog && state.activeSection === 'games') renderGrid();
 }
+
+window.addEventListener('message', event => {
+  const active = activeGameFrame;
+  if (!active || event.origin !== MEDIA_PROXY_ORIGIN || event.source !== active.frame.contentWindow) return;
+  if (event.data?.type === 'evotv-game-ended' && event.data.game === active.game.id) {
+    void closeEmbeddedGame(true);
+  }
+});
 
 function seriesCatalogPage(idToken, params) {
   return fetchCatalogPage('/api/catalog/series/page', idToken, params);
