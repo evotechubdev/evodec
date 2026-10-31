@@ -1,10 +1,13 @@
 const CATALOG_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
 const LEGACY_DB_NAME = 'evotv-catalogo-offline';
 
-export async function currentCatalog(idToken) {
+export async function currentCatalog(idToken, session) {
   if (!idToken) throw new Error('Entre no app para carregar o catÃ¡logo.');
   const response = await fetch(`${CATALOG_BACKEND_URL}/api/catalog/movies`, {
-    headers: { authorization: `Bearer ${idToken}`, accept: 'application/json' },
+    headers: {
+      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
+      'x-evo-session': session?.sessionToken || '', 'x-evo-profile': String(session?.profile || ''),
+    },
     credentials: 'omit', cache: 'no-store',
   });
   const data = await response.json().catch(() => ({}));

@@ -2,10 +2,13 @@ const CATALOG_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
 let catalogPromise;
 const segmentPromises = new Map();
 
-async function catalogFetch(path, idToken) {
+async function catalogFetch(path, idToken, session) {
   if (!idToken) throw new Error('Entre no app para carregar o catalogo.');
   const response = await fetch(`${CATALOG_BACKEND_URL}${path}`, {
-    headers: { authorization: `Bearer ${idToken}`, accept: 'application/json' },
+    headers: {
+      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
+      'x-evo-session': session?.sessionToken || '', 'x-evo-profile': String(session?.profile || ''),
+    },
     credentials: 'omit', cache: 'no-store',
   });
   const data = await response.json().catch(() => ({}));
@@ -13,9 +16,9 @@ async function catalogFetch(path, idToken) {
   return data;
 }
 
-export function currentSeriesCatalog(idToken) {
+export function currentSeriesCatalog(idToken, session) {
   if (!catalogPromise) {
-    catalogPromise = catalogFetch('/api/catalog/series', idToken)
+    catalogPromise = catalogFetch('/api/catalog/series', idToken, session)
       .then(catalog => {
         if (!Array.isArray(catalog.series) || !Array.isArray(catalog.patterns) || !Array.isArray(catalog.segments)) {
           throw new Error('O indice de series esta incompleto.');
@@ -26,7 +29,7 @@ export function currentSeriesCatalog(idToken) {
   return catalogPromise;
 }
 
-export async function episodesForSeries(catalog, series, idToken) {
+export async function episodesForSeries(catalog, series, idToken, session) {
   const ids = Array.isArray(series?.segmentIds) ? series.segmentIds : [];
   const chunks = await Promise.all(ids.map((id) => {
     const segmentNumber = Number(id);
@@ -36,7 +39,7 @@ export async function episodesForSeries(catalog, series, idToken) {
       throw new Error('Segmento de episodios invalido.');
     }
     if (!segmentPromises.has(id)) {
-      const request = catalogFetch(`/api/catalog/series/segments/${segmentNumber}`, idToken).then(value => {
+      const request = catalogFetch(`/api/catalog/series/segments/${segmentNumber}`, idToken, session).then(value => {
         if (!Array.isArray(value.episodes)) throw new Error('O segmento nao contem episodios.');
         return value.episodes;
       }).catch(error => { segmentPromises.delete(id); throw error; });

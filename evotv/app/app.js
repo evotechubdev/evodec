@@ -562,7 +562,10 @@ async function fetchCatalogPage(path, idToken, params) {
     search.set('legacy_favorites', [...params.favoriteIds].filter(id => /^\d{1,20}$/.test(id)).join(','));
   }
   const response = await fetch(`${MEDIA_BACKEND_URL}${path}?${search}`, {
-    headers: { authorization: `Bearer ${idToken}`, accept: 'application/json' }, credentials: 'omit', cache: 'no-store',
+    headers: {
+      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
+      'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
+    }, credentials: 'omit', cache: 'no-store',
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(String(data?.error || `Falha no catalogo (${response.status}).`));
@@ -686,7 +689,7 @@ async function openSeries(series) {
 
   try {
     const idToken = await api.currentToken(state.auth);
-    const episodes = await episodesForSeries(state.seriesCatalog, series, idToken);
+    const episodes = await episodesForSeries(state.seriesCatalog, series, idToken, state.session);
     if (!elements.seriesDialog.open || state.activeSeries !== series) return;
     state.activeSeriesEpisodes = episodes;
     renderSeriesDetails();
@@ -1084,14 +1087,21 @@ function detachLivePlaybackToDock() {
   }
 }
 
-async function mediaTicket(source, signal, download = false) {
+async function mediaTicket(source, signal, download = false, contentItem = state.selected) {
   if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
     throw new Error('HTTPS_REQUIRED');
   }
   const liveMatch = /^live:(\d{1,20})$/.exec(String(source));
-  const headers = { 'content-type': 'application/json' };
+  const headers = {
+    'content-type': 'application/json', 'x-evo-platform': 'web',
+    'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
+  };
   let endpoint = '/api/media-ticket';
-  let body = { target: source, download };
+  const content = contentItem?.kind === 'series'
+    ? { kind: 'series', id: String(contentItem.series_id || ''), streamId: String(contentItem.stream_id || '') }
+    : contentItem && !['live', 'show'].includes(contentItem.kind)
+      ? { kind: 'movie', id: String(contentItem.stream_id || '') } : null;
+  let body = { target: source, download, ...(content ? { content } : {}) };
   const showMatch = /^show:(\d{1,20})$/.exec(String(source));
   if (liveMatch || showMatch) {
     const idToken = await api.currentToken(state.auth);
@@ -1246,7 +1256,7 @@ async function downloadItem(item, button) {
   try {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), TICKET_TIMEOUT_MS);
-    const url = await mediaTicket(source, controller.signal, true).finally(() => window.clearTimeout(timer));
+    const url = await mediaTicket(source, controller.signal, true, item).finally(() => window.clearTimeout(timer));
     const servedName = decodeURIComponent(new URL(url).pathname.split('/').pop() || '').replace(/^download-/i, '');
     const extensionPosition = servedName.lastIndexOf('.');
     const servedExtension = extensionPosition >= 0 ? servedName.slice(extensionPosition + 1) : '';

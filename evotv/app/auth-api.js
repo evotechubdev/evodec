@@ -1,7 +1,7 @@
 const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
 const FIREBASE_AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
 const FIREBASE_REFRESH_URL = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
-const ACCOUNT_BACKEND_URL = 'https://multimideas-evo-backend.onrender.com';
+const APP_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
 const LOGIN_DOMAIN = 'evotv.com.br';
 const CLIENT_PLATFORM = 'web';
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -51,18 +51,15 @@ export class EvoAuthApi {
   }
 
   async selectProfile(auth, profile, pin) {
-    const keys = await generatePlaybackKeys();
     const data = await this.backend('/api/profile', auth, {
       method: 'POST',
-      body: JSON.stringify({ profile, force: true, pin, playbackPublicKey: keys.publicKey }),
+      body: JSON.stringify({ profile, force: true, pin }),
     });
     const sessionToken = requiredText(data, 'sessionToken');
-    const playbackGrant = await keys.decrypt(data.playbackGrant, profile);
     const parental = object(data.parental) || {};
     return {
       profile,
       sessionToken,
-      playbackGrant,
       parental,
       adultAllowed: data.adultAllowed === true || parental.adultMode === 'free',
       adultVisible: data.adultVisible !== false && parental.adultVisible !== false,
@@ -138,7 +135,7 @@ export class EvoAuthApi {
 
   async watchSession(auth, session, signal) {
     const token = await this.currentToken(auth);
-    const response = await fetch(`${ACCOUNT_BACKEND_URL}/api/session/events`, {
+    const response = await fetch(`${APP_BACKEND_URL}/api/session/events`, {
       headers: backendHeaders(token, sessionHeaders(session)),
       signal,
     });
@@ -175,7 +172,7 @@ export class EvoAuthApi {
     const token = await this.currentToken(auth);
     let response;
     try {
-      response = await fetchWithTimeout(`${ACCOUNT_BACKEND_URL}${path}`, {
+      response = await fetchWithTimeout(`${APP_BACKEND_URL}${path}`, {
         ...init,
         headers: backendHeaders(token, init.headers),
       });
@@ -223,39 +220,6 @@ function backendHeaders(token, extra = {}) {
   return headers;
 }
 
-async function generatePlaybackKeys() {
-  if (!globalThis.crypto?.subtle) throw new EvoApiError('Abra o EVOTV por uma conexão HTTPS segura.');
-  const keyPair = await crypto.subtle.generateKey({
-    name: 'RSA-OAEP', modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: 'SHA-256',
-  }, true, ['encrypt', 'decrypt']);
-  const publicKey = bytesToBase64(new Uint8Array(await crypto.subtle.exportKey('spki', keyPair.publicKey)));
-  return {
-    publicKey,
-    async decrypt(rawEnvelope, expectedProfile) {
-      const envelope = object(rawEnvelope);
-      if (!envelope || integer(envelope.version, 0) !== 1) throw new EvoApiError('Autorização de reprodução inválida.');
-      const encryptedKey = decodeBase64Url(requiredText(envelope, 'key'));
-      const rawKey = await crypto.subtle.decrypt({ name: 'RSA-OAEP' }, keyPair.privateKey, asArrayBuffer(encryptedKey));
-      const iv = decodeBase64Url(requiredText(envelope, 'iv'));
-      const encrypted = decodeBase64Url(requiredText(envelope, 'data'));
-      const tag = decodeBase64Url(requiredText(envelope, 'tag'));
-      const ciphertext = new Uint8Array(encrypted.length + tag.length);
-      ciphertext.set(encrypted); ciphertext.set(tag, encrypted.length);
-      const aesKey = await crypto.subtle.importKey('raw', rawKey, { name: 'AES-GCM' }, false, ['decrypt']);
-      const clear = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: asArrayBuffer(iv), tagLength: tag.length * 8 }, aesKey, asArrayBuffer(ciphertext));
-      const data = JSON.parse(new TextDecoder().decode(clear));
-      const server = new URL(requiredText(data, 'server'));
-      if (!['http:', 'https:'].includes(server.protocol) || server.username || server.password
-        || data.type !== 'profile-playback' || integer(data.profile, 0) !== expectedProfile
-        || integer(data.expiresAt, 0) <= Date.now()) throw new EvoApiError('Autorização de reprodução inválida.');
-      return {
-        server: server.href.replace(/\/$/, ''), username: requiredText(data, 'username'),
-        password: requiredText(data, 'password'), profile: expectedProfile, expiresAt: integer(data.expiresAt, 0),
-      };
-    },
-  };
-}
-
 async function fetchWithTimeout(input, init) {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
@@ -285,6 +249,3 @@ function text(value) { return value === null || value === undefined ? '' : Strin
 function integer(value, fallback) { const result = Number.parseInt(text(value), 10); return Number.isFinite(result) ? result : fallback; }
 function clamp(value, minimum, maximum) { return Math.min(maximum, Math.max(minimum, value)); }
 function requiredText(data, key) { const value = text(data?.[key]); if (!value) throw new EvoApiError(`Campo ausente: ${key}.`); return value; }
-function bytesToBase64(bytes) { let value = ''; for (const byte of bytes) value += String.fromCharCode(byte); return btoa(value); }
-function decodeBase64Url(value) { const normalized = value.replace(/-/g, '+').replace(/_/g, '/'); const padding = '='.repeat((4 - normalized.length % 4) % 4); return Uint8Array.from(atob(normalized + padding), character => character.charCodeAt(0)); }
-function asArrayBuffer(bytes) { return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength); }
