@@ -635,7 +635,7 @@ function openLiveChannel(item) {
   elements.video.load();
   elements.video.controls = true;
   elements.video.classList.add('live-controls-no-seek');
-  elements.video.disablePictureInPicture = true;
+  elements.video.disablePictureInPicture = false;
   elements.video.hidden = false;
   elements.play.hidden = true;
   if (!elements.modal.open) elements.modal.showModal();
@@ -968,13 +968,12 @@ function detachLivePlaybackToDock() {
   replacement.id = 'media-player';
   replacement.controls = false;
   replacement.playsInline = true;
-  replacement.setAttribute('controlslist', 'nodownload');
   replacement.hidden = true;
   video.id = '';
   video.classList.add('live-mini-player-video');
   video.hidden = false;
   video.controls = true;
-  video.disablePictureInPicture = true;
+  video.disablePictureInPicture = false;
   video.replaceWith(replacement);
   surface.append(video);
   elements.video = replacement;
