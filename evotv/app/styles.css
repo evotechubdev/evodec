@@ -132,30 +132,14 @@ input:focus, select:focus { border-color: var(--cyan); box-shadow: 0 0 0 3px rgb
 .live-mini-player-actions .live-mini-player-close { width: 28px; padding: 0; font-size: 18px; }
 .live-mini-player-video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; background: #000; }
 .media-player-surface { position: relative; }
-.live-playback-controls {
-  position: absolute;
-  z-index: 4;
-  right: 12px;
-  bottom: 12px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 10px;
-  border: 1px solid rgba(255, 255, 255, .2);
-  border-radius: 10px;
-  color: #fff;
-  background: rgba(5, 9, 14, .78);
-  backdrop-filter: blur(8px);
-}
-.live-volume-control { display: flex; align-items: center; gap: 7px; color: #e8edf4; font-size: 11px; }
-.live-volume-control input { width: 100px; height: 24px; accent-color: #27c4e8; cursor: pointer; }
-.live-fullscreen-button { width: 32px; height: 30px; padding: 0; border: 0; border-radius: 6px; color: inherit; background: transparent; font-size: 23px; line-height: 1; cursor: pointer; }
-.live-fullscreen-button:hover { background: rgba(255, 255, 255, .14); }
-.media-player-surface:fullscreen,
-.live-mini-player-surface:fullscreen { display: grid; width: 100vw; height: 100vh; place-items: center; background: #000; }
-.media-player-surface:fullscreen #media-player,
-.live-mini-player-surface:fullscreen .live-mini-player-video { width: 100%; height: 100%; max-height: 100vh; margin: 0; object-fit: contain; }
 .live-mini-player-surface { position: relative; }
+video.live-controls-no-seek::-webkit-media-controls-play-button,
+video.live-controls-no-seek::-webkit-media-controls-overlay-play-button,
+video.live-controls-no-seek::-webkit-media-controls-timeline,
+video.live-controls-no-seek::-webkit-media-controls-current-time-display,
+video.live-controls-no-seek::-webkit-media-controls-time-remaining-display,
+video.live-controls-no-seek::-webkit-media-controls-seek-back-button,
+video.live-controls-no-seek::-webkit-media-controls-seek-forward-button { display: none !important; }
 .media-layout { display: grid; grid-template-columns: minmax(230px, 34%) 1fr; min-height: 520px; }
 .media-poster { width: 100%; height: 100%; min-height: 520px; object-fit: cover; background: #102840; }
 .media-content { padding: clamp(28px, 5vw, 56px); align-self: center; }

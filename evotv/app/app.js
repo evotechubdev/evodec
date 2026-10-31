@@ -82,7 +82,7 @@ function showScreen(name) {
 }
 
 function readableError(error) {
-  if (['LIVE_STREAM_NOT_CONFIGURED', 'LIVE_PROVIDER_NOT_CONFIGURED', 'LIVE_LINK_MAP_UNAVAILABLE', 'LIVE_CHANNEL_LINK_MISSING'].includes(String(error?.message || error))) return 'O link RAUTH deste canal não está disponível no mapa privado do backend.';
+  if (['LIVE_STREAM_NOT_CONFIGURED', 'LIVE_PROVIDER_NOT_CONFIGURED', 'LIVE_LINK_MAP_UNAVAILABLE', 'LIVE_CHANNEL_LINK_MISSING'].includes(String(error?.message || error))) return 'Canal em Manuten\u00e7\u00e3o - Tente acessar outro canal correspondente fora de Manuten\u00e7\u00e3o.';
   if (String(error?.message || error) === 'SERVICE_NOT_CONFIGURED') return 'O backend do app ainda não concluiu a configuração de mídia.';
   return String(error?.message || error || 'Não foi possível concluir a operação.').replace(/\bIPTV\b/gi, 'TV');
 }
@@ -574,7 +574,7 @@ function openItem(item) {
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
-  elements.video.parentElement?.querySelector('.live-playback-controls')?.remove();
+  elements.video.classList.remove('live-controls-no-seek');
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
   elements.mediaKind.textContent = item.kind === 'show' ? 'SHOW' : 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
@@ -594,43 +594,6 @@ function openItem(item) {
   elements.modal.showModal();
 }
 
-function createLiveControls(video, surface) {
-  const controls = document.createElement('div');
-  controls.className = 'live-playback-controls';
-  const volumeLabel = document.createElement('label');
-  volumeLabel.className = 'live-volume-control';
-  const volumeText = document.createElement('span');
-  volumeText.textContent = 'Volume';
-  const volume = document.createElement('input');
-  volume.type = 'range';
-  volume.min = '0'; volume.max = '1'; volume.step = '0.05';
-  volume.value = String(video.muted ? 0 : video.volume);
-  volume.setAttribute('aria-label', 'Volume do canal');
-  volume.addEventListener('input', () => {
-    video.volume = Number(volume.value);
-    video.muted = Number(volume.value) === 0;
-  });
-  volumeLabel.append(volumeText, volume);
-  const fullscreen = document.createElement('button');
-  fullscreen.type = 'button';
-  fullscreen.className = 'live-fullscreen-button';
-  fullscreen.textContent = '⛶';
-  fullscreen.title = 'Tela cheia';
-  fullscreen.setAttribute('aria-label', 'Tela cheia');
-  fullscreen.addEventListener('click', () => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen().catch(() => {});
-      return;
-    }
-    if (typeof surface.requestFullscreen === 'function') void surface.requestFullscreen().catch(() => {});
-    else if (typeof video.webkitEnterFullscreen === 'function') video.webkitEnterFullscreen();
-  });
-  controls.append(volumeLabel, fullscreen);
-  surface.classList.add('has-live-controls');
-  surface.append(controls);
-  return controls;
-}
-
 function openLiveChannel(item) {
   const currentVideo = elements.video;
   if (state.selected?.kind === 'live' && state.mpegtsPlayer
@@ -643,7 +606,6 @@ function openLiveChannel(item) {
   }
   stopPlayback();
   if (elements.seriesDialog.open) closeSeriesDetails();
-  elements.video.parentElement?.querySelector('.live-playback-controls')?.remove();
   state.selected = { ...item, kind: 'live' };
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
@@ -679,10 +641,10 @@ function openLiveChannel(item) {
   elements.liveChoiceList.hidden = true;
   elements.video.removeAttribute('src');
   elements.video.load();
-  elements.video.controls = false;
+  elements.video.controls = true;
+  elements.video.classList.add('live-controls-no-seek');
   elements.video.hidden = false;
   elements.play.hidden = true;
-  createLiveControls(elements.video, elements.video.parentElement);
   if (!elements.modal.open) elements.modal.showModal();
   void tryCandidate();
 }
@@ -705,7 +667,8 @@ function syncSeriesFavoriteControls() {
 async function openSeries(series) {
   if (!state.session || !state.seriesCatalog) return;
   stopPlayback();
-  elements.video.parentElement?.querySelector('.live-playback-controls')?.remove();
+  elements.video.controls = true;
+  elements.video.classList.remove('live-controls-no-seek');
   state.selected = null;
   state.activeSeries = series;
   state.activeSeriesEpisodes = [];
@@ -852,6 +815,8 @@ function openSeriesEpisode(episode) {
   state.candidateIndex = 0;
   closeSeriesDetails();
   stopPlayback();
+  elements.video.controls = true;
+  elements.video.classList.remove('live-controls-no-seek');
   elements.mediaKind.textContent = 'SÉRIE';
   elements.modalTitle.textContent = state.selected.seriesName;
   elements.modalMeta.textContent = `Temporada ${episode.season} · Episódio ${episode.episode_num}`;
@@ -1029,11 +994,10 @@ function detachLivePlaybackToDock() {
   video.id = '';
   video.classList.add('live-mini-player-video');
   video.hidden = false;
-  video.controls = false;
+  video.controls = true;
   video.disablePictureInPicture = true;
   video.replaceWith(replacement);
   surface.append(video);
-  createLiveControls(video, surface);
   elements.video = replacement;
   bindMainVideoEvents(replacement);
 
@@ -1153,7 +1117,8 @@ async function tryCandidate() {
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
-      elements.video.controls = false;
+      elements.video.controls = true;
+      elements.video.classList.add('live-controls-no-seek');
       createLivePlayer(playbackUrl, attempt, true);
     } else if (state.selected.kind === 'show') {
       elements.video.controls = true;
