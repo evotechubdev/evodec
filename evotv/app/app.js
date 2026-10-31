@@ -1257,6 +1257,8 @@ function stopPlayback() {
   state.screenPlaybackUrl = '';
   if (elements.playerToolbar) elements.playerToolbar.hidden = true;
   elements.playerSurface.classList.remove('screen-maximized');
+  elements.playerSurface.classList.remove('vertical-extra-screen');
+  elements.openLiveScreen.hidden = false;
   elements.maximizeScreen?.setAttribute('aria-pressed', 'false');
   elements.maximizeScreen?.setAttribute('aria-label', 'Maximizar ecrã');
   state.restoreModalAfterPictureInPicture = false;
@@ -1694,6 +1696,9 @@ async function tryCandidate() {
     const playbackUrl = await mediaTicket(source, controller.signal);
     if (attempt !== state.playbackAttempt || !state.session) return;
     state.screenPlaybackUrl = playbackUrl;
+    const verticalExtra = Boolean(state.selected.evo_extra_episode);
+    elements.openLiveScreen.hidden = verticalExtra;
+    elements.playerSurface.classList.toggle('vertical-extra-screen', verticalExtra);
     elements.playerToolbar.hidden = false;
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
