@@ -36,6 +36,7 @@ const gameMusicAudio = new Audio();
 gameMusicAudio.loop = true;
 gameMusicAudio.preload = 'none';
 let activeGameMusicId = '';
+let activeGameFrame = null;
 const api = new EvoAuthApi();
 
 let storedView = 'grid';
@@ -830,6 +831,66 @@ async function toggleGameMusic(game) {
   }
 }
 
+async function openEmbeddedGame(game) {
+  const allowedHosts = { nfsu2: 'nfsu-2.online', bt3: 'dragonballbt3.online' };
+  let target;
+  try { target = new URL(String(game?.targetUrl || '')); } catch { notice('O endereço deste game não é válido.'); return; }
+  if (target.protocol !== 'https:' || target.hostname !== allowedHosts[game?.id] || target.port || target.search || target.username || target.password) {
+    notice('O endereço deste game não é válido.');
+    return;
+  }
+  stopGameMusic();
+  const panel = document.createElement('section');
+  panel.className = 'embedded-game-panel';
+  panel.setAttribute('aria-label', game.title || 'Game');
+  const toolbar = document.createElement('header'); toolbar.className = 'embedded-game-toolbar';
+  const title = document.createElement('strong'); title.className = 'embedded-game-title'; title.textContent = game.title || 'Game';
+  const actions = document.createElement('div'); actions.className = 'embedded-game-actions';
+  const fullscreen = document.createElement('button'); fullscreen.type = 'button'; fullscreen.className = 'embedded-game-control'; fullscreen.textContent = '⛶ Tela cheia';
+  const close = document.createElement('button'); close.type = 'button'; close.className = 'embedded-game-control'; close.textContent = '× Fechar';
+  actions.append(fullscreen, close); toolbar.append(title, actions);
+  const viewport = document.createElement('div'); viewport.className = 'embedded-game-viewport';
+  const loading = document.createElement('div'); loading.className = 'embedded-game-loading';
+  const loadingTitle = document.createElement('strong'); loadingTitle.textContent = 'Preparando o game...';
+  const loadingDetail = document.createElement('span'); loadingDetail.textContent = 'A primeira abertura pode demorar enquanto os arquivos são carregados.';
+  loading.append(loadingTitle, loadingDetail);
+  const frame = document.createElement('iframe');
+  frame.className = 'embedded-game-frame'; frame.title = game.title || 'Game'; frame.allowFullscreen = true;
+  frame.allow = 'autoplay; fullscreen; gamepad; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
+  frame.referrerPolicy = 'no-referrer'; frame.loading = 'eager';
+  frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals allow-popups');
+  frame.addEventListener('load', () => { loading.hidden = true; }, { once: true });
+  frame.src = target.href;
+  viewport.append(loading, frame); panel.append(toolbar, viewport);
+  elements.grid.classList.add('game-mode');
+  elements.grid.replaceChildren(panel);
+  activeGameFrame = { panel, frame, game };
+  fullscreen.addEventListener('click', () => { void toggleGameFullscreen(); });
+  close.addEventListener('click', () => { void closeEmbeddedGame(true); });
+  panel.addEventListener('pointermove', () => panel.classList.add('controls-visible'));
+  panel.addEventListener('pointerleave', () => panel.classList.remove('controls-visible'));
+  panel.addEventListener('keydown', event => { if (event.key === 'Escape') void closeEmbeddedGame(true); });
+  panel.classList.add('controls-visible');
+  window.setTimeout(() => { if (activeGameFrame?.panel === panel) panel.classList.remove('controls-visible'); }, 2800);
+  if (panel.requestFullscreen) void panel.requestFullscreen().catch(() => {});
+}
+
+async function toggleGameFullscreen() {
+  const panel = activeGameFrame?.panel;
+  if (!panel) return;
+  try {
+    if (document.fullscreenElement === panel) await document.exitFullscreen();
+    else await panel.requestFullscreen();
+  } catch { /* fullscreen pode estar bloqueado pelo navegador */ }
+}
+
+async function closeEmbeddedGame(restoreCatalog = false) {
+  const panel = activeGameFrame?.panel;
+  activeGameFrame = null;
+  if (document.fullscreenElement === panel) await document.exitFullscreen().catch(() => {});
+  if (restoreCatalog && state.activeSection === 'games') renderGrid();
+}
+
 function seriesCatalogPage(idToken, params) {
   return fetchCatalogPage('/api/catalog/series/page', idToken, params);
 }
@@ -889,14 +950,7 @@ async function fetchCatalogPage(path, idToken, params) {
 function openItem(item) {
   if (!state.session) return;
   if (item.kind === 'game') {
-    const allowedHosts = { nfsu2: 'nfsu-2.online', bt3: 'dragonballbt3.online' };
-    try {
-      const target = new URL(String(item.targetUrl || ''));
-      if (target.protocol === 'https:' && target.hostname === allowedHosts[item.id] && !target.port && !target.search && !target.username && !target.password) {
-        stopGameMusic();
-        window.open(target.href, '_blank', 'noopener,noreferrer');
-      } else notice('O endereço deste game não é válido.');
-    } catch { notice('O endereço deste game não é válido.'); }
+    void openEmbeddedGame(item);
     return;
   }
   if (item.kind === 'live') { openLiveChannel(item); return; }
@@ -1778,6 +1832,7 @@ function startSessionWatcher() {
 
 function endLocalProfile() {
   state.sessionWatcher?.abort(); state.sessionWatcher = null; stopPlayback(); stopAllMiniLivePlayers(); stopAllOwnLiveScreens();
+  void closeEmbeddedGame(false); stopGameMusic();
   if (elements.modal.open) elements.modal.close();
   state.session = null; state.adultView = false; state.selected = null; state.filtered = []; state.favorites = new Set();
   state.liveFavorites = null; state.adultLiveFavorites = null; elements.grid.replaceChildren();
@@ -1952,6 +2007,7 @@ function enterShowsView() {
 
 async function enterExtraView(section) {
   if (!state.session || !['extras', 'games'].includes(section)) return;
+  if (activeGameFrame) void closeEmbeddedGame(false);
   state.activeSection = section;
   state.adultView = false;
   if (section !== 'games') stopGameMusic();
@@ -2023,6 +2079,7 @@ function normalizeExtraSeries(catalog) {
 }
 
 function collapseExtraMenu() {
+  if (activeGameFrame) void closeEmbeddedGame(false);
   stopGameMusic();
   elements.extrasNav.setAttribute('aria-expanded', 'false');
   elements.extraTypes.hidden = true;
