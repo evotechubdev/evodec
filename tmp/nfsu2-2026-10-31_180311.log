@@ -1,0 +1,653 @@
+[log] names, addresses and the time zone's name are replaced in this file: you, player-…, profile-…, crew-…, room-…, vlan-…, ip-…, (zone)
+=== the last game's log, as the page kept it while it ran ===
+[app] the last game (game 90ad6aae, started 17:58:11, last copy 17:58:25, 0.2 min in) was running when the page was closed or reloaded; at that copy it held textures 37 MB; its log is at the start of this file
+[app] game module 90ad6aae: 35.9 MB in 816 ms, 0 bytes transferred
+[app] display refresh 60.0 Hz -> 60
+[app] the screen stays on while the game runs (Wake Lock)
+=== NFSU2 web, 2026-10-31T20:59:56.072Z, game 90ad6aae, server remote ===
+[app] save folder: OPFS save (/save); canvas 1295x879 device pixels, display 60 Hz; Chrome 149 on Windows; Graphics: intel gen-9; movies in AV1
+[app] device: screen 1536x864 at 1.25x, 8 cores, 16 GB memory, no touch, browser tab
+[app] settings.ini:213: roam -> NFSU2_ROAM=0
+[audio] playing into the page's AudioContext (44100 Hz, running)
+[0!]   loaded .text     -> 0x00401000  3676913 bytes
+[0!]   loaded .rdata    -> 0x00783000  410075 bytes
+[0!]   loaded .data     -> 0x007e8000  217088 bytes
+[0!]   loaded .rsrc     -> 0x008bc000  230734 bytes
+[0!]   loaded           -> 0x008f5000  240662 bytes
+[0!]   loaded <unnamed> -> 0x00930000  8192 bytes
+[0!]   image 0x00400000 .. 0x00932000   resource directory 0x008bc000 (230664 bytes)
+[0!] file: game root folder = /data
+[0!] file: save folder = /save
+[0!] file: game folder is read-only (NFSU2_READONLY_DATA)
+[0!] dispatch: 19458 functions registered (0 duplicates, 0 out of range), table 14.0 MB
+[0!] heap: TLSF heaps + VA manager, region 0x08000000..0x28000000
+[0!] win32: 252 imports bound to the IAT
+[0!] win32: server.dll lifted into this build (115 imports, bound when it is loaded)
+[0!] language: english, LANGPACKS/english: the movies' subtitles
+[0!]   [registry] registry file /save/registry.txt
+[input] attached: mailbox 0x29b97880, Windows/Linux key conventions, page visible, focused
+[0!] [input] HostMailbox at 0x29b97880 (24896 bytes), input thread started
+[0!] 
+[0!] === running the entry point: 0x0075bcc7 ===
+[0!]     TEB=0x00c00000  stack=0x05000000..0x05ff0000  esp=0x05fef000
+[0!] 
+[4!] [hle] GetModuleHandleA("kernel32.dll") -> 0x00400000 (from 0x0076c3df)
+[4!] [hle] GetModuleHandleA("KERNEL32") -> 0x00400000 (from 0x00762562)
+[4!] [hle] IsProcessorFeaturePresent(0) -> 0 (from 0x0076257a)
+[4!] [hle] IsProcessorFeaturePresent(7) -> 0 (from 0x006417c0)
+[4!] [hle] IsProcessorFeaturePresent(6) -> 1 (from 0x006417f5)
+[5!] [thread] start tid=101 entry=0x0075f617 arg=0x08401490 teb=0x00c20000 stack=0x06000000 from 0x0075f721 (1 running)
+[4!]   [timer] timeSetEvent 9 ms, one-shot, callback 0x006f5b4d
+[6!]   [timer] timeSetEvent 7 ms, one-shot, callback 0x006f5b4d
+[7!] [thread] start tid=102 entry=0x0075f617 arg=0x0841a540 teb=0x00c22000 stack=0x06200000 from 0x0075f721 (2 running)
+[4!]   [file] virtual empty "foobar" (disk check skipped)
+[4!]   [file] CANNOT OPEN: "C:\NFSU2/NFSUNDER\ZDIR.BIN" -> "/data/NFSUNDER/ZDIR.BIN" (disp=3 access=0x80000000)
+[4!] com: IDirect3D9 object 0x08800080
+[gpu] renderer attached: intel gen-9, canvas 1295x879 bgra8unorm, features texture-compression-bc texture-component-swizzle timestamp-query
+[gpu] back buffer 1294x878
+[4!] [gpu] WebGPU renderer: recording for the page (control block 0x2ae193c0, layout 51989c9c)
+[4!] ws: fov=game hud=wide movie=fit cutscene borders=full render=backing
+[4!]   [window] class registered, wndproc=0x005ccd60
+[4!] com: CreateDevice flags 0x50: x87 control word 0232 -> 003f
+[4!] com: CreateDevice request 1280x960 (fullscreen)
+[4!] com: menu row 4 -> 1294x878
+[4!] ws: game/device aspect 0.9047
+[4!] com: device resolution 1280x960 -> 1294x878 (aspfix=0.9047)
+[4!] com: IDirect3DDevice9 created 0x088002e0 (1294x878)
+[4!] [drive] f=0 flow=0 top=- nis=0 engage=0 -> 0
+[4!] [gpu] waiting for the page's renderer to attach
+[6!]   [timer] timeSetEvent 43 ms, one-shot, callback 0x006f5b4d
+[4!] [gpu] renderer attached after 2 ms
+[4!] [hle] GetModuleHandleA("d3d9.dll") -> 0x00400000 (from 0x00671b13)
+[4!] [hle] GetModuleHandleA("d3d9d.dll") -> 0x00000000 (from 0x00671b43)
+[4!]   [RT-tex] 1280x960 -> 1294x878 (NFSRES)
+[4!]   [RT-tex] 1294x878 fmt=21 levels=1 -> id=2
+[4!]   [RT-tex] 1280x960 -> 1294x878 (NFSRES)
+[4!]   [RT-tex] 1294x878 fmt=21 levels=1 -> id=3
+[4!]   [RT-tex] 1280x960 -> 1294x878 (NFSRES)
+[4!]   [RT-tex] 1294x878 fmt=21 levels=1 -> id=4
+[4!]   [RT-tex] 640x480 fmt=21 levels=1 -> id=5
+[4!]   [RT-tex] 640x480 fmt=21 levels=1 -> id=6
+[4!]   [RT-tex] 640x480 fmt=21 levels=1 -> id=7
+[4!] com: IDirectInput8 object 0x08807840
+[4!]   [DI] CreateDevice GUID 6f1d2b60-d5a0-11cf -> MOUSE
+[4!] [pad] Gamepad API: the page polls navigator.getGamepads() every frame (standard mapping)
+[4!] [pad] player 1 controller: none (-)
+[4!] tz: (zone), UTC-3 h (0 transitions)
+[4!] [hle] GetTimeZoneInformation: bias 180 min, "(zone)" / "(zone)", daylight 1969-12-31 21:00, standard 1970-01-01 00:00 (local) -> unknown (no DST)
+[4!] [dbg] EZ Wheel Wrapper v4.26
+[4!] [dbg] 
+[4!] com: IDirectSound object 0x08807b90
+[audio] worklet attached: 44100 Hz, base latency 10.0 ms, output latency 40.0 ms, state running
+[4!] sound: Web Audio output open (audio pump thread, 44100 Hz float stereo ring at 0x29a90d80, 16384 frames)
+[4!]   [sound] buffer #1: 44100 Hz, 1 channels, 16 bit, 44096 bytes (0.50 s)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 88192 bytes (0.50 s)
+[8!] sound: no running AudioContext: the mixer runs on the wall clock (DirectSound cursors keep moving, output dropped)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 176384 bytes (1.00 s)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 264576 bytes (1.50 s)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 88192 bytes (0.50 s)
+[9!] [thread] start tid=103 entry=0x007263c7 arg=0x00000000 teb=0x00c24000 stack=0x06300000 from 0x00726478 (3 running)
+[8!] sound: output paced by the AudioWorklet (ring 16384 frames, target 1024 = 23.2 ms)
+[10!] [thread] start tid=104 entry=0x0075f617 arg=0x087857a0 teb=0x00c26000 stack=0x06400000 from 0x0075f721 (4 running)
+[4!]   [draw-name] "DrawPrimitiveUP"
+[4!]   [input] GetDeviceState size=20 (dataFormat=0x007bfdc8 device=2)
+[10!]   [file] CANNOT OPEN: "C:\NFSU2/sdata/sdat.viv" -> "/data/sdata/sdat.viv" (disp=3 access=0x80000000)
+[7!]   [file] CANNOT OPEN: "C:\NFSU2sdata/sdat.viv" -> "/data/NFSU2sdata/sdat.viv" (disp=3 access=0x80000000)
+[11!] [thread] start tid=105 entry=0x0075f617 arg=0x087f12f0 teb=0x00c28000 stack=0x06500000 from 0x0075f721 (5 running)
+[10!]   [file] CANNOT OPEN: "C:\NFSU2/sdata/sdat.viv" -> "/data/sdata/sdat.viv" (disp=3 access=0x80000000)
+[4!] [fng] f=2 screen PC_Loading.fng
+[4!] [fng] f=2 screen UI_PC_Help_Bar.fng
+[4!] [hfr] mode auto, display 60 Hz, content rate 60, fixes: none
+[4!] [drive] f=2 flow=1 top=UI_PC_Help_Bar.fng nis=0 engage=0 -> 0
+[4!] [fng] f=3 top package UI_PC_Help_Bar.fng (flow=1)
+[4!] language: 4 texts of our own added to the game's 3925
+[gpu] display 60 Hz (rAF median 16.657 ms)
+[4!] thread-spawn: thread 12 waited 131 ms for a pool worker
+[4!] [fng] f=15 screen MC_Bootup.fng
+[4!] [fng] f=15 screen LS_BlankMovie.fng
+[4!] [drive] f=14 flow=3 top=MC_Bootup.fng nis=0 engage=0 -> 0
+[4!] [fng] f=16 top package MC_Bootup.fng (flow=3)
+[4!] [intro] boot movies: skippable
+[4!] [fng] f=17 top package LS_BlankMovie.fng (flow=3)
+[4!] [fng] f=76 screen LS_EAlogo.fng
+[4!] [fng] f=78 top package LS_EAlogo.fng (flow=3)
+[3!] app: deactivated (window inactive, audio t=4.516 s)
+[4!] sound: output muted (game inactive)
+[12!] [timer] 1 ms waits take 6.2 ms: the frame pacer spins its sleeps while the browser's timer is this coarse
+[8!] sound: worklet underrun (52 so far): ring target raised to 1536 frames (34.8 ms)
+[app] the page was hidden for 9.1 s (t=17 s into the game)
+[3!] app: activated (page visibility active, audio t=13.595 s)
+[4!] sound: output unmuted
+[4!] [movie] AV1 768x512: 94 frames, 0 without a picture, decode 4.41 ms a frame (max 28.3), 0 catch-ups
+[4!] [fng] f=257 screen LS_THXMovie.fng
+[4!] [fng] f=259 top package LS_THXMovie.fng (flow=3)
+[4!] [intro] f=342 LS_THXMovie.fng skipped by PAD_ACCEPT (movie end)
+[4!] [fng] f=342 screen LS_PSAMovie.fng
+[4!] [movie] AV1 768x512: 37 frames, 0 without a picture, decode 2.15 ms a frame (max 8.9), 0 catch-ups
+[4!] [fng] f=343 top package LS_PSAMovie.fng (flow=3)
+[4!] [intro] f=357 LS_PSAMovie.fng skipped by PAD_ACCEPT (movie end)
+[8!] sound: a skip at 16.6 s: the game last wrote its sound 108 ms ago
+[8!] sound: a skip at 17.1 s: the game last wrote its sound 608 ms ago
+[4!] [fng] f=357 screen UG_LS_IntroFMV.fng
+[4!] [movie] AV1 768x512: 6 frames, 0 without a picture, decode 3.66 ms a frame (max 12.5), 0 catch-ups
+[4!] [fng] f=358 top package UG_LS_IntroFMV.fng (flow=3)
+[3!] app: deactivated (window inactive, audio t=20.155 s)
+[4!] sound: output muted (game inactive)
+[3!] app: activated (window active, audio t=21.002 s)
+[4!] sound: output unmuted
+=== this page's log ===
+[app] the last game (game 90ad6aae, started 17:59:59, last copy 18:00:23, 0.4 min in) was running when the page was closed or reloaded; at that copy it held textures 37 MB; its log is at the start of this file
+[app] game module 90ad6aae: 35.9 MB in 857 ms, 0 bytes transferred
+[app] display refresh 60.0 Hz -> 60
+[app] the screen stays on while the game runs (Wake Lock)
+=== NFSU2 web, 2026-10-31T21:00:26.970Z, game 90ad6aae, server remote ===
+[app] save folder: OPFS save (/save); canvas 1295x879 device pixels, display 60 Hz; Chrome 149 on Windows; Graphics: intel gen-9; movies in AV1
+[app] device: screen 1536x864 at 1.25x, 8 cores, 16 GB memory, no touch, browser tab
+[app] settings.ini:213: roam -> NFSU2_ROAM=0
+[audio] playing into the page's AudioContext (44100 Hz, running)
+[0!]   loaded .text     -> 0x00401000  3676913 bytes
+[0!]   loaded .rdata    -> 0x00783000  410075 bytes
+[0!]   loaded .data     -> 0x007e8000  217088 bytes
+[0!]   loaded .rsrc     -> 0x008bc000  230734 bytes
+[0!]   loaded           -> 0x008f5000  240662 bytes
+[0!]   loaded <unnamed> -> 0x00930000  8192 bytes
+[0!]   image 0x00400000 .. 0x00932000   resource directory 0x008bc000 (230664 bytes)
+[0!] file: game root folder = /data
+[0!] file: save folder = /save
+[0!] file: game folder is read-only (NFSU2_READONLY_DATA)
+[0!] dispatch: 19458 functions registered (0 duplicates, 0 out of range), table 14.0 MB
+[0!] heap: TLSF heaps + VA manager, region 0x08000000..0x28000000
+[0!] win32: 252 imports bound to the IAT
+[0!] win32: server.dll lifted into this build (115 imports, bound when it is loaded)
+[0!] language: english, LANGPACKS/english: the movies' subtitles
+[0!]   [registry] registry file /save/registry.txt
+[input] attached: mailbox 0x29b97880, Windows/Linux key conventions, page visible, focused
+[0!] [input] HostMailbox at 0x29b97880 (24896 bytes), input thread started
+[0!] 
+[0!] === running the entry point: 0x0075bcc7 ===
+[0!]     TEB=0x00c00000  stack=0x05000000..0x05ff0000  esp=0x05fef000
+[0!] 
+[4!] [hle] GetModuleHandleA("kernel32.dll") -> 0x00400000 (from 0x0076c3df)
+[4!] [hle] GetModuleHandleA("KERNEL32") -> 0x00400000 (from 0x00762562)
+[4!] [hle] IsProcessorFeaturePresent(0) -> 0 (from 0x0076257a)
+[4!] [hle] IsProcessorFeaturePresent(7) -> 0 (from 0x006417c0)
+[4!] [hle] IsProcessorFeaturePresent(6) -> 1 (from 0x006417f5)
+[5!] [thread] start tid=101 entry=0x0075f617 arg=0x08401490 teb=0x00c20000 stack=0x06000000 from 0x0075f721 (1 running)
+[4!]   [timer] timeSetEvent 9 ms, one-shot, callback 0x006f5b4d
+[6!]   [timer] timeSetEvent 7 ms, one-shot, callback 0x006f5b4d
+[7!] [thread] start tid=102 entry=0x0075f617 arg=0x0841a540 teb=0x00c22000 stack=0x06200000 from 0x0075f721 (2 running)
+[4!]   [file] virtual empty "foobar" (disk check skipped)
+[4!]   [file] CANNOT OPEN: "C:\NFSU2/NFSUNDER\ZDIR.BIN" -> "/data/NFSUNDER/ZDIR.BIN" (disp=3 access=0x80000000)
+[4!] com: IDirect3D9 object 0x08800080
+[gpu] renderer attached: intel gen-9, canvas 1295x879 bgra8unorm, features texture-compression-bc texture-component-swizzle timestamp-query
+[gpu] back buffer 1294x878
+[4!] [gpu] WebGPU renderer: recording for the page (control block 0x2ae193c0, layout 51989c9c)
+[4!] ws: fov=game hud=wide movie=fit cutscene borders=full render=backing
+[4!]   [window] class registered, wndproc=0x005ccd60
+[4!] com: CreateDevice flags 0x50: x87 control word 0232 -> 003f
+[4!] com: CreateDevice request 1280x960 (fullscreen)
+[4!] com: menu row 4 -> 1294x878
+[4!] ws: game/device aspect 0.9047
+[4!] com: device resolution 1280x960 -> 1294x878 (aspfix=0.9047)
+[4!] com: IDirect3DDevice9 created 0x088002e0 (1294x878)
+[4!] [drive] f=0 flow=0 top=- nis=0 engage=0 -> 0
+[4!] [gpu] waiting for the page's renderer to attach
+[6!]   [timer] timeSetEvent 43 ms, one-shot, callback 0x006f5b4d
+[4!] [gpu] renderer attached after 1 ms
+[4!] [hle] GetModuleHandleA("d3d9.dll") -> 0x00400000 (from 0x00671b13)
+[4!] [hle] GetModuleHandleA("d3d9d.dll") -> 0x00000000 (from 0x00671b43)
+[4!]   [RT-tex] 1280x960 -> 1294x878 (NFSRES)
+[4!]   [RT-tex] 1294x878 fmt=21 levels=1 -> id=2
+[4!]   [RT-tex] 1280x960 -> 1294x878 (NFSRES)
+[4!]   [RT-tex] 1294x878 fmt=21 levels=1 -> id=3
+[4!]   [RT-tex] 1280x960 -> 1294x878 (NFSRES)
+[4!]   [RT-tex] 1294x878 fmt=21 levels=1 -> id=4
+[4!]   [RT-tex] 640x480 fmt=21 levels=1 -> id=5
+[4!]   [RT-tex] 640x480 fmt=21 levels=1 -> id=6
+[4!]   [RT-tex] 640x480 fmt=21 levels=1 -> id=7
+[4!] com: IDirectInput8 object 0x08807840
+[4!]   [DI] CreateDevice GUID 6f1d2b60-d5a0-11cf -> MOUSE
+[4!] [pad] Gamepad API: the page polls navigator.getGamepads() every frame (standard mapping)
+[4!] [pad] player 1 controller: none (-)
+[4!] tz: (zone), UTC-3 h (0 transitions)
+[4!] [hle] GetTimeZoneInformation: bias 180 min, "(zone)" / "(zone)", daylight 1969-12-31 21:00, standard 1970-01-01 00:00 (local) -> unknown (no DST)
+[4!] [dbg] EZ Wheel Wrapper v4.26
+[4!] [dbg] 
+[4!] com: IDirectSound object 0x08807b90
+[audio] worklet attached: 44100 Hz, base latency 10.0 ms, output latency 40.0 ms, state running
+[4!] sound: Web Audio output open (audio pump thread, 44100 Hz float stereo ring at 0x29a90d80, 16384 frames)
+[4!]   [sound] buffer #1: 44100 Hz, 1 channels, 16 bit, 44096 bytes (0.50 s)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 88192 bytes (0.50 s)
+[8!] sound: no running AudioContext: the mixer runs on the wall clock (DirectSound cursors keep moving, output dropped)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 176384 bytes (1.00 s)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 264576 bytes (1.50 s)
+[4!]   [sound] buffer #1: 44100 Hz, 2 channels, 16 bit, 88192 bytes (0.50 s)
+[9!] [thread] start tid=103 entry=0x007263c7 arg=0x00000000 teb=0x00c24000 stack=0x06300000 from 0x00726478 (3 running)
+[8!] sound: output paced by the AudioWorklet (ring 16384 frames, target 1024 = 23.2 ms)
+[10!] [thread] start tid=104 entry=0x0075f617 arg=0x087857a0 teb=0x00c26000 stack=0x06400000 from 0x0075f721 (4 running)
+[4!]   [draw-name] "DrawPrimitiveUP"
+[4!]   [input] GetDeviceState size=20 (dataFormat=0x007bfdc8 device=2)
+[10!]   [file] CANNOT OPEN: "C:\NFSU2/sdata/sdat.viv" -> "/data/sdata/sdat.viv" (disp=3 access=0x80000000)
+[7!]   [file] CANNOT OPEN: "C:\NFSU2sdata/sdat.viv" -> "/data/NFSU2sdata/sdat.viv" (disp=3 access=0x80000000)
+[11!] [thread] start tid=105 entry=0x0075f617 arg=0x087f12f0 teb=0x00c28000 stack=0x06500000 from 0x0075f721 (5 running)
+[10!]   [file] CANNOT OPEN: "C:\NFSU2/sdata/sdat.viv" -> "/data/sdata/sdat.viv" (disp=3 access=0x80000000)
+[4!] [fng] f=2 screen PC_Loading.fng
+[4!] [fng] f=2 screen UI_PC_Help_Bar.fng
+[4!] [hfr] mode auto, display 60 Hz, content rate 60, fixes: none
+[4!] [drive] f=2 flow=1 top=UI_PC_Help_Bar.fng nis=0 engage=0 -> 0
+[4!] [fng] f=3 top package UI_PC_Help_Bar.fng (flow=1)
+[4!] language: 4 texts of our own added to the game's 3925
+[gpu] display 60 Hz (rAF median 16.655 ms)
+[4!] [fng] f=13 screen MC_Bootup.fng
+[4!] [fng] f=13 screen LS_BlankMovie.fng
+[4!] [drive] f=13 flow=3 top=MC_Bootup.fng nis=0 engage=0 -> 0
+[4!] [fng] f=14 top package MC_Bootup.fng (flow=3)
+[4!] [intro] boot movies: skippable
+[4!] [fng] f=15 top package LS_BlankMovie.fng (flow=3)
+[4!] [fng] f=73 screen LS_EAlogo.fng
+[4!] [fng] f=75 top package LS_EAlogo.fng (flow=3)
+[4!] [movie] AV1 768x512: 94 frames, 0 without a picture, decode 3.73 ms a frame (max 21.0), 0 catch-ups
+[4!] [fng] f=275 screen LS_THXMovie.fng
+[4!] [fng] f=277 top package LS_THXMovie.fng (flow=3)
+[4!] [movie] AV1 768x512: 148 frames, 0 without a picture, decode 1.90 ms a frame (max 10.1), 0 catch-ups
+[4!] [fng] f=585 screen LS_PSAMovie.fng
+[4!] [fng] f=587 top package LS_PSAMovie.fng (flow=3)
+[4!] [intro] f=810 LS_PSAMovie.fng skipped by PAD_ACCEPT (movie end)
+[8!] sound: a skip at 14.6 s: the game last wrote its sound 121 ms ago
+[8!] sound: a skip at 15.1 s: the game last wrote its sound 622 ms ago
+[4!] [fng] f=810 screen UG_LS_IntroFMV.fng
+[4!] [movie] AV1 768x512: 107 frames, 0 without a picture, decode 3.09 ms a frame (max 33.6), 0 catch-ups
+[4!] [fng] f=811 top package UG_LS_IntroFMV.fng (flow=3)
+[4!] [intro] f=878 UG_LS_IntroFMV.fng skipped by PAD_ACCEPT (PAD_ACCEPT)
+[4!] [fng] f=878 screen UG_LS_Splash.fng
+[4!] [movie] AV1 768x512: 31 frames, 0 without a picture, decode 6.89 ms a frame (max 32.3), 0 catch-ups
+[4!] [fng] f=878 screen Chyron_FE.fng
+[4!] [fng] f=879 top package UG_LS_Splash.fng (flow=3)
+[4!] [fng] f=1186 screen MC_Background.fng
+[4!] [fng] f=1187 top package MC_Background.fng (flow=3)
+[4!] [fng] f=1187 screen MC_Main.fng
+[4!] [fng] f=1279 screen UI_Main.fng
+[4!] [fng] f=1279 screen GarageMain.fng
+[4!] ws: view 1 P00 3.1534 -> 2.8529 (view size 1280x960)
+[4!] ws: view 4 P00 3.1534 -> 2.8529 (view size 320x240)
+[4!]   [draw-name] "DrawIndexedPrimitive"
+[4!] [headlights] 0 other cars' lights (s 0.0050 o 0.500)
+[4!] com: FIXMAT pattern seen for the first time (FIXMAT=0)
+[4!] [fng] f=1280 top package GarageMain.fng (flow=3)
+[4!] ws: view 1 P00 3.1534 -> 2.8529 (view size 1280x960)
+[4!] ws: view 4 P00 3.1534 -> 2.8529 (view size 320x240)
+[gpu] 6 frame(s) waited over 20 ms for the GPU in the last 30 s, the longest 1143 ms (1625 frames, 0 pokes, poke off)
+[3!] app: deactivated (window inactive, audio t=43.363 s)
+[4!] sound: output muted (game inactive)
+[8!] sound: worklet underrun (42 so far): ring target raised to 1536 frames (34.8 ms)
+[12!] [timer] 1 ms waits take 16.2 ms: the frame pacer spins its sleeps while the browser's timer is this coarse
+[8!] sound: worklet underrun (44 so far): ring target raised to 2048 frames (46.4 ms)
+[8!] sound: worklet underrun (55 so far): ring target raised to 2560 frames (58.0 ms)
+[8!] sound: worklet underrun (60 so far): ring target raised to 3072 frames (69.7 ms)
+[8!] sound: worklet underrun (65 so far): ring target raised to 3584 frames (81.3 ms)
+[gpu] 1 frame(s) waited over 20 ms for the GPU in the last 30 s, the longest 24 ms (2209 frames, 0 pokes, poke off)
+[8!] sound: no worklet underrun for 20 s: ring target lowered to 3072 frames (69.7 ms)
+[app] the page was hidden for 51.9 s (t=99 s into the game)
+[3!] app: activated (page visibility active, audio t=87.644 s)
+[4!] sound: output unmuted
+[gpu] 95 s to t=96 s: 2210 frames, rAF 60.0 Hz, 344 drawn over unseen, GPU done p50 5.7 / p90 34.3 / max 2401 ms, 7 waited for the GPU, textures 42 MB
+[gpu] textures: 815 made (49 MB), 5 freed (7 MB); 124 bind groups cached
+[gpu] input age p50 / p90: handed off 8.2 / 15.3, submitted 11.5 / 21.2, GPU done 16.8 / 54.5, next rAF 26.4 / 65.6 ms (2203 frames)
+[8!] sound: the AudioWorklet stopped consuming: the mixer runs on the wall clock (DirectSound cursors keep moving, output dropped)
+[8!] sound: output paced by the AudioWorklet (ring 16384 frames, target 3072 = 69.7 ms)
+[data] 96 s: 19 blocks from the server (13.9 MB, 141 ms on average, the slowest 258 ms), 41 from this device's cache, 38 cache files open (38 opened, 0 of them again, 21 ms on average, the slowest 50 ms; 0 closed, 0 ms each), 36 MB in memory
+[3!] app: quit requested (page quit request) -> WM_CLOSE to the game
+[9!] [thread] end tid=103 (returned, eax=0x00000000)
+[4!] [hle] GetModuleHandleA("mscoree.dll") -> 0x00000000 (from 0x0075d424)
+[4!] 
+[4!] *** guest ExitProcess(0) - exiting
+[4!] 
+[4!] *** guest exited with code 0
+[4!] app: the game exited (code 0) after the quit request
+[0!] 
+[0!]   hook hits: 270154   /GS failures: 0
+[0!] 
+[0!]   CRT heap: _crtheap=0x00000002 __active_heap=1
+[0!] 
+[0!] === COM / D3D9 LAYER ===
+[0!] ws: hooks fov=20718/20718 borders=0 movie=861 hud=37373/26/0/1023 marker=0/0 rain=0 fe-rerender=83 fill=1308 (k=0.9047)
+[0!] [headlights] view 9 set up 0 times; view renders with other cars' light 0, solids lit for them 0 (marks 0, no slot 0, entries 0, lit already 0, no solid 0, no meshes 0, tested 0)
+[0!]   widescreen       : aspfix 0.9047, 339936 perspective / 268039 orthographic draws
+[0!]   renderer Hor+ into render targets: 0 cube face draws, 0 other
+[0!]      vs=2   cx=0   cw=3    persp    41272 / ortho        0  c[cw].w=11.036
+[0!]      vs=5   cx=0   cw=3    persp    12209 / ortho        0  c[cw].w=1.297
+[0!]      vs=9   cx=10  cw=13   persp   238498 / ortho        0  c[cw].w=9.433
+[0!]      vs=10  cx=0   cw=3    persp    43164 / ortho        0  c[cw].w=4.017
+[0!]      vs=11  cx=0   cw=3    persp        0 / ortho   243184  c[cw].w=1.000
+[0!]      vs=17  cx=0   cw=3    persp     4793 / ortho        0  c[cw].w=4.017
+[0!]   SetRenderState    : 331515 applied, 1194170 SKIPPED (78.3% were redundant)
+[0!]   COM calls in total : 6801980
+[0!]   Present (frames)   : 2587
+[0!]   Metal presents     : 2540 frames, 28661792 triangles
+[0!]   Metal textures     : 815 created, 1738 uploads
+[0!]   Draw* calls        : 609283
+[0!]   ps constant file   : highest used c3, 0 writes at 32 and above
+[0!]   COM objects by interface (created / destroyed / AddRef calls / Release calls):
+[0!]     IDirect3D9                           1 /         0 /          0 /          1
+[0!]     IDirect3DDevice9                     1 /         0 /         23 /         69
+[0!]     IDirect3DTexture9                  815 /       805 /          0 /        833
+[0!]     IDirect3DVertexBuffer9             115 /       114 /          0 /        115
+[0!]     IDirect3DIndexBuffer9              115 /       114 /          0 /        114
+[0!]     IDirect3DSurface9                   25 /        18 /          0 /         21
+[0!]     IDirect3DVertexShader9              68 /         0 /          0 /          0
+[0!]     IDirect3DVertexDeclaration9         79 /         0 /          2 /         33
+[0!]     IDirect3DStateBlock9               326 /       188 /          0 /        188
+[0!]     IDirectInput8                        1 /         0 /          1 /          2
+[0!]     IDirectInputDevice8                  3 /         0 /          1 /          1
+[0!]     IDirectSound                         1 /         0 /          0 /          2
+[0!]     IDirectSoundBuffer                   7 /         7 /          0 /          7
+[0!]   COM lifetime      : 311 live objects, 0 over-released (kept), 0 calls on non-objects, 0 uncached child surfaces; Metal textures released 5
+[0!]   guest COM heap     : 22 KB
+[0!]   guest buffer heap  : 1977 KB
+[0!]   --- DrawPrimitiveUP: primitive types ---
+[0!]     TRIANGLESTRIP    3486
+[0!]     TRIANGLEFAN      273995
+[0!]   --- vertex strides ---
+[0!]      24 bytes 7410
+[0!]      32 bytes 249140
+[0!]      48 bytes 20931
+[0!]   --- DirectInput / DirectSound calls ---
+[0!]     IDirectInput8              AddRef                     1
+[0!]     IDirectInput8              Release                    2
+[0!]     IDirectInput8              CreateDevice               1
+[0!]     IDirectInput8              EnumDevices                82
+[0!]     IDirectInput8              EnumDevicesBySemantics     1
+[0!]     IDirectInputDevice8        AddRef                     1
+[0!]     IDirectInputDevice8        Release                    1
+[0!]     IDirectInputDevice8        Acquire                    2
+[0!]     IDirectInputDevice8        Unacquire                  2
+[0!]     IDirectInputDevice8        GetDeviceState             2586
+[0!]     IDirectInputDevice8        GetDeviceData              2581
+[0!]     IDirectInputDevice8        SetDataFormat              1
+[0!]     IDirectInputDevice8        SetCooperativeLevel        1
+[0!]     IDirectInputDevice8        Poll                       2581
+[0!]     IDirectInputDevice8        BuildActionMap             7
+[0!]     IDirectInputDevice8        SetActionMap               2
+[0!]     IDirectSound               Release                    2
+[0!]     IDirectSound               CreateSoundBuffer          7
+[0!]     IDirectSound               GetCaps                    1
+[0!]     IDirectSound               SetCooperativeLevel        2
+[0!]     IDirectSoundBuffer         Release                    7
+[0!]     IDirectSoundBuffer         GetCurrentPosition         9514
+[0!]     IDirectSoundBuffer         GetStatus                  8650
+[0!]     IDirectSoundBuffer         Lock                       6152
+[0!]     IDirectSoundBuffer         Play                       1
+[0!]     IDirectSoundBuffer         SetFormat                  5
+[0!]     IDirectSoundBuffer         Unlock                     6152
+[0!]   vertex shaders    : 607975 draws with a shader, 1308 without, 34 compiled
+[0!]   state blocks      : 140 slots, 319921 Apply, 320023 Capture, 0 records overflowed, 0 found no slot
+[0!]   GPU vertex shaders: 607975 draws on the GPU, 0 translations rejected, 12/12 (shader,decl) pairs registered
+[0!]   indexed draws      : 330495 from the pool, old path: strip/fan 0, object 0, new lock 1307, align/bounds 0, mirror 0, index out of range 0
+[0!]   dropped frames    : 47
+[0!]   timer ticks       : 4752
+[0!]   draw matrices     : 0 valid, 0 bad
+[0!]   FIXMAT pattern    : 30801 times (bad front-end WVP matrix)
+[0!]   DI keyboard 0x088079f0: action map, 66 events delivered, buffer 16, not acquired
+[0!]   DI device enum    : 1 enumerations, 0 object enumerations
+[0!]   [lock] tid=1  locks=1  total=86.1 KB
+[0!]   [lock] tid=103  locks=6151  total=16008.6 KB
+[0!]   [lock] object 0x08807ce0  sound-id=0  size=88192  locks=6152
+[0!]   sound buffers     : 5941 non-empty writes, 211 empty writes, 15397.8 KB, 1 Play
+[0!]   sound output      : on, 4115968 frames mixed, at most 1 buffers at once, 1 registered
+[0!]   sound Play calls  : 1 started from the top, 0 were already playing
+[0!]   sound rate ratio : 1.000 (game virtual time / real time)  [off; SNDSYNC=1 turns it on]
+[0!]   sound data gaps   : 4.2% of samples silent, 321 callbacks mostly empty
+[0!]   --- per sound buffer ---
+[0!]   sound cursor overrun: in 54 callbacks the play cursor passed the writer
+[0!]   sound write-ahead : the game wrote 150.8 ms ahead of the mixer on average, at most 291.7 ms; 21 slices mixed before the game wrote them, in 2 skips
+[0!]   sound output path : AudioWorklet ring, 512-frame slices, target 3072 frames (69.7 ms), 65 underruns, target grew 5 times and came down 1 times (to 1024 frames at least); the worklet's reads up to 11 ms apart, its bursts 10 ms apart, a ring of 16384 frames
+[0!]   sound clock backup: 93.3 s on the ring, 0.1 s on the wall clock (no output), 1 times ring->wall, 2 times wall->ring
+[0!]   sound mixer       : 0.321 s in total (0.34% of the mixed time), longest slice 57.730 ms
+[0!]   sound output level: peak -2.4 dBFS, 48.7% of slices not silent, worklet 15608 non-silent quanta
+[0!]   sound output device: 0 reset requests (the browser follows the default device)
+[0!]   keyboard reads    : 2586 calls, 0 with a key down
+[0!]   RT textures created: 9
+[0!]   mip levels        : 162 multi-level textures, 0 with levels never uploaded
+[0!]   render target     : to a texture 27476, to the screen 37876
+[0!]   SetTexture        : valid 197148, NULL 101656, id=0 0, stage!=0 140866
+[0!]   texture creation  : 0 failed
+[0!]   of which vs_run   : 0.00 s
+[0!]   --- VERTICES PER SHADER ---
+[0!]   draw path time    : 0.00 s (with DRAWTIME=1), 85402526 verts transformed (0.0 M verts/s)
+[0!]   bound tex stages  : 1: 0, 2: 0, 3: 0, 4: 0 draws
+[0!]   indexed draws    : 331802 draws, 28092886 triangles, 0 skipped
+[0!]   raw position range: x[1e+30..-1e+30] y[1e+30..-1e+30] z[1e+30..-1e+30]
+[0!]   vertex positions  : on screen 5232, off 0, w<=0 0
+[0!]      vs1: version 1.1, 10 instructions, 0 unknown
+[0!]      vs2: version 1.1, 15 instructions, 0 unknown
+[0!]      vs3: version 1.1, 10 instructions, 0 unknown
+[0!]      vs4: version 1.1, 22 instructions, 0 unknown
+[0!]      vs5: version 1.1, 21 instructions, 0 unknown
+[0!]   --- MOST CALLED D3D9/COM METHODS ---
+[0!]     IDirect3DDevice9           SetRenderState               1525973
+[0!]     IDirect3DDevice9           SetSamplerState              1520363
+[0!]     IDirect3DDevice9           SetTextureStageState         716709
+[0!]     IDirect3DDevice9           SetTexture                   439776
+[0!]     IDirect3DDevice9           DrawIndexedPrimitive         331802
+[0!]     IDirect3DStateBlock9       Capture                      320023
+[0!]     IDirect3DStateBlock9       Apply                        319921
+[0!]     IDirect3DDevice9           SetVertexShaderConstantF     293349
+[0!]     IDirect3DDevice9           DrawPrimitiveUP              277481
+[0!]     IDirect3DDevice9           SetPixelShaderConstantF      232772
+[0!]     IDirect3DDevice9           SetStreamSource              126462
+[0!]     IDirect3DDevice9           SetIndices                   126462
+[0!]     IDirect3DDevice9           SetVertexShader              110920
+[0!]     IDirect3DDevice9           SetPixelShader               110916
+[0!]     IDirect3DDevice9           SetVertexDeclaration         79717
+[0!]     IDirect3DDevice9           SetRenderTarget              65352
+[0!]     IDirect3DDevice9           SetDepthStencilSurface       58811
+[0!]     IDirect3DDevice9           SetViewport                  36567
+[0!]     IDirect3DSurface9          GetDesc                      22239
+[0!]     IDirect3DTexture9          GetLevelDesc                 15696
+[0!]     IDirectSoundBuffer         GetCurrentPosition           9514
+[0!]     IDirectSoundBuffer         GetStatus                    8650
+[0!]     IDirectSoundBuffer         Lock                         6152
+[0!]     IDirectSoundBuffer         Unlock                       6152
+[0!]     IDirect3DDevice9           SetTransform                 3924
+[0!]     IDirect3DDevice9           Clear                        3901
+[0!]     IDirect3DDevice9           SetFVF                       2624
+[0!]     IDirect3DDevice9           Present                      2587
+[0!]     IDirect3DDevice9           BeginScene                   2587
+[0!]     IDirect3DDevice9           EndScene                     2587
+[0!]     IDirect3DDevice9           TestCooperativeLevel         2586
+[0!]     IDirectInputDevice8        GetDeviceState               2586
+[0!]     IDirectInputDevice8        GetDeviceData                2581
+[0!]     IDirectInputDevice8        Poll                         2581
+[0!]     IDirect3DTexture9          LockRect                     1738
+[0!]     IDirect3DTexture9          UnlockRect                   1738
+[0!]     IDirect3DVertexBuffer9     Lock                         1420
+[0!]     IDirect3DVertexBuffer9     Unlock                       1420
+[0!]     IDirect3DDevice9           StretchRect                  1309
+[0!]     IDirect3DTexture9          Release                      833
+[0!]     IDirect3DDevice9           CreateTexture                813
+[0!]     IDirect3DDevice9           BeginStateBlock              367
+[0!]     IDirect3DDevice9           EndStateBlock                326
+[0!]     IDirect3DStateBlock9       Release                      188
+[0!]     IDirect3DVertexShader9     GetFunction                  136
+[0!]     IDirect3DDevice9           CreateVertexBuffer           115
+[0!]     IDirect3DDevice9           CreateIndexBuffer            115
+[0!]     IDirect3DVertexBuffer9     Release                      115
+[0!]     IDirect3DIndexBuffer9      Lock                         115
+[0!]     IDirect3DIndexBuffer9      Unlock                       115
+[0!]     IDirect3DIndexBuffer9      Release                      114
+[0!]     IDirect3DDevice9           GetDeviceCaps                103
+[0!]     IDirectInput8              EnumDevices                  82
+[0!]     IDirect3DDevice9           CreateVertexDeclaration      79
+[0!]     IDirect3DDevice9           Release                      69
+[0!]     IDirect3DVertexShader9     GetDevice                    68
+[0!]     IDirect3DDevice9           CreateVertexShader           34
+[0!]     IDirect3DDevice9           CreatePixelShader            34
+[0!]     IDirect3DDevice9           ValidateDevice               33
+[0!]     IDirect3DVertexDeclaration9 Release                      33
+[0!]     IDirect3DDevice9           AddRef                       23
+[0!]     IDirect3DSurface9          Release                      21
+[0!]     IDirect3DTexture9          GetSurfaceLevel              15
+[0!]     IDirect3DDevice9           CreateDepthStencilSurface    8
+[0!]     IDirect3DDevice9           LightEnable                  8
+[0!]     IDirectInputDevice8        BuildActionMap               7
+[0!]     IDirectSound               CreateSoundBuffer            7
+[0!]     IDirectSoundBuffer         Release                      7
+[0!]     IDirect3D9                 EnumAdapterModes             6
+[0!]     IDirectSoundBuffer         SetFormat                    5
+[0!]     IDirect3D9                 GetAdapterIdentifier         2
+[0!]     IDirect3DDevice9           GetAvailableTextureMem       2
+[0!]     IDirect3DDevice9           GetBackBuffer                2
+[0!]     IDirect3DDevice9           CreateCubeTexture            2
+[0!]     IDirect3DVertexDeclaration9 AddRef                       2
+[0!]     IDirectInput8              Release                      2
+[0!]     IDirectInputDevice8        Acquire                      2
+[0!]     IDirectInputDevice8        Unacquire                    2
+[0!]     IDirectInputDevice8        SetActionMap                 2
+[0!]     IDirectSound               Release                      2
+[0!]     IDirectSound               SetCooperativeLevel          2
+[0!]     IDirect3D9                 Release                      1
+[0!]     IDirect3D9                 GetAdapterModeCount          1
+[0!]     IDirect3D9                 GetAdapterDisplayMode        1
+[0!]     IDirect3D9                 CheckDeviceMultiSampleType   1
+[0!]     IDirect3D9                 GetDeviceCaps                1
+[0!]     IDirect3D9                 CreateDevice                 1
+[0!]     IDirect3DDevice9           GetDepthStencilSurface       1
+[0!]     IDirectInput8              AddRef                       1
+[0!]     IDirectInput8              CreateDevice                 1
+[0!]     IDirectInput8              EnumDevicesBySemantics       1
+[0!]     IDirectInputDevice8        AddRef                       1
+[0!]     IDirectInputDevice8        Release                      1
+[0!]     IDirectInputDevice8        SetDataFormat                1
+[0!]     IDirectInputDevice8        SetCooperativeLevel          1
+[0!]     IDirectSound               GetCaps                      1
+[0!]     IDirectSoundBuffer         Play                         1
+[0!] 
+[0!] === WIN32 LAYER ===
+[0!]   import calls in total : 827229
+[0!]   not implemented       : 0
+[0!]   guest threads : 5 started, 1 exited
+[0!]   file: 0 write operations, 0 inside the game folder, 0 blocked (read-only)
+[0!]   file: 170 opened, 4 could not be opened, 132 reads, 17.9 MB; 48 save overlay lookups skipped
+[0!]   file: 121 opens of the game folder's files known already, 108 of them on a kept descriptor (33 names, 46 kept)
+[0!]   file: 0 handles open now, at most 5 (limit 255), table full 0 times
+[0!] 
+[0!] === GUEST HEAP (TLSF) ===
+[0!]   heap 1  process     : 8 alloc, 4 free, 0 realloc, 0 failed, 0 bad; live 0.06 MB in 4 blocks, peak 0.81 MB, VA held 4.0 MB
+[0!]   heap 2  HeapCreate  : 6317 alloc, 1867 free, 3 realloc, 0 failed, 0 bad; live 38.62 MB in 4450 blocks, peak 39.97 MB, VA held 40.9 MB
+[0!]   heap 14 com buffers : 1706 alloc, 1545 free, 0 realloc, 0 failed, 0 bad; live 1.93 MB in 161 blocks, peak 26.20 MB, VA held 20.0 MB
+[0!]   heap 15 com objects : 1570 alloc, 1246 free, 0 realloc, 0 failed, 0 bad; live 0.02 MB in 324 blocks, peak 0.19 MB, VA held 4.0 MB
+[0!]   VA: 68.9 MB reserved now (peak 80.7 MB of 512.0 MB): 9 heap segments, 7 large blocks, 0 VirtualAlloc regions (0.0 MB, 0.0 MB committed); 0 commit / 0 release calls
+[0!]   API calls: HeapCreate=1 HeapAlloc=6317 HeapFree=1867 HeapReAlloc=3 HeapSize=254 VirtualProtect=5
+[0!]   events: 0 double free, 0 invalid free, 0 heap mismatch, 0 canary, 0 write-after-free, 0 corrupt links
+[0!]   largest allocations:
+[0!]        9216172 B  heap 2  site 0x0043fdf4 (caller 0x0075c68a)  frame 2
+[0!]        8008236 B  heap 2  site 0x0043fdf4 (caller 0x0075c68a)  frame 1
+[0!]        5969532 B  heap 2  site 0x005b167c (caller 0x0075c68a)  frame 9
+[0!]        5145952 B  heap 2  site 0x004e8560 (caller 0x0075c68a)  frame 1
+[0!]        4194624 B  heap 14  site 0x005ce396 (caller 0x005ce396)  frame 1
+[0!]        4194476 B  heap 2  site 0x0065006d (caller 0x0075c68a)  frame 1
+[0!]        4000002 B  heap 2  site 0x0051748d (caller 0x0075c68a)  frame 878
+[0!]        3989340 B  heap 2  site 0x005c188e (caller 0x0075c68a)  frame 9
+[0!]        1750944 B  heap 2  site 0x0043fdf4 (caller 0x0075c68a)  frame 2
+[0!]        1573184 B  heap 14  site 0x005ce396 (caller 0x005ce396)  frame 276
+[0!]        1573184 B  heap 14  site 0x005ce396 (caller 0x005ce396)  frame 810
+[0!]        1573184 B  heap 14  site 0x005ce396 (caller 0x005ce396)  frame 74
+[0!]        1573184 B  heap 14  site 0x005ce396 (caller 0x005ce396)  frame 586
+[0!]        1573148 B  heap 2  site 0x0043fdf4 (caller 0x0075c68a)  frame 810
+[0!]        1573148 B  heap 2  site 0x0043fdf4 (caller 0x0075c68a)  frame 74
+[0!]        1573148 B  heap 2  site 0x0043fdf4 (caller 0x0075c68a)  frame 586
+[0!]   object table      : 15/4095 slots used (event 7, mutex 1, thread 5, key 0, semaphore 0, free 2), 7 reused, full 0, 0 reclaimed
+[0!]   ended threads     : 1 with the handle still open: 1 x entry 0x007263c7 from 0x00726478 (handles looked up 0 times)
+[0!]   threads           : 5 started, 1 ended; TEBs 0 reused (next 0x00c2a000), 1 stacks free; critical sections 42 of 512
+[0!]   guest lock (FIFO ticket lock), queued acquisitions; 182 fair yields handed it over; 1323 frame-boundary takes, 0 queued after 20 ms:
+[0!]   all              28086 taken,     8776 queued (31.2%): wait avg 3.235 p50<1.024 p99<32.768 max 624.12 ms; hand-off avg 0.074 p50<0.064 p99<0.512 max 4.35 ms
+[0!]   tid 1             9019 taken,     1987 queued (22.0%): wait avg 0.362 p50<0.256 p99<4.096 max 16.41 ms; hand-off avg 0.062 p50<0.064 p99<0.256 max 1.14 ms
+[0!]   tid 101           4778 taken,     1515 queued (31.7%): wait avg 2.834 p50<1.024 p99<32.768 max 59.88 ms; hand-off avg 0.080 p50<0.064 p99<0.512 max 0.92 ms
+[0!]   tid 999           4754 taken,     2257 queued (47.5%): wait avg 4.707 p50<2.048 p99<32.768 max 618.22 ms; hand-off avg 0.084 p50<0.064 p99<0.512 max 4.35 ms
+[0!]   tid 102            349 taken,      224 queued (64.2%): wait avg 3.714 p50<2.048 p99<65.536 max 67.85 ms; hand-off avg 0.067 p50<0.064 p99<0.256 max 0.45 ms
+[0!]   tid 103           9014 taken,     2683 queued (29.8%): wait avg 4.118 p50<2.048 p99<32.768 max 624.12 ms; hand-off avg 0.073 p50<0.064 p99<0.512 max 2.88 ms
+[0!]   tid 104            120 taken,       86 queued (71.7%): wait avg 9.145 p50<4.096 p99<131.072 max 416.35 ms; hand-off avg 0.066 p50<0.064 p99<0.256 max 0.24 ms
+[0!]   tid 105             51 taken,       24 queued (47.1%): wait avg 3.790 p50<0.512 p99<32.768 max 29.42 ms; hand-off avg 0.074 p50<0.128 p99<0.256 max 0.21 ms
+[0!]   tid 0                1 taken,        0 queued ( 0.0%): wait avg 0.000 p50<0.000 p99<0.000 max 0.00 ms; hand-off avg 0.000 p50<0.000 p99<0.000 max 0.00 ms
+[0!]   resources: 23 found, 0 not found
+[0!]   NewGetCarPart: 37685 of 104462 answers kept from before (all forgotten 1 times)
+[0!]   JDLZ: 33 blocks unpacked natively (17.9 MB), 0 by the game's code
+[0!]   sub_006e2be0: 22 calls, 0 NULL lists skipped
+[0!]   module server.dll : 1103 functions lifted, 0 loads, 0 unloads, not loaded
+[0!]   --- native state applier (669286 types 1/2/3, stage 4a) ---
+[0!]   calls 5931355 | dirty (664a1f) 2582154 | device calls made 1162472, skipped (no effect) 10038471
+[0!]   native pass loop (6691a1, stage 4b): 609628 | texture states (type 9): 140493
+[0!]   repeated passes (stage 9): 609349 passes, 191926 skipped, 417423 applied and recorded (1374 not replayable)
+[0!]   expression memo: hits 3075378, misses 258465, not memoizable 432 (not an expression 432, no inputs 0, inputs>2 0, >96 bytes 0)
+[0!]   native SetTexture: 306382 | texture slot (65ccc8): 264412 | skipped texture AddRef/Release: 6482919
+[0!]   native shader applier (668dfd): 832098 | VERIFY-7: 0 runs, DIFFERENT 0 (not compared 0) | object state (types 14/15): 832316
+[0!]   native sampler applier (668cc0): 275562 | VERIFY-6: 0 runs, DIFFERENT 0 (not compared 0)
+[0!]   --- native helpers ---
+[0!]   matrix multiply 0 (slow path 0) | pool declaration 3263564 | SetMatrix conversion 331029 (slow path 0)
+[0!]   --- state apply memo (sub_00669286) ---
+[0!]   calls 67190 | same inputs 1307 (1.9%) | hits 0 (0.0%) | skipped 0
+[0!]   record invalid 1307 | device changed 0 | buffer overflow 0 | type excluded 65878
+[0!]   type: calls/hit%  5:1312/0%  9:62889/0%  10:1384/0%  11:1385/0%  12:176/0%  13:44/0%
+[0!]   --- state value memo (sub_00664a1f) ---
+[0!]   calls 2 | eligible 0 | hits 0 (0.0%) | skipped 0 | guard cancels 0
+[0!]   --- NOT IMPLEMENTED (called, a stub returned) ---
+[0!]   --- 15 MOST CALLED ---
+[0!]     kernel32.dll   GetCurrentThreadId               376600
+[0!]     kernel32.dll   EnterCriticalSection             100164
+[0!]     kernel32.dll   LeaveCriticalSection             100163
+[0!]     kernel32.dll   WaitForSingleObject              72090
+[0!]     kernel32.dll   ReleaseMutex                     66926
+[0!]     winmm.dll      timeGetTime                      30729
+[0!]     kernel32.dll   QueryPerformanceCounter          25503
+[0!]     kernel32.dll   Sleep                            8651
+[0!]     kernel32.dll   HeapAlloc                        6317
+[0!]     kernel32.dll   SetEvent                         5311
+[0!]     user32.dll     PeekMessageA                     5166
+[0!]     kernel32.dll   GetTickCount                     4779
+[0!]     winmm.dll      timeSetEvent                     4753
+[0!]     user32.dll     GetClientRect                    2589
+[0!]     user32.dll     GetWindowRect                    2589
+[0!]     RegSetValueExA                 30 times
+[0!]     RegQueryValueExA               41 times
+[0!]     RegOpenKeyExA                  4 times
+[0!]     RegOpenKeyA                    4 times
+[0!]     RegCloseKey                    8 times
+[0!]     DirectInput8Create             2 times
+[0!]     #1                             2 times
+[0!]     DeleteObject                   23 times
+[0!]     GetStringTypeW                 2 times
+[0!]     LCMapStringW                   5 times
+[0!]     SetUnhandledExceptionFilter    2 times
+[0!]     GetCPInfo                      2 times
+[0!]     HeapSize                       254 times
+[0!]     HeapReAlloc                    3 times
+[0!]     SetLastError                   1156 times
+[0!]   virtual clock     : 0.469 x real time (47.5 s virtual / 101.2 s real)
+[0!]   [gpu] WebGPU: 2587 presents, 2540 frames encoded, 47 dropped, 0 replaced (mailbox)
+[0!]   [gpu] encode 1.402 ms/frame, 233 draws/frame, 10.9 passes/frame, 32 pipelines, 0 WebGPU errors, 0 dumps
+[0!]   [gpu] textures 815 created, 1738 uploads, 5 released; resource queue 638.2 MB, waited 0 ms; present waits 4.561 ms/frame
+[0!]   [gpu] mirrors: 99 built (0.7 MB), 0 live, 99 dropped, 0 table-full, pool 4.0 MB
+[0!]   [gpu] shaders: 12 VS + 68 PS WGSL, 0 VS + 0 PS without WGSL (CPU vertex path / built-in fragment); overflows draw 0 tvert 0 raw 0 const 0
+[0!] 
+[0!] === high frame rate (framerate.c) ===
+[0!]   mode auto, display 60 Hz, content rate 60, fixes none
+[0!]   vsync clock: running, measured refresh 59.9984 Hz; pacer locked on 91.6 % of frames
+[0!]   pacer sleeps: 1321, an OS wait tried in 93 (7.0 %), 9 of them woke past the deadline (worst 11.70 ms)
+[0!]   timer probe: 3161 waits of 1 ms, 24.4 % more than 4 ms late, lateness now 11.41 ms
+[0!]   pacer spin: 8.21 ms per sleep, margin now 10.07 ms; its waits woke late by < 0.25 ms 3.2 %, < 0.5 3.2 %, < 1 23.7 %, < 2 17.2 %, < 4 11.8 %, < 8 12.9 %, more 28.0 %
+[0!]   pacer margin waits: 0.29 per sleep, 61 woke past the deadline (worst 9.02 ms)
+[0!] 
+[0!]   guest main thread busy time per frame (ms; the guest lock held minus host waits):
+[0!]     flow 0                   1 frames: mean 285.70  p50 282.61  p95 282.61  p99 282.61  max 285.70
+[0!]     flow 1                  11 frames: mean 16.72  p50 1.79  p95 47.39  p99 111.84  max 112.10
+[0!]     flow 3 (front end)    2574 frames: mean 7.31  p50 7.24  p95 15.81  p99 19.59  max 158.58
+[0!] 
+[0!] === runtime ===
+[0!]   indirect calls resolved  : 12842
+[0!]   indirect calls unresolved: 0
+[0!]   unsupported instructions : 0
+[0!]   generated guest code: 488 calls, 42089 instructions
+[pool] 15 game workers started, at most 13 threads at once
+[gpu] renderer detached after 2540 frames
+[app] the game exited with code 0 after 104.6 s
+[audio] context closed
