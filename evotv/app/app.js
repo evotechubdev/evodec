@@ -70,7 +70,8 @@ const elements = {
   closeSeries: $('#close-series'), favoriteSeries: $('#favorite-series'), favoriteEpisodesFilter: $('#favorite-episodes-filter'),
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
-  mediaKind: $('#media-kind'),
+  mediaKind: $('#media-kind'), playerSurface: $('.media-player-surface'), playerToolbar: $('#media-player-toolbar'),
+  volumeButton: $('#media-volume-button'), volumeSlider: $('#media-volume'), maximizeScreen: $('#maximize-media-screen'),
   play: $('#play-media'), trailer: $('#trailer-media'), openLiveScreen: $('#open-live-screen'), close: $('#close-modal'),
   miniLiveDock: $('#live-mini-dock'), viewButtons: $$('[data-view]'),
 };
@@ -603,7 +604,6 @@ function openLiveChannel(item) {
   }
   if (elements.seriesDialog.open) closeSeriesDetails();
   state.selected = { ...item, kind: 'live' };
-  elements.openLiveScreen.hidden = true;
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
   elements.modalTitle.textContent = item.name || 'Canal';
@@ -848,7 +848,10 @@ function closeSeriesDetails() {
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
   state.screenPlaybackUrl = '';
-  if (elements.openLiveScreen) elements.openLiveScreen.hidden = true;
+  if (elements.playerToolbar) elements.playerToolbar.hidden = true;
+  elements.playerSurface.classList.remove('screen-maximized');
+  elements.maximizeScreen?.setAttribute('aria-pressed', 'false');
+  elements.maximizeScreen?.setAttribute('aria-label', 'Maximizar ecrã');
   state.restoreModalAfterPictureInPicture = false;
   if (document.pictureInPictureElement === elements.video) {
     void document.exitPictureInPicture().catch(() => {});
@@ -892,7 +895,12 @@ function bindMainVideoEvents(video) {
 }
 
 function openOwnMediaScreen(video) {
-  if (!state.screenPlaybackUrl || !state.selected) return;
+  if (!state.selected) return;
+  const sourceSelection = state.selected;
+  const sourcePlaybackAttempt = state.playbackAttempt;
+  const selected = { ...state.selected };
+  const source = mediaCandidates(selected)[state.candidateIndex];
+  if (!source) return;
   const screenName = `evotv-screen-${Date.now()}-${++state.nextOwnScreenId}`;
   const screen = window.open('./live-screen.html', screenName, 'popup=yes,width=960,height=600,resizable=yes');
   if (!screen) {
@@ -902,20 +910,25 @@ function openOwnMediaScreen(video) {
   }
 
   const origin = location.origin;
-  const playbackUrl = state.screenPlaybackUrl;
-  const title = state.selected.name || (state.selected.kind === 'live' ? 'Canal ao vivo' : 'EVOTV');
-  const mediaKind = state.selected.kind;
+  const title = selected.name || (selected.kind === 'live' ? 'Canal ao vivo' : 'EVOTV');
+  const mediaKind = selected.kind;
+  let ticketController = null;
+  let ticketTimeout = 0;
+  let requestingTicket = false;
   let initialized = false;
   let completed = false;
   const cleanup = () => {
     window.removeEventListener('message', onScreenMessage);
     window.clearTimeout(readyTimer);
     window.clearInterval(screenWatcher);
+    window.clearTimeout(ticketTimeout);
+    ticketController?.abort();
   };
   const closeSourceChannel = () => {
     if (completed) return;
     completed = true;
     cleanup();
+    if (state.selected !== sourceSelection || state.playbackAttempt !== sourcePlaybackAttempt || elements.video !== video) return;
     if (document.pictureInPictureElement === video) void document.exitPictureInPicture().catch(() => {});
     if (elements.modal.open) {
       state.preserveLiveOnModalClose = true;
@@ -926,9 +939,22 @@ function openOwnMediaScreen(video) {
   };
   const onScreenMessage = (event) => {
     if (event.origin !== origin || event.source !== screen || !event.data) return;
-    if (event.data.type === 'EVOTV_LIVE_SCREEN_READY' && !initialized) {
-      initialized = true;
-      screen.postMessage({ type: 'EVOTV_LIVE_SCREEN_START', playbackUrl, title, mediaKind, volume: video.volume, muted: video.muted }, origin);
+    if (event.data.type === 'EVOTV_LIVE_SCREEN_READY' && !initialized && !requestingTicket) {
+      requestingTicket = true;
+      ticketController = new AbortController();
+      ticketTimeout = window.setTimeout(() => ticketController?.abort(), TICKET_TIMEOUT_MS);
+      void mediaTicket(source, ticketController.signal).then((playbackUrl) => {
+        if (completed || screen.closed) return;
+        initialized = true;
+        screen.postMessage({ type: 'EVOTV_LIVE_SCREEN_START', playbackUrl, title, mediaKind, volume: video.volume, muted: video.muted }, origin);
+      }).catch((error) => {
+        if (completed) return;
+        completed = true;
+        cleanup();
+        if (!screen.closed) screen.close();
+        elements.playerMessage.textContent = `Não foi possível preparar o ecrã (${readableError(error)}).`;
+        elements.playerMessage.classList.remove('visually-hidden');
+      }).finally(() => window.clearTimeout(ticketTimeout));
       return;
     }
     if (event.data.type === 'EVOTV_LIVE_SCREEN_STARTED' && !completed) {
@@ -942,7 +968,7 @@ function openOwnMediaScreen(video) {
   };
   window.addEventListener('message', onScreenMessage);
   const readyTimer = window.setTimeout(() => {
-    if (initialized) return;
+    if (initialized || requestingTicket) return;
     if (!screen.closed) screen.close();
     elements.playerMessage.textContent = 'A janela do ecrã não respondeu. Tente novamente.';
     elements.playerMessage.classList.remove('visually-hidden');
@@ -1162,7 +1188,7 @@ async function tryCandidate() {
     const playbackUrl = await mediaTicket(source, controller.signal);
     if (attempt !== state.playbackAttempt || !state.session) return;
     state.screenPlaybackUrl = playbackUrl;
-    elements.openLiveScreen.hidden = false;
+    elements.playerToolbar.hidden = false;
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
@@ -1187,7 +1213,7 @@ async function tryCandidate() {
     }
   } catch (error) {
     if (attempt !== state.playbackAttempt) return;
-    state.ticketController = null; state.screenPlaybackUrl = ''; elements.openLiveScreen.hidden = true; elements.video.hidden = true; elements.play.hidden = state.selected.kind === 'live';
+    state.ticketController = null; state.screenPlaybackUrl = ''; elements.playerToolbar.hidden = true; elements.video.hidden = true; elements.play.hidden = state.selected.kind === 'live';
     const aborted = error instanceof DOMException && error.name === 'AbortError';
     elements.playerMessage.classList.remove('visually-hidden');
     elements.playerMessage.textContent = aborted ? 'O serviço demorou para responder. Tente novamente.'
@@ -1652,6 +1678,33 @@ elements.trailer.addEventListener('click', () => {
 });
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.openLiveScreen.addEventListener('click', () => openOwnMediaScreen(elements.video));
+const syncMediaVolume = () => {
+  const muted = elements.video.muted || elements.video.volume === 0;
+  elements.volumeButton.setAttribute('aria-pressed', String(muted));
+  elements.volumeButton.setAttribute('aria-label', muted ? 'Ativar volume' : 'Silenciar');
+  elements.volumeSlider.value = String(muted ? 0 : elements.video.volume);
+};
+elements.volumeButton.addEventListener('click', () => {
+  if (elements.video.muted || elements.video.volume === 0) {
+    elements.video.muted = false;
+    if (elements.video.volume === 0) elements.video.volume = 0.6;
+  } else {
+    elements.video.muted = true;
+  }
+  syncMediaVolume();
+});
+elements.volumeSlider.addEventListener('input', () => {
+  elements.video.volume = Number(elements.volumeSlider.value);
+  elements.video.muted = elements.video.volume === 0;
+  syncMediaVolume();
+});
+elements.video.addEventListener('volumechange', syncMediaVolume);
+elements.maximizeScreen.addEventListener('click', () => {
+  const maximized = elements.playerSurface.classList.toggle('screen-maximized');
+  elements.maximizeScreen.setAttribute('aria-pressed', String(maximized));
+  elements.maximizeScreen.setAttribute('aria-label', maximized ? 'Restaurar ecrã' : 'Maximizar ecrã');
+  elements.maximizeScreen.title = maximized ? 'Restaurar ecrã' : 'Maximizar ecrã';
+});
 elements.modal.addEventListener('close', () => {
   if (state.preserveLiveOnModalClose) {
     state.preserveLiveOnModalClose = false;
