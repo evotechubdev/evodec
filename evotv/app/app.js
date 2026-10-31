@@ -27,6 +27,15 @@ const SHOW_FAVORITES_CATEGORY = 'evo_show_favorites';
 const ALL_CATEGORY = 'all';
 const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
+const EXTRA_FAVORITES_CATEGORY = 'evo_extra_favorites';
+const EXTRA_GAMES_FALLBACK = [
+  { id: 'nfsu2', title: 'Need for Speed Underground 2', description: 'Jogo eletrônico de corrida, desenvolvido em 2004 pela EA Black Box e publicado pela Electronic Arts, sendo a oitava edição da série Need for Speed.', targetUrl: 'https://nfsu-2.online/#play', imageFile: 'nfsu2-cover-hd.png', musicTitle: 'Get Low', musicArtist: 'Lil Jon & The East Side Boyz com Ying Yang Twins', musicFile: 'get-low.mp3' },
+  { id: 'bt3', title: 'Dragon Ball Z: Budokai Tenkaichi 3', description: 'Dragon Ball Z: Budokai Tenkaichi 3 é um jogo eletrônico para PlayStation 2 e Wii em 3D, dos gêneros ação e luta, desenvolvido pela Spike e publicado pela Atari. Foi lançado em 2007.', targetUrl: 'https://dragonballbt3.online/', imageFile: 'bt3-cover-hd.png', musicTitle: 'Temos a Força', musicArtist: '', musicFile: 'temos-a-forca.m4a' },
+];
+const gameMusicAudio = new Audio();
+gameMusicAudio.loop = true;
+gameMusicAudio.preload = 'none';
+let activeGameMusicId = '';
 const api = new EvoAuthApi();
 
 let storedView = 'grid';
@@ -294,7 +303,7 @@ function loadFavorites() {
   try {
     const parsed = JSON.parse(localStorage.getItem(key));
     if (parsed?.version === 1 && Array.isArray(parsed.items)) {
-      state.favorites = new Set(parsed.items.map(String).filter(value => /^(?:\d{1,20}|series:\d{1,20}|(?:adult-)?episode:\d{1,20})$/.test(value)).slice(0, 1000));
+      state.favorites = new Set(parsed.items.map(String).filter(value => /^(?:\d{1,20}|series:[a-z0-9-]{2,128}|(?:adult-)?episode:[a-z0-9-]{2,160})$/i.test(value)).slice(0, 1000));
     }
   } catch { /* favoritos são opcionais */ }
 }
@@ -313,6 +322,7 @@ function toggleFavorite(item) {
   if (state.favorites.has(id)) state.favorites.delete(id); else state.favorites.add(id);
   saveFavorites();
   if (elements.category.value === FAVORITES_CATEGORY
+    || (state.activeSection === 'extras' && elements.category.value === EXTRA_FAVORITES_CATEGORY)
     || (state.activeSection === 'shows' && elements.category.value === SHOW_FAVORITES_CATEGORY)) applyFilters();
   else renderGrid();
 }
@@ -458,11 +468,14 @@ function mediaCandidates(item) {
 
 function renderCategoryFilters() {
   if (state.activeSection === 'extras') {
-    const categories = [{ category_id: 'all', category_name: 'Mininovelas Verticais' }];
+    const categories = [
+      { category_id: EXTRA_FAVORITES_CATEGORY, category_name: 'Favoritos' },
+      ...(state.extraCatalog?.categories || []).map(category => ({ category_id: String(category.id), category_name: category.name })),
+    ];
     elements.category.replaceChildren(...categories.map(category => {
       const option = document.createElement('option'); option.value = category.category_id; option.textContent = category.category_name; return option;
     }));
-    elements.category.value = 'all';
+    elements.category.value = categories.some(category => category.category_id === 'reelshort') ? 'reelshort' : categories[1]?.category_id || categories[0]?.category_id || '';
     elements.categoryStrip.replaceChildren(...categories.map(category => {
       const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
       button.dataset.category = category.category_id; button.textContent = category.category_name;
@@ -588,6 +601,12 @@ function applyFilters() {
 }
 
 function renderGrid() {
+  if (state.activeSection === 'games') {
+    renderGamesCatalog(state.filtered);
+    elements.sentinel.hidden = true;
+    return;
+  }
+  elements.grid.classList.remove('game-mode');
   const items = state.filtered;
   elements.grid.classList.toggle('list-view', state.view === 'list');
   elements.grid.replaceChildren(...items.map((item) => {
@@ -700,6 +719,7 @@ function extraCatalogPage(params, section) {
       ...series,
       kind: 'series',
       evo_extra_series: true,
+      category_id: String(series.categoryId || series.category_id || 'reelshort'),
       series_id: String(series.id),
       stream_id: String(series.id),
       stream_icon: series.imageUrl || '',
@@ -716,9 +736,98 @@ function extraCatalogPage(params, section) {
       category_name: 'Games',
     }));
   const query = normalized(params.query);
-  const filtered = catalogItems.filter(item => !query || normalized(`${item.name} ${item.description || ''}`).includes(query));
+  const filtered = catalogItems.filter(item => {
+    if (section === 'extras') {
+      const favorite = state.favorites.has(`series:${item.series_id}`);
+      const categoryMatch = params.category === EXTRA_FAVORITES_CATEGORY ? favorite : String(item.category_id || '') === String(params.category || 'reelshort');
+      return categoryMatch && (!query || normalized(`${item.name} ${item.description || item.plot || ''}`).includes(query));
+    }
+    return !query || normalized(`${item.name} ${item.description || ''}`).includes(query);
+  });
   const items = filtered.slice(params.offset, params.offset + params.limit);
   return { items, total: filtered.length, offset: params.offset, limit: params.limit, hasMore: params.offset + items.length < filtered.length };
+}
+
+function renderGamesCatalog(games) {
+  elements.grid.classList.add('game-mode');
+  const list = document.createElement('section');
+  list.className = 'game-launch-list';
+  list.setAttribute('aria-label', 'Games disponíveis');
+  for (const game of games) {
+    const card = document.createElement('article');
+    card.className = 'game-launch-card';
+    card.dataset.gameId = String(game.id || '');
+    card.tabIndex = 0;
+    const art = document.createElement('div'); art.className = 'game-launch-art';
+    const image = document.createElement('img');
+    image.className = 'game-launch-image'; image.alt = game.title || ''; image.loading = 'lazy'; image.decoding = 'async';
+    image.src = safeImage(`./assets/${String(game.imageFile || '').replace(/[^a-z0-9._-]/gi, '')}`) || './assets/poster-placeholder.svg';
+    image.addEventListener('error', () => { image.src = './assets/poster-placeholder.svg'; }, { once: true });
+    art.append(image);
+    const copy = document.createElement('div'); copy.className = 'game-launch-copy';
+    const kicker = document.createElement('span'); kicker.className = 'game-launch-kicker'; kicker.textContent = 'GAMES';
+    const title = document.createElement('h2'); title.textContent = game.title || 'Game';
+    const description = document.createElement('p'); description.textContent = game.description || game.status || '';
+    const music = document.createElement('span'); music.className = 'game-music-hint'; music.dataset.gameMusicLabel = '';
+    const button = document.createElement('button'); button.type = 'button'; button.className = 'primary-action game-launch-button'; button.textContent = 'JOGAR AGORA';
+    button.addEventListener('click', event => { event.stopPropagation(); openItem(game); });
+    copy.append(kicker, title, description, music, button);
+    card.append(art, copy);
+    card.addEventListener('click', event => { if (!event.target.closest('button')) void toggleGameMusic(game); });
+    card.addEventListener('keydown', event => {
+      if (event.target !== card || !['Enter', ' '].includes(event.key)) return;
+      event.preventDefault(); void toggleGameMusic(game);
+    });
+    list.append(card);
+  }
+  elements.grid.replaceChildren(list);
+  syncGameMusicCards(games);
+}
+
+function syncGameMusicCards(games = state.extraCatalog?.games || []) {
+  for (const card of elements.grid.querySelectorAll('.game-launch-card')) {
+    const game = games.find(item => String(item.id) === card.dataset.gameId);
+    if (!game) continue;
+    const playing = game.id === activeGameMusicId && !gameMusicAudio.paused;
+    card.classList.toggle('is-music-playing', playing);
+    const label = card.querySelector('[data-game-music-label]');
+    if (label) label.textContent = `${playing ? '♫ TOCANDO' : '♫ CLIQUE NO CARD PARA TOCAR'} · ${game.musicTitle || 'Música do game'}${game.musicArtist ? ` — ${game.musicArtist}` : ''}`;
+  }
+}
+
+function stopGameMusic() {
+  gameMusicAudio.pause();
+  gameMusicAudio.currentTime = 0;
+  activeGameMusicId = '';
+  syncGameMusicCards();
+}
+
+async function toggleGameMusic(game) {
+  if (!game?.musicFile || !/^(?:get-low\.mp3|temos-a-forca\.m4a)$/.test(game.musicFile)) return;
+  if (activeGameMusicId === game.id && !gameMusicAudio.paused) {
+    gameMusicAudio.pause();
+    syncGameMusicCards();
+    elements.status.textContent = `Música pausada: ${game.musicTitle || 'tema do game'}.`;
+    elements.status.parentElement.hidden = false;
+    return;
+  }
+  if (activeGameMusicId !== game.id) {
+    gameMusicAudio.pause();
+    gameMusicAudio.src = `./assets/${game.musicFile}`;
+    gameMusicAudio.load();
+    activeGameMusicId = game.id;
+  }
+  try {
+    await gameMusicAudio.play();
+    syncGameMusicCards();
+    elements.status.textContent = `Tocando “${game.musicTitle || 'tema do game'}”${game.musicArtist ? ` — ${game.musicArtist}` : ''}. Clique novamente no card para pausar.`;
+    elements.status.parentElement.hidden = false;
+  } catch {
+    activeGameMusicId = '';
+    syncGameMusicCards();
+    elements.status.textContent = `Não foi possível tocar “${game.musicTitle || 'tema do game'}”.`;
+    elements.status.parentElement.hidden = false;
+  }
 }
 
 function seriesCatalogPage(idToken, params) {
@@ -783,7 +892,8 @@ function openItem(item) {
     const allowedHosts = { nfsu2: 'nfsu-2.online', bt3: 'dragonballbt3.online' };
     try {
       const target = new URL(String(item.targetUrl || ''));
-      if (target.protocol === 'https:' && target.hostname === allowedHosts[item.id] && !target.username && !target.password) {
+      if (target.protocol === 'https:' && target.hostname === allowedHosts[item.id] && !target.port && !target.search && !target.username && !target.password) {
+        stopGameMusic();
         window.open(target.href, '_blank', 'noopener,noreferrer');
       } else notice('O endereço deste game não é válido.');
     } catch { notice('O endereço deste game não é válido.'); }
@@ -1844,6 +1954,7 @@ async function enterExtraView(section) {
   if (!state.session || !['extras', 'games'].includes(section)) return;
   state.activeSection = section;
   state.adultView = false;
+  if (section !== 'games') stopGameMusic();
   elements.extrasNav.classList.add('active');
   elements.extrasNav.setAttribute('aria-expanded', 'true');
   elements.extraTypes.hidden = false;
@@ -1854,6 +1965,10 @@ async function enterExtraView(section) {
   elements.searchLabel.setAttribute('aria-label', section === 'extras' ? 'Buscar mininovelas verticais' : 'Buscar games');
   elements.search.placeholder = section === 'extras' ? 'Buscar mininovelas...' : 'Buscar games...';
   elements.search.value = '';
+  elements.searchLabel.classList.toggle('hidden', section === 'games');
+  elements.categoryStrip.classList.toggle('hidden', section === 'games');
+  if (elements.viewButtons[0]) elements.viewButtons[0].parentElement.classList.add('hidden');
+  elements.grid.classList.toggle('game-mode', section === 'games');
   elements.status.textContent = 'Carregando catálogo de conteúdo extra...';
   elements.status.parentElement.hidden = false;
   elements.status.classList.remove('error');
@@ -1862,10 +1977,18 @@ async function enterExtraView(section) {
     if (!state.extraCatalog) {
       if (!state.extraCatalogLoad) {
         state.extraCatalogLoad = api.extraCatalog(auth, state.session).then(catalog => {
-          if (!Array.isArray(catalog.series) || !Array.isArray(catalog.games)) throw new Error('O catálogo de conteúdo extra está incompleto.');
+          const series = normalizeExtraSeries(catalog);
+          if (!series.length) throw new Error(`Resposta sem séries. Campos recebidos: ${Object.keys(catalog || {}).join(', ') || 'nenhum'}.`);
           if (state.auth !== auth) throw new Error('A sessão mudou durante o carregamento.');
-          state.extraCatalog = catalog;
-          return catalog;
+          state.extraCatalog = {
+            ...catalog,
+            series,
+            categories: Array.isArray(catalog.categories) && catalog.categories.length
+              ? catalog.categories.map(category => ({ id: String(category.id || category.category_id || 'reelshort'), name: String(category.name || category.category_name || 'ReelShort') }))
+              : [{ id: 'reelshort', name: 'ReelShort' }],
+            games: Array.isArray(catalog.games) && catalog.games.length ? catalog.games : EXTRA_GAMES_FALLBACK,
+          };
+          return state.extraCatalog;
         }).finally(() => { state.extraCatalogLoad = null; });
       }
       await state.extraCatalogLoad;
@@ -1874,6 +1997,10 @@ async function enterExtraView(section) {
     elements.status.parentElement.hidden = true;
     renderCategoryFilters();
     applyFilters();
+    if (section === 'games') {
+      elements.status.textContent = 'Os games são executados por serviços externos e não fazem parte do pacote do EVOTV.';
+      elements.status.parentElement.hidden = false;
+    }
   } catch (error) {
     if (state.activeSection !== section) return;
     elements.status.textContent = `Não foi possível carregar conteúdo extra (${readableError(error)}).`;
@@ -1882,12 +2009,30 @@ async function enterExtraView(section) {
   }
 }
 
+function normalizeExtraSeries(catalog) {
+  if (Array.isArray(catalog?.series) && catalog.series.length) return catalog.series;
+  if (!Array.isArray(catalog?.items)) return [];
+  const groups = new Map();
+  for (const item of catalog.items) {
+    const id = String(item?.seriesId || item?.series_id || '');
+    if (!/^[a-z0-9-]{3,160}$/i.test(id) || !item?.id) continue;
+    if (!groups.has(id)) groups.set(id, { id, name: String(item.seriesName || item.series_name || id.replace(/-/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())), categoryId: String(item.categoryId || item.category_id || 'reelshort'), imageUrl: item.imageUrl || '', synopsis: item.synopsis || '', episodes: [] });
+    groups.get(id).episodes.push({ ...item, number: Number(item.number || item.episode_num || groups.get(id).episodes.length + 1), season: item.season || '1' });
+  }
+  return [...groups.values()].map(series => ({ ...series, totalEpisodes: series.episodes.length }));
+}
+
 function collapseExtraMenu() {
+  stopGameMusic();
   elements.extrasNav.setAttribute('aria-expanded', 'false');
   elements.extraTypes.hidden = true;
   elements.extrasNav.classList.remove('active');
   elements.mininovelasNav.classList.remove('active');
   elements.gamesNav.classList.remove('active');
+  elements.searchLabel.classList.remove('hidden');
+  elements.categoryStrip.classList.remove('hidden');
+  if (elements.viewButtons[0]) elements.viewButtons[0].parentElement.classList.remove('hidden');
+  elements.grid.classList.remove('game-mode');
 }
 
 function renderProfileSettings() {
