@@ -841,7 +841,7 @@ async function openEmbeddedGame(game) {
     return;
   }
   if (game.id === 'bt3' && !window.crossOriginIsolated) {
-    notice('Atualize ou reabra o PWA para habilitar o isolamento exigido pelo game.');
+    notice('O navegador não habilitou o isolamento necessário. Reabra o PWA no Chrome ou Edge atualizado.');
     return;
   }
   if (activeGameFrame) await closeEmbeddedGame(false);
@@ -2456,19 +2456,35 @@ async function start() {
 }
 
 if ('serviceWorker' in navigator) {
-  const isolationReloadKey = 'evotv:cross-origin-isolation-reload:v1';
+  const isolationReloadKey = 'evotv:cross-origin-isolation-reload:v2';
+  const reloadWithPolicy = (policy) => {
+    const controller = navigator.serviceWorker.controller;
+    if (!controller) return false;
+    const channel = new MessageChannel();
+    channel.port1.onmessage = (event) => {
+      channel.port1.close();
+      if (event.data?.ok) location.reload();
+    };
+    controller.postMessage({ type: 'evotv:set-isolation-policy', policy }, [channel.port2]);
+    return true;
+  };
   const reloadAfterServiceWorkerControl = () => {
     try {
       if (window.crossOriginIsolated) {
         sessionStorage.removeItem(isolationReloadKey);
         return;
       }
-      if (!navigator.serviceWorker.controller || sessionStorage.getItem(isolationReloadKey)) return;
-      sessionStorage.setItem(isolationReloadKey, '1');
-      location.reload();
+      if (!navigator.serviceWorker.controller) return;
+      const attempt = sessionStorage.getItem(isolationReloadKey);
+      if (!attempt) {
+        sessionStorage.setItem(isolationReloadKey, 'credentialless');
+        location.reload();
+      } else if (attempt === 'credentialless' && reloadWithPolicy('require-corp')) {
+        sessionStorage.setItem(isolationReloadKey, 'require-corp');
+      }
     } catch { /* armazenamento de sessão indisponível */ }
   };
   navigator.serviceWorker.addEventListener('controllerchange', reloadAfterServiceWorkerControl);
-  navigator.serviceWorker.register('./sw.js').then(reloadAfterServiceWorkerControl).catch(() => {});
+  navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(reloadAfterServiceWorkerControl).catch(() => {});
 }
 void start();
