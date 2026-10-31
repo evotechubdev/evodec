@@ -856,6 +856,11 @@ function stopPlayback() {
 
 function bindMainVideoEvents(video) {
   const isCurrentVideo = (event) => event.currentTarget === elements.video;
+  video.addEventListener('enterpictureinpicture', (event) => {
+    if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !elements.modal.open) return;
+    state.preserveLiveOnModalClose = true;
+    elements.modal.close();
+  });
   video.addEventListener('playing', (event) => {
     if (!isCurrentVideo(event)) return;
     elements.playerMessage.textContent = '';
@@ -1581,6 +1586,10 @@ elements.trailer.addEventListener('click', () => {
 });
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', () => {
+  if (state.preserveLiveOnModalClose) {
+    state.preserveLiveOnModalClose = false;
+    return;
+  }
   stopPlayback();
   state.selected = null;
 });
