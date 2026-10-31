@@ -292,6 +292,12 @@ body.catalog-page .pc-app-shell {
 }
 .pc-nav-item svg { width: 20px; height: 20px; flex: 0 0 auto; fill: currentColor; }
 .adult-chevron, .extras-chevron { margin-left: auto; color: #777d87; font-size: 17px; font-style: normal; line-height: 1; transition: transform .15s; }
+.extra-menu-group { display: grid; gap: 3px; }
+.extra-types { display: grid; gap: 3px; padding: 2px 0 5px 29px; }
+.extra-types[hidden] { display: none !important; }
+.extra-subitem { width: 100%; min-height: 36px; padding: 7px 10px; border: 0; border-radius: 8px; color: #858c98; background: transparent; text-align: left; font-size: 11px; font-weight: 650; cursor: pointer; }
+.extra-subitem:hover, .extra-subitem:focus-visible { outline: none; color: #e8edf4; background: rgba(255,255,255,.05); }
+.extra-subitem.active { color: #fff; background: rgba(0,145,255,.12); box-shadow: inset 2px 0 0 var(--pc-accent); }
 
 .pc-account-type {
   display: inline-block;
@@ -776,6 +782,8 @@ body.catalog-page #trailer-player[hidden] { display: none; }
   .pc-nav-item { justify-content: center; padding: 0; }
   .adult-chevron, .extras-chevron { display: none; }
   .pc-nav-item span { display: none; }
+  .extra-types { padding: 2px 0 5px; }
+  .extra-subitem { min-height: 38px; padding: 5px 2px; text-align: center; font-size: 9px; line-height: 1.2; }
   .pc-content-area { padding-inline: 27px; }
 }
 

@@ -60,7 +60,13 @@
         <button id="movies-nav" class="pc-nav-item active" type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5h3V5H4v3Zm5 0h6V5H9v3Zm8 0h3V5h-3v3ZM4 14h3v-4H4v4Zm5 0h6v-4H9v4Zm8 0h3v-4h-3v4Z"/></svg><span>Filmes</span></button>
         <button id="series-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span></button>
         <button id="shows-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v4a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-5 5.91V19h3v2H8v-2h3v-3.09A6 6 0 0 1 6 10h2a4 4 0 0 0 8 0h2Z"/></svg><span>Shows</span></button>
-        <button class="pc-nav-item future-section" type="button" data-future="Conteúdo Extra"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg><span>Conteúdo Extra</span><i class="extras-chevron" aria-hidden="true">⌄</i></button>
+        <div class="extra-menu-group">
+          <button id="extras-nav" class="pc-nav-item extras-folder" type="button" aria-expanded="false" aria-controls="extra-types"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg><span>Conteúdo Extra</span><i class="extras-chevron" aria-hidden="true">⌄</i></button>
+          <nav id="extra-types" class="extra-types" aria-label="Conteúdo Extra" hidden>
+            <button id="vertical-mininovelas-nav" class="extra-subitem" type="button">Mininovelas Verticais</button>
+            <button id="games-nav" class="extra-subitem" type="button">Games</button>
+          </nav>
+        </div>
       </nav>
       <button id="adult-nav" class="pc-nav-item adult-nav" type="button"><strong aria-hidden="true">18+</strong><span>Adulto 18+</span><i class="adult-chevron" aria-hidden="true">⌄</i></button>
     </aside>

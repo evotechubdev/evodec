@@ -37,14 +37,14 @@ let publicContactsRequest = null;
 const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
-  activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
+  activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
   miniLivePlayers: new Map(), ownLiveScreens: new Map(), nextMiniLivePlayerId: 0, nextOwnScreenId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
   liveFavorites: null, adultLiveFavorites: null,
   view: storedView, auth: null, account: null, session: null, pendingProfile: 0,
   busy: false, adultView: false, profileSettings: null, parentalSettings: null,
-  parentalMode: 'settings', sessionWatcher: null, noticeTimer: null, rememberDevice: true,
+  parentalMode: 'settings', sessionWatcher: null, noticeTimer: null, rememberDevice: true, extrasMenuOpen: false,
   favorites: new Set(),
 };
 
@@ -72,7 +72,8 @@ const elements = {
   accountMenuPhoto: $('#account-menu-photo'), accountMenuPhotoFallback: $('.account-menu-photo-fallback'),
   accountMenuProfileName: $('#account-menu-profile-name'), accountMenuType: $('#account-menu-type'), sidebarProfileName: $('#sidebar-profile-name'), paymentSystem: $('#payment-system'),
   switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'),
-  adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'),
+  adultNav: $('#adult-nav'), extrasNav: $('#extras-nav'), extraTypes: $('#extra-types'), mininovelasNav: $('#vertical-mininovelas-nav'), gamesNav: $('#games-nav'),
+  channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
   seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
@@ -308,7 +309,7 @@ function toggleFavorite(item) {
   const id = item?.episode_id != null
     ? `${state.adultView ? 'adult-' : ''}episode:${item.episode_id}`
     : item?.kind === 'series' ? `series:${item.series_id}` : String(item?.stream_id || '');
-  if (!/^(?:\d{1,20}|series:\d{1,20}|(?:adult-)?episode:\d{1,20})$/.test(id)) return;
+  if (!/^(?:\d{1,20}|series:[a-z0-9-]{2,128}|(?:adult-)?episode:[a-z0-9-]{2,160})$/i.test(id)) return;
   if (state.favorites.has(id)) state.favorites.delete(id); else state.favorites.add(id);
   saveFavorites();
   if (elements.category.value === FAVORITES_CATEGORY
@@ -434,6 +435,7 @@ function mediaSourceTarget(value) {
 function mediaCandidates(item) {
   if (item.kind === 'live') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`live:${item.stream_id}`] : [];
   if (item.kind === 'show') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`show:${item.stream_id}`] : [];
+  if (item.evo_extra_episode) return /^[a-z0-9-]{3,160}$/i.test(String(item.id || '')) ? [`extra:${item.id}`] : [];
   const candidates = [];
   const direct = mediaSourceTarget(item.url_final);
   if (direct) candidates.push(direct);
@@ -455,6 +457,24 @@ function mediaCandidates(item) {
 }
 
 function renderCategoryFilters() {
+  if (state.activeSection === 'extras') {
+    const categories = [{ category_id: 'all', category_name: 'Mininovelas Verticais' }];
+    elements.category.replaceChildren(...categories.map(category => {
+      const option = document.createElement('option'); option.value = category.category_id; option.textContent = category.category_name; return option;
+    }));
+    elements.category.value = 'all';
+    elements.categoryStrip.replaceChildren(...categories.map(category => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
+      button.dataset.category = category.category_id; button.textContent = category.category_name;
+      button.addEventListener('click', () => { elements.category.value = button.dataset.category; applyFilters(); });
+      return button;
+    }));
+    return;
+  }
+  if (state.activeSection === 'games') {
+    elements.category.replaceChildren(); elements.categoryStrip.replaceChildren();
+    return;
+  }
   if (state.activeSection === 'live') {
     if (!state.liveCatalog) return;
     const source = state.liveCatalog.categories.filter(category =>
@@ -554,6 +574,7 @@ function applyFilters() {
   if (!state.session || (state.activeSection === 'movies' && !state.catalog)
     || (state.activeSection === 'series' && !state.seriesCatalog)
     || (state.activeSection === 'shows' && !state.showCatalog)
+    || (['extras', 'games'].includes(state.activeSection) && !state.extraCatalog)
     || (state.activeSection === 'live' && !state.liveCatalog)) return;
   const generation = ++state.page.generation;
   state.page.offset = 0; state.page.hasMore = false; state.page.loading = false;
@@ -597,7 +618,7 @@ function renderGrid() {
       event.stopPropagation();
       if (item.kind === 'live') toggleLiveFavorite(item); else toggleFavorite(item);
     });
-    actions.append(favorite);
+    if (item.kind !== 'game') actions.append(favorite);
     if (item.kind === 'live' && elements.category.value === LIVE_FAVORITES_CATEGORY) {
       for (const [offset, label, glyph] of [[-1, 'Mover canal para a esquerda', '←'], [1, 'Mover canal para a direita', '→']]) {
         const move = document.createElement('button'); move.type = 'button'; move.className = 'channel-favorite-move';
@@ -606,7 +627,7 @@ function renderGrid() {
         actions.append(move);
       }
     }
-    if (!['series', 'live'].includes(item.kind) && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
+    if (!['series', 'live', 'game'].includes(item.kind) && String(state.session?.accountType || state.account?.accountType || '').toUpperCase() === 'PREMIUM') {
       const download = document.createElement('button'); download.type = 'button'; download.className = 'content-download';
       download.title = 'Baixar filme · PREMIUM'; download.setAttribute('aria-label', `Baixar ${item.name || 'filme'}`);
       download.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 3h2v10.17l3.59-3.58L18 11l-6 6-6-6 1.41-1.41L11 13.17V3ZM5 19h14v2H5v-2Z"/></svg>';
@@ -640,6 +661,7 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
   try {
     let page;
     if (section === 'shows') page = showsCatalogPage(params);
+    else if (section === 'extras' || section === 'games') page = extraCatalogPage(params, section);
     else {
       const idToken = await api.currentToken(auth);
       page = section === 'series' ? await seriesCatalogPage(idToken, params)
@@ -670,6 +692,33 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
       if (state.page.hasMore) loadOnScroll();
     }
   }
+}
+
+function extraCatalogPage(params, section) {
+  const catalogItems = section === 'extras'
+    ? (state.extraCatalog?.series || []).map(series => ({
+      ...series,
+      kind: 'series',
+      evo_extra_series: true,
+      series_id: String(series.id),
+      stream_id: String(series.id),
+      stream_icon: series.imageUrl || '',
+      cover: series.imageUrl || '',
+      plot: series.synopsis || '',
+      category_name: 'Mininovela Vertical',
+      mappedEpisodeCount: Number(series.totalEpisodes || series.episodes?.length || 0),
+    }))
+    : (state.extraCatalog?.games || []).map(game => ({
+      ...game,
+      kind: 'game',
+      name: game.title,
+      stream_icon: `./assets/${game.imageFile || ''}`,
+      category_name: 'Games',
+    }));
+  const query = normalized(params.query);
+  const filtered = catalogItems.filter(item => !query || normalized(`${item.name} ${item.description || ''}`).includes(query));
+  const items = filtered.slice(params.offset, params.offset + params.limit);
+  return { items, total: filtered.length, offset: params.offset, limit: params.limit, hasMore: params.offset + items.length < filtered.length };
 }
 
 function seriesCatalogPage(idToken, params) {
@@ -730,6 +779,16 @@ async function fetchCatalogPage(path, idToken, params) {
 
 function openItem(item) {
   if (!state.session) return;
+  if (item.kind === 'game') {
+    const allowedHosts = { nfsu2: 'nfsu-2.online', bt3: 'dragonballbt3.online' };
+    try {
+      const target = new URL(String(item.targetUrl || ''));
+      if (target.protocol === 'https:' && target.hostname === allowedHosts[item.id] && !target.username && !target.password) {
+        window.open(target.href, '_blank', 'noopener,noreferrer');
+      } else notice('O endereço deste game não é válido.');
+    } catch { notice('O endereço deste game não é válido.'); }
+    return;
+  }
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
@@ -821,7 +880,7 @@ function syncSeriesFavoriteControls() {
 }
 
 async function openSeries(series) {
-  if (!state.session || !state.seriesCatalog) return;
+  if (!state.session || (!state.seriesCatalog && !series.evo_extra_series)) return;
   stopPlayback();
   elements.video.controls = true;
   elements.video.classList.remove('live-controls-no-seek');
@@ -844,7 +903,13 @@ async function openSeries(series) {
 
   try {
     const idToken = await api.currentToken(state.auth);
-    const episodes = await episodesForSeries(state.seriesCatalog, series, idToken, state.session);
+    const episodes = series.evo_extra_series
+      ? (series.episodes || []).map(episode => ({
+        ...episode, episode_id: episode.id, title: episode.name, episode_num: episode.number,
+        season: episode.season || '1', series_id: series.series_id, container_extension: episode.extension || 'm3u8',
+        evo_extra_episode: true,
+      }))
+      : await episodesForSeries(state.seriesCatalog, series, idToken, state.session);
     if (!elements.seriesDialog.open || state.activeSeries !== series) return;
     state.activeSeriesEpisodes = episodes;
     renderSeriesDetails();
@@ -1330,6 +1395,9 @@ async function mediaTicket(source, signal, download = false, contentItem = state
   if (location.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(location.hostname)) {
     throw new Error('HTTPS_REQUIRED');
   }
+  if (contentItem?.evo_extra_episode && /^extra:[a-z0-9-]{3,160}$/i.test(String(source))) {
+    return api.extraStreamUrl(state.auth, state.session, String(source).slice('extra:'.length), download);
+  }
   const liveMatch = /^live:(\d{1,20})$/.exec(String(source));
   const headers = {
     'content-type': 'application/json', 'x-evo-platform': 'web',
@@ -1625,6 +1693,7 @@ async function logout() {
     await clearRememberedAuth().catch(() => {});
   } else await forgetDevice(login);
   state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null; state.showCatalog = SHOWS_CATALOG;
+  state.extraCatalog = null; state.extraCatalogLoad = null;
   state.page.generation += 1; state.page.offset = 0; state.page.hasMore = false; state.page.loading = false; state.filtered = [];
   clearSeriesCatalogCache(); clearLegacyCatalog();
   state.auth = null; state.account = null; state.rememberDevice = rememberOnDevice;
@@ -1657,6 +1726,7 @@ async function loadMovieCatalog() {
 }
 
 async function enterMovieView(adult = false) {
+  collapseExtraMenu();
   state.activeSection = 'movies';
   state.adultView = adult;
   elements.moviesNav.classList.toggle('active', !adult); elements.seriesNav.classList.remove('active'); elements.showsNav.classList.remove('active'); elements.channelsNav.classList.remove('active'); elements.adultNav.classList.toggle('active', adult);
@@ -1678,6 +1748,7 @@ async function enterMovieView(adult = false) {
 }
 async function enterSeriesView() {
   if (!state.session) return;
+  collapseExtraMenu();
   state.activeSection = 'series';
   elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.add('active'); elements.showsNav.classList.remove('active'); elements.channelsNav.classList.remove('active'); elements.adultNav.classList.toggle('active', state.adultView);
   elements.heading.textContent = state.adultView ? 'Séries Adulto' : 'Séries';
@@ -1704,6 +1775,7 @@ async function enterSeriesView() {
 
 async function enterLiveView() {
   if (!state.session) return;
+  collapseExtraMenu();
   state.activeSection = 'live';
   elements.channelsNav.classList.add('active');
   elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.remove('active'); elements.showsNav.classList.remove('active');
@@ -1738,6 +1810,7 @@ async function enterLiveView() {
 
 function enterShowsView() {
   if (!state.session) return;
+  collapseExtraMenu();
   state.activeSection = 'shows';
   elements.showsNav.classList.add('active');
   elements.channelsNav.classList.remove('active'); elements.moviesNav.classList.remove('active');
@@ -1765,6 +1838,56 @@ function enterShowsView() {
     elements.status.textContent = `Não foi possível carregar shows (${readableError(error)}).`;
     elements.status.parentElement.hidden = false; elements.status.classList.add('error');
   }
+}
+
+async function enterExtraView(section) {
+  if (!state.session || !['extras', 'games'].includes(section)) return;
+  state.activeSection = section;
+  state.adultView = false;
+  elements.extrasNav.classList.add('active');
+  elements.extrasNav.setAttribute('aria-expanded', 'true');
+  elements.extraTypes.hidden = false;
+  elements.mininovelasNav.classList.toggle('active', section === 'extras');
+  elements.gamesNav.classList.toggle('active', section === 'games');
+  for (const nav of [elements.channelsNav, elements.moviesNav, elements.seriesNav, elements.showsNav, elements.adultNav]) nav.classList.remove('active');
+  elements.heading.textContent = section === 'extras' ? 'Mininovelas Verticais' : 'Games';
+  elements.searchLabel.setAttribute('aria-label', section === 'extras' ? 'Buscar mininovelas verticais' : 'Buscar games');
+  elements.search.placeholder = section === 'extras' ? 'Buscar mininovelas...' : 'Buscar games...';
+  elements.search.value = '';
+  elements.status.textContent = 'Carregando catálogo de conteúdo extra...';
+  elements.status.parentElement.hidden = false;
+  elements.status.classList.remove('error');
+  try {
+    const auth = state.auth;
+    if (!state.extraCatalog) {
+      if (!state.extraCatalogLoad) {
+        state.extraCatalogLoad = api.extraCatalog(auth, state.session).then(catalog => {
+          if (!Array.isArray(catalog.series) || !Array.isArray(catalog.games)) throw new Error('O catálogo de conteúdo extra está incompleto.');
+          if (state.auth !== auth) throw new Error('A sessão mudou durante o carregamento.');
+          state.extraCatalog = catalog;
+          return catalog;
+        }).finally(() => { state.extraCatalogLoad = null; });
+      }
+      await state.extraCatalogLoad;
+    }
+    if (state.activeSection !== section || !state.session) return;
+    elements.status.parentElement.hidden = true;
+    renderCategoryFilters();
+    applyFilters();
+  } catch (error) {
+    if (state.activeSection !== section) return;
+    elements.status.textContent = `Não foi possível carregar conteúdo extra (${readableError(error)}).`;
+    elements.status.parentElement.hidden = false;
+    elements.status.classList.add('error');
+  }
+}
+
+function collapseExtraMenu() {
+  elements.extrasNav.setAttribute('aria-expanded', 'false');
+  elements.extraTypes.hidden = true;
+  elements.extrasNav.classList.remove('active');
+  elements.mininovelasNav.classList.remove('active');
+  elements.gamesNav.classList.remove('active');
 }
 
 function renderProfileSettings() {
@@ -1820,6 +1943,7 @@ async function openParentalSettings() {
 }
 
 async function openAdultSection() {
+  collapseExtraMenu();
   if (!state.session?.adultVisible || state.session?.parental?.adultMode === 'hidden') return notice('Conteúdo adulto oculto neste perfil.');
   if (state.session.adultAllowed || state.session.parental?.adultMode === 'free') return enterMovieView(true);
   if (state.busy) return;
@@ -1960,6 +2084,13 @@ elements.channelsNav.addEventListener('click', () => { void enterLiveView(); });
 elements.moviesNav.addEventListener('click', () => enterMovieView(false));
 elements.seriesNav.addEventListener('click', () => { void enterSeriesView(); });
 elements.showsNav.addEventListener('click', () => { void enterShowsView(); });
+elements.extrasNav.addEventListener('click', () => {
+  const expanded = elements.extrasNav.getAttribute('aria-expanded') === 'true';
+  elements.extrasNav.setAttribute('aria-expanded', String(!expanded));
+  elements.extraTypes.hidden = expanded;
+});
+elements.mininovelasNav.addEventListener('click', () => { void enterExtraView('extras'); });
+elements.gamesNav.addEventListener('click', () => { void enterExtraView('games'); });
 elements.adultNav.addEventListener('click', () => { void openAdultSection(); });
 elements.closeSeries.addEventListener('click', closeSeriesDetails);
 elements.seriesDialog.addEventListener('cancel', (event) => { event.preventDefault(); closeSeriesDetails(); });

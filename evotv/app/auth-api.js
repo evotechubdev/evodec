@@ -50,6 +50,25 @@ export class EvoAuthApi {
     };
   }
 
+  extraCatalog(auth, session) {
+    return this.backend('/api/extras/catalog', auth, { headers: sessionHeaders(session) });
+  }
+
+  async extraStreamUrl(auth, session, id, download = false) {
+    const path = download ? '/api/extras/download-ticket' : '/api/extras/stream-ticket';
+    const data = await this.backend(path, auth, {
+      method: 'POST',
+      headers: sessionHeaders(session),
+      body: JSON.stringify({ id: String(id || '') }),
+    });
+    const url = new URL(requiredText(data, 'url'));
+    if (url.protocol !== 'https:' || url.origin !== APP_BACKEND_URL
+      || !url.pathname.startsWith(download ? '/api/extras/download/' : '/api/extras/stream/')) {
+      throw new EvoApiError('O servidor retornou um link de conteúdo extra inválido.');
+    }
+    return url.href;
+  }
+
   async selectProfile(auth, profile, pin) {
     const data = await this.backend('/api/profile', auth, {
       method: 'POST',
