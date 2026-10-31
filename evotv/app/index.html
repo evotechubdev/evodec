@@ -24,7 +24,7 @@
         <p id="login-error" class="form-error" role="alert"></p>
         <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
       </form>
-      <p class="login-version">Versão: Saturno-62</p>
+      <p class="login-version">Versão: Saturno-64</p>
     </section>
   </main>
 
@@ -60,13 +60,13 @@
           <div class="pc-view-account-tools">
             <div class="pc-account-menu">
               <button id="account-menu-toggle" class="account-avatar" type="button" aria-label="Abrir menu da conta" aria-expanded="false" aria-controls="account-menu-panel">
-                <svg class="account-avatar-fallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 2c-4.42 0-8 2.25-8 5v1.5h16V19c0-2.75-3.58-5-8-5Z"/></svg>
-                <img id="account-avatar-photo" alt="" hidden>
+                <span class="account-sidebar-avatar"><svg class="account-avatar-fallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 2c-4.42 0-8 2.25-8 5v1.5h16V19c0-2.75-3.58-5-8-5Z"/></svg><img id="account-avatar-photo" alt="" hidden></span>
+                <span class="account-sidebar-identity"><strong id="sidebar-profile-name">Perfil</strong><span id="account-type" class="pc-account-type">STANDARD</span></span>
               </button>
               <div id="account-menu-panel" class="account-menu-panel" hidden>
                 <div class="account-menu-profile">
                   <span class="account-menu-photo-wrap"><svg class="account-menu-photo-fallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 2c-4.42 0-8 2.25-8 5v1.5h16V19c0-2.75-3.58-5-8-5Z"/></svg><img id="account-menu-photo" alt="" hidden></span>
-                  <span class="account-menu-identity"><strong id="account-menu-profile-name">Perfil</strong><span id="account-type" class="pc-account-type">STANDARD</span></span>
+                  <span class="account-menu-identity"><strong id="account-menu-profile-name">Perfil</strong><span id="account-menu-type" class="pc-account-type">STANDARD</span></span>
                 </div>
                 <input id="profile-photo-input" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-label="Escolher foto do perfil">
                 <button id="profile-photo-button" class="account-menu-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm8-5h-3.17l-1.84-2H9.01L7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 14H4V7h4.05l1.84-2h4.22l1.84 2H20v12Z"/></svg>Alterar Foto</button>

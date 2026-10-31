@@ -66,7 +66,7 @@ const elements = {
   profilePhotoButton: $('#profile-photo-button'), profilePhotoInput: $('#profile-photo-input'),
   accountAvatarPhoto: $('#account-avatar-photo'), accountAvatarFallback: $('.account-avatar-fallback'),
   accountMenuPhoto: $('#account-menu-photo'), accountMenuPhotoFallback: $('.account-menu-photo-fallback'),
-  accountMenuProfileName: $('#account-menu-profile-name'), paymentSystem: $('#payment-system'),
+  accountMenuProfileName: $('#account-menu-profile-name'), accountMenuType: $('#account-menu-type'), sidebarProfileName: $('#sidebar-profile-name'), paymentSystem: $('#payment-system'),
   switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'),
   adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
@@ -92,7 +92,21 @@ function showScreen(name) {
 function setAccountMenuOpen(open, restoreFocus = false) {
   elements.accountMenuPanel.hidden = !open;
   elements.accountMenuToggle.setAttribute('aria-expanded', String(open));
+  if (open) positionAccountMenuPanel();
   if (restoreFocus) elements.accountMenuToggle.focus();
+}
+
+function positionAccountMenuPanel() {
+  const trigger = elements.accountMenuToggle.getBoundingClientRect();
+  const menu = elements.accountMenuPanel.getBoundingClientRect();
+  const gutter = 8;
+  const left = Math.max(gutter, Math.min(trigger.left, window.innerWidth - menu.width - gutter));
+  let top = trigger.top - menu.height - gutter;
+  if (top < gutter) top = trigger.bottom + gutter;
+  top = Math.max(gutter, Math.min(top, window.innerHeight - menu.height - gutter));
+  elements.accountMenuPanel.style.left = `${left}px`;
+  elements.accountMenuPanel.style.top = `${top}px`;
+  elements.accountMenuPanel.style.right = 'auto';
 }
 
 function readableError(error) {
@@ -1468,8 +1482,11 @@ function updateSessionUi() {
   const activeProfileName = state.session ? profileName(state.session.profile) : 'Perfil';
   const accountType = String(state.session?.accountType || state.account?.accountType || 'STANDARD').toUpperCase();
   elements.accountMenuProfileName.textContent = activeProfileName;
+  elements.sidebarProfileName.textContent = activeProfileName;
   elements.accountType.textContent = accountType;
+  elements.accountMenuType.textContent = accountType;
   elements.accountType.classList.toggle('premium', accountType === 'PREMIUM');
+  elements.accountMenuType.classList.toggle('premium', accountType === 'PREMIUM');
   const avatarKey = profileAvatarStorageKey();
   let savedAvatar = '';
   try { savedAvatar = avatarKey ? localStorage.getItem(avatarKey) || '' : ''; } catch { /* foto opcional */ }
@@ -1833,6 +1850,9 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && !elements.accountMenuPanel.hidden) {
     event.preventDefault(); setAccountMenuOpen(false, true);
   }
+});
+window.addEventListener('resize', () => {
+  if (!elements.accountMenuPanel.hidden) positionAccountMenuPanel();
 });
 elements.channelsNav.addEventListener('click', () => { void enterLiveView(); });
 elements.moviesNav.addEventListener('click', () => enterMovieView(false));

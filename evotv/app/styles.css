@@ -301,29 +301,38 @@ body.catalog-page .pc-app-shell {
   font-size: 10px;
 }
 .pc-account-type.premium { color: #efcb79; }
-.pc-account-menu { position: relative; flex: 0 0 auto; }
+.pc-account-menu { position: fixed; z-index: 60; left: 8px; bottom: 8px; width: 204px; }
+.account-sidebar-identity .pc-account-type { display: block; margin: 4px 0 0; }
 .account-avatar {
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  padding: 0;
+  width: 100%;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 9px;
   border: 1px solid var(--pc-line);
-  border-radius: 50%;
+  border-radius: 10px;
   color: #aeb7c5;
-  background: rgba(20, 22, 27, .9);
+  background: rgba(18, 20, 26, .96);
+  text-align: left;
   cursor: pointer;
-  transition: border-color .18s, color .18s, background .18s;
+  transition: border-color .18s, color .18s, background .18s, box-shadow .18s;
 }
-.account-avatar:hover, .account-avatar[aria-expanded="true"] { color: #fff; border-color: rgba(0, 145, 255, .65); background: #1b2634; }
-.account-avatar:focus-visible { outline: 2px solid var(--pc-accent-2); outline-offset: 3px; }
-.account-avatar svg { width: 21px; height: 21px; fill: currentColor; }
+.account-avatar:hover, .account-avatar[aria-expanded="true"] { color: #fff; border-color: rgba(0, 145, 255, .45); background: #141c28; box-shadow: 0 5px 18px rgba(0, 0, 0, .22); }
+.account-avatar:focus-visible { outline: 2px solid var(--pc-accent-2); outline-offset: 2px; }
+.account-sidebar-avatar { position: relative; width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden; border: 1px solid rgba(255, 255, 255, .14); border-radius: 50%; color: #aeb7c5; background: #202733; }
+.account-sidebar-avatar svg { width: 22px; height: 22px; fill: currentColor; }
+.account-sidebar-avatar img { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.account-sidebar-identity { min-width: 0; display: grid; gap: 3px; }
+.account-sidebar-identity strong { overflow: hidden; color: #f2f4f7; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .account-menu-panel {
-  position: absolute;
+  position: fixed;
   z-index: 80;
-  top: calc(100% + 10px);
-  right: 0;
+  top: 12px;
+  left: 8px;
   width: min(278px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow: auto;
   padding: 9px;
   border: 1px solid var(--pc-line);
   border-radius: 13px;
@@ -336,9 +345,7 @@ body.catalog-page .pc-app-shell {
 .account-menu-profile { display: flex; align-items: center; gap: 11px; padding: 6px 10px 11px; margin-bottom: 4px; border-bottom: 1px solid var(--pc-line); }
 .account-menu-photo-wrap { width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center; overflow: hidden; border: 1px solid rgba(255, 255, 255, .12); border-radius: 50%; color: #aeb7c5; background: #202733; }
 .account-menu-photo-wrap svg { width: 22px; height: 22px; fill: currentColor; }
-.account-menu-photo-wrap img, .account-avatar img { width: 100%; height: 100%; object-fit: cover; }
-.account-avatar img { position: absolute; inset: 0; border-radius: 50%; }
-.account-avatar { position: relative; overflow: hidden; }
+.account-menu-photo-wrap img { width: 100%; height: 100%; object-fit: cover; }
 .account-menu-identity { min-width: 0; display: grid; gap: 3px; }
 .account-menu-identity strong { overflow: hidden; color: #f2f4f7; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .account-menu-panel .pc-account-type { display: block; margin: 0; }
@@ -391,10 +398,13 @@ body.catalog-page .pc-app-shell {
 .pc-topbar { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
 .pc-topbar .eyebrow { color: var(--pc-accent-2); font-size: 10px; letter-spacing: .22em; }
 .pc-topbar h1 { margin: 5px 0 0; font-size: 31px; letter-spacing: -.04em; }
-.pc-top-actions { display: flex; gap: 11px; }
+.pc-top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; column-gap: 11px; row-gap: 8px; }
+.pc-view-account-tools { display: contents; }
+.pc-search-box { order: 0; }
+.pc-view-switch { order: 0; }
 .pc-search-box {
   width: 280px;
-  height: 42px;
+  height: 34px;
   display: flex;
   align-items: center;
   gap: 9px;
@@ -404,7 +414,7 @@ body.catalog-page .pc-app-shell {
   background: rgba(20, 22, 27, .88);
 }
 .pc-search-box:focus-within { border-color: rgba(0, 145, 255, .7); box-shadow: 0 0 0 3px rgba(0, 145, 255, .1); }
-.pc-search-box svg { width: 17px; height: 17px; flex: 0 0 auto; fill: #747a84; }
+.pc-search-box svg { width: 15px; height: 15px; flex: 0 0 auto; fill: #747a84; }
 body.catalog-page .pc-search-box input {
   min-height: 0;
   flex: 1;
@@ -420,10 +430,9 @@ body.catalog-page .pc-search-box input {
 }
 .pc-search-box input::placeholder { color: #666d78; }
 .pc-view-switch { display: flex; border: 1px solid var(--pc-line); border-radius: 10px; padding: 3px; background: rgba(20, 22, 27, .88); }
-.pc-view-account-tools { display: grid; justify-items: end; gap: 7px; }
-.pc-view-switch button { width: 35px; border: 0; border-radius: 7px; background: transparent; cursor: pointer; color: #666c76; }
+.pc-view-switch button { width: 30px; height: 26px; padding: 0; border: 0; border-radius: 7px; background: transparent; cursor: pointer; color: #666c76; }
 .pc-view-switch button.active { color: #fff; background: #292c33; }
-.pc-view-switch svg { width: 17px; fill: currentColor; vertical-align: middle; }
+.pc-view-switch svg { width: 14px; height: 14px; fill: currentColor; vertical-align: middle; }
 
 .pc-category-strip {
   flex: 0 0 auto;
@@ -759,6 +768,9 @@ body.catalog-page #trailer-player[hidden] { display: none; }
 @media (max-width: 1100px) {
   body.catalog-page .pc-app-shell { grid-template-columns: 86px minmax(0, 1fr); }
   .pc-sidebar { padding-inline: 13px; }
+  .pc-account-menu { left: 8px; width: 44px; }
+  .account-avatar { width: 44px; min-height: 44px; justify-content: center; padding: 0; }
+  .account-sidebar-identity { display: none; }
   .pc-brand { padding: 0; justify-content: center; }
   .pc-brand img { width: 54px; object-fit: cover; object-position: left center; }
   .pc-nav-item { justify-content: center; padding: 0; }
