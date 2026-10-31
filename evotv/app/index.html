@@ -18,6 +18,7 @@
       <button id="login-logo-button" class="login-logo-button" type="button" aria-label="Ver contatos do EVOTV" aria-haspopup="dialog" aria-controls="contacts-dialog">
         <img class="login-logo" src="./assets/logo_evotv.png" alt="EVOTV">
       </button>
+      <div class="login-heading"><h1 id="login-title">Bem Vindo!</h1></div>
       <form id="login-form" novalidate>
         <label class="field"><span>LOGIN</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg><input id="username" type="password" placeholder="Digite seu login" autocomplete="username" required></span></label>
         <label class="field"><span>SENHA</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4V6Zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8Z"/></svg><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
@@ -25,7 +26,7 @@
         <p id="login-error" class="form-error" role="alert"></p>
         <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
       </form>
-      <p class="login-version">Versão: Saturno-68</p>
+      <p class="login-version">Versão: Saturno-69</p>
     </section>
   </main>
 
@@ -35,8 +36,8 @@
     <h2 id="contacts-title">Contatos</h2>
     <p id="contacts-status" class="contacts-status" role="status" aria-live="polite">Carregando contatos…</p>
     <div id="contact-links" class="contact-links" hidden>
-      <a id="commercial-contact" class="contact-link" target="_blank" rel="noopener noreferrer" hidden><span>Comercial</span><strong id="commercial-number"></strong></a>
-      <a id="support-contact" class="contact-link" target="_blank" rel="noopener noreferrer" hidden><span>Suporte</span><strong id="support-number"></strong></a>
+      <a id="commercial-contact" class="contact-link" target="_blank" rel="noopener noreferrer" hidden><span>Comercial</span><strong class="contact-number"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.87 9.87 0 0 0-8.48 14.92L2 22l5.25-1.38A9.94 9.94 0 1 0 12.04 2Zm0 18.05a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.11.82.83-3.03-.2-.31A8.12 8.12 0 1 1 12.04 20.05Zm4.45-6.08c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.1.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.31.98 2.47c.12.16 1.69 2.58 4.1 3.62.57.25 1.02.4 1.37.5.58.19 1.1.16 1.52.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z"/></svg><span id="commercial-number"></span></strong></a>
+      <a id="support-contact" class="contact-link" target="_blank" rel="noopener noreferrer" hidden><span>Suporte</span><strong class="contact-number"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12.04 2a9.87 9.87 0 0 0-8.48 14.92L2 22l5.25-1.38A9.94 9.94 0 1 0 12.04 2Zm0 18.05a8.1 8.1 0 0 1-4.13-1.13l-.3-.18-3.11.82.83-3.03-.2-.31A8.12 8.12 0 1 1 12.04 20.05Zm4.45-6.08c-.24-.12-1.42-.7-1.64-.78-.22-.08-.38-.12-.54.12-.16.24-.62.78-.76.94-.14.16-.28.18-.52.06-.24-.12-1.02-.38-1.94-1.2-.72-.64-1.2-1.43-1.34-1.67-.14-.24-.02-.37.1-.49.11-.1.24-.28.36-.42.12-.14.16-.24.24-.4.08-.16.04-.3-.02-.42-.06-.12-.54-1.3-.74-1.78-.2-.47-.4-.4-.54-.41h-.46c-.16 0-.42.06-.64.3-.22.24-.84.82-.84 2s.86 2.31.98 2.47c.12.16 1.69 2.58 4.1 3.62.57.25 1.02.4 1.37.5.58.19 1.1.16 1.52.1.46-.07 1.42-.58 1.62-1.14.2-.56.2-1.04.14-1.14-.06-.1-.22-.16-.46-.28Z"/></svg><span id="support-number"></span></strong></a>
     </div>
   </dialog>
 

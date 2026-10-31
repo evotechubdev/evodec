@@ -192,13 +192,21 @@ function whatsappUrl(rawNumber) {
   return `https://wa.me/${digits}`;
 }
 
+function formatBrazilianPhone(rawNumber) {
+  let digits = String(rawNumber || '').replace(/\D/g, '');
+  if (digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) digits = digits.slice(2);
+  if (digits.length === 11) return `(${digits.slice(0, 2)})${digits.slice(2, 7)}-${digits.slice(7)}`;
+  if (digits.length === 10) return `(${digits.slice(0, 2)})${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return String(rawNumber || '').trim();
+}
+
 function setContactLink(link, numberElement, rawNumber) {
   const number = String(rawNumber || '').trim();
   const url = whatsappUrl(number);
   link.hidden = !number || !url;
   if (link.hidden) return;
   link.href = url;
-  numberElement.textContent = number;
+  numberElement.textContent = formatBrazilianPhone(number);
 }
 
 async function openContactsDialog() {
