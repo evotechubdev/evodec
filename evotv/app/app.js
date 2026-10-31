@@ -37,6 +37,7 @@ gameMusicAudio.loop = true;
 gameMusicAudio.preload = 'none';
 let activeGameMusicId = '';
 let activeGameFrame = null;
+let extraLoadingTimer = 0;
 const api = new EvoAuthApi();
 
 let storedView = 'grid';
@@ -2026,7 +2027,19 @@ function enterShowsView() {
 
 async function enterExtraView(section) {
   if (!state.session || !['extras', 'games'].includes(section)) return;
+  window.clearTimeout(extraLoadingTimer);
+  extraLoadingTimer = 0;
   if (activeGameFrame) void closeEmbeddedGame(false);
+  state.page.generation += 1;
+  state.page.offset = 0;
+  state.page.hasMore = false;
+  state.page.loading = false;
+  state.filtered = [];
+  elements.grid.replaceChildren();
+  elements.category.replaceChildren();
+  elements.categoryStrip.replaceChildren();
+  elements.grid.setAttribute('aria-busy', 'true');
+  elements.sentinel.hidden = true;
   state.activeSection = section;
   state.adultView = false;
   if (section !== 'games') stopGameMusic();
@@ -2044,9 +2057,14 @@ async function enterExtraView(section) {
   elements.categoryStrip.classList.toggle('hidden', section === 'games');
   if (elements.viewButtons[0]) elements.viewButtons[0].parentElement.classList.add('hidden');
   elements.grid.classList.toggle('game-mode', section === 'games');
-  elements.status.textContent = 'Carregando catálogo de conteúdo extra...';
-  elements.status.parentElement.hidden = false;
+  elements.status.textContent = '';
+  elements.status.parentElement.hidden = true;
   elements.status.classList.remove('error');
+  extraLoadingTimer = window.setTimeout(() => {
+    if (state.activeSection !== section || !elements.grid.hasAttribute('aria-busy')) return;
+    elements.status.textContent = 'Carregando conteúdo...';
+    elements.status.parentElement.hidden = false;
+  }, 250);
   try {
     const auth = state.auth;
     if (!state.extraCatalog) {
@@ -2069,6 +2087,9 @@ async function enterExtraView(section) {
       await state.extraCatalogLoad;
     }
     if (state.activeSection !== section || !state.session) return;
+    window.clearTimeout(extraLoadingTimer);
+    extraLoadingTimer = 0;
+    elements.grid.removeAttribute('aria-busy');
     elements.status.parentElement.hidden = true;
     renderCategoryFilters();
     applyFilters();
@@ -2078,6 +2099,9 @@ async function enterExtraView(section) {
     }
   } catch (error) {
     if (state.activeSection !== section) return;
+    window.clearTimeout(extraLoadingTimer);
+    extraLoadingTimer = 0;
+    elements.grid.removeAttribute('aria-busy');
     elements.status.textContent = `Não foi possível carregar conteúdo extra (${readableError(error)}).`;
     elements.status.parentElement.hidden = false;
     elements.status.classList.add('error');
@@ -2098,7 +2122,11 @@ function normalizeExtraSeries(catalog) {
 }
 
 function collapseExtraMenu() {
+  window.clearTimeout(extraLoadingTimer);
+  extraLoadingTimer = 0;
   if (activeGameFrame) void closeEmbeddedGame(false);
+  elements.grid.removeAttribute('aria-busy');
+  if (elements.status.textContent === 'Carregando conteúdo...') elements.status.parentElement.hidden = true;
   stopGameMusic();
   elements.extrasNav.setAttribute('aria-expanded', 'false');
   elements.extraTypes.hidden = true;
