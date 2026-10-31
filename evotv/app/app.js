@@ -68,7 +68,7 @@ const elements = {
   accountMenuPhoto: $('#account-menu-photo'), accountMenuPhotoFallback: $('.account-menu-photo-fallback'),
   accountMenuProfileName: $('#account-menu-profile-name'), accountMenuType: $('#account-menu-type'), sidebarProfileName: $('#sidebar-profile-name'), paymentSystem: $('#payment-system'),
   switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'),
-  adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
+  adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
   seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
@@ -1557,7 +1557,6 @@ async function enterMovieView(adult = false) {
   state.adultView = adult;
   elements.moviesNav.classList.toggle('active', !adult); elements.seriesNav.classList.remove('active'); elements.showsNav.classList.remove('active'); elements.channelsNav.classList.remove('active'); elements.adultNav.classList.toggle('active', adult);
   elements.heading.textContent = adult ? 'Filmes Adulto' : 'Filmes';
-  elements.kicker.textContent = adult ? 'CONTEUDO ADULTO 18+' : 'CATALOGO ON DEMAND';
   elements.searchLabel.setAttribute('aria-label', adult ? 'Buscar filmes adultos' : 'Buscar filmes');
   elements.search.placeholder = adult ? 'Buscar filmes adultos...' : 'Buscar filmes...'; elements.search.value = '';
   if (!state.session) return;
@@ -1577,7 +1576,7 @@ async function enterSeriesView() {
   if (!state.session) return;
   state.activeSection = 'series';
   elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.add('active'); elements.showsNav.classList.remove('active'); elements.channelsNav.classList.remove('active'); elements.adultNav.classList.toggle('active', state.adultView);
-  elements.heading.textContent = state.adultView ? 'Séries Adulto' : 'Séries'; elements.kicker.textContent = state.adultView ? 'SÉRIES · CONTEÚDO ADULTO 18+' : 'SÉRIES E EPISÓDIOS';
+  elements.heading.textContent = state.adultView ? 'Séries Adulto' : 'Séries';
   elements.searchLabel.setAttribute('aria-label', state.adultView ? 'Buscar séries adultas' : 'Buscar séries');
   elements.search.placeholder = state.adultView ? 'Buscar séries adultas...' : 'Buscar séries...'; elements.search.value = '';
   elements.status.textContent = 'Carregando catálogo de séries…'; elements.status.parentElement.hidden = false;
@@ -1606,7 +1605,6 @@ async function enterLiveView() {
   elements.moviesNav.classList.remove('active'); elements.seriesNav.classList.remove('active'); elements.showsNav.classList.remove('active');
   elements.adultNav.classList.toggle('active', state.adultView);
   elements.heading.textContent = state.adultView ? 'Canais Adulto' : 'Canais';
-  elements.kicker.textContent = state.adultView ? 'CANAIS AO VIVO · CONTEÚDO 18+' : 'TELEVISÃO AO VIVO';
   elements.searchLabel.setAttribute('aria-label', state.adultView ? 'Buscar canais adultos' : 'Buscar canais');
   elements.search.placeholder = state.adultView ? 'Buscar canais adultos...' : 'Buscar canais...';
   elements.search.value = '';
@@ -1641,7 +1639,6 @@ function enterShowsView() {
   elements.channelsNav.classList.remove('active'); elements.moviesNav.classList.remove('active');
   elements.seriesNav.classList.remove('active'); elements.adultNav.classList.toggle('active', state.adultView);
   elements.heading.textContent = 'Shows';
-  elements.kicker.textContent = 'APRESENTAÇÕES ON DEMAND';
   elements.searchLabel.setAttribute('aria-label', 'Buscar shows');
   elements.search.placeholder = 'Buscar shows...'; elements.search.value = '';
   elements.status.textContent = 'Carregando catálogo de shows...';

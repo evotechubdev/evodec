@@ -396,7 +396,6 @@ body.catalog-page .pc-app-shell {
   padding: 31px 36px 0;
 }
 .pc-topbar { flex: 0 0 auto; display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; }
-.pc-topbar .eyebrow { color: var(--pc-accent-2); font-size: 10px; letter-spacing: .22em; }
 .pc-topbar h1 { margin: 5px 0 0; font-size: 31px; letter-spacing: -.04em; }
 .pc-top-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; column-gap: 11px; row-gap: 8px; }
 .pc-view-account-tools { display: contents; }
