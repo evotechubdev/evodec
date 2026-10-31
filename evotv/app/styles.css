@@ -408,6 +408,7 @@ body.catalog-page .catalog-card:focus-visible .catalog-poster {
 body.catalog-page .catalog-card:focus-visible { outline: 0; }
 body.catalog-page .catalog-card:focus-visible .catalog-poster { outline: 2px solid var(--pc-accent-2); outline-offset: 3px; }
 .catalog-poster img { width: 100%; height: 100%; object-fit: cover; display: block; background: #20232b; }
+body.catalog-page .channel-poster img { object-fit: contain; object-position: center; padding: 10px; }
 .poster-play {
   position: absolute;
   left: 50%;
@@ -484,6 +485,7 @@ body.catalog-page .list-view .catalog-card {
 }
 body.catalog-page .list-view .catalog-card:hover { border-color: var(--pc-line); background: #17191f; }
 body.catalog-page .list-view .catalog-poster { width: 54px; height: 46px; aspect-ratio: auto; border-radius: 8px; }
+body.catalog-page .list-view .channel-poster img { padding: 4px; }
 body.catalog-page .list-view .catalog-card:hover .catalog-poster { transform: none; box-shadow: none; }
 body.catalog-page .list-view .poster-play { width: 28px; height: 28px; }
 body.catalog-page .list-view .poster-play::after { border-left-width: 7px; border-top-width: 5px; border-bottom-width: 5px; }
@@ -609,6 +611,34 @@ body.catalog-page #play-media {
 .media-player-surface:not(:has(video:not([hidden]))):not(:has(iframe:not([hidden]))) { display: none; }
 body.catalog-page #media-player { display: block; width: 100%; max-height: 62vh; margin: 0; border-radius: 0; aspect-ratio: 16 / 9; background: #000; }
 body.catalog-page #media-player[hidden] { display: none; }
+body.catalog-page .media-modal:has(video.live-controls-no-seek:not([hidden])) {
+  max-height: calc(100vh - 20px);
+  max-height: calc(100dvh - 20px);
+  overflow: hidden;
+}
+body.catalog-page .media-layout:has(video.live-controls-no-seek:not([hidden])) {
+  min-height: 0;
+  max-height: calc(100vh - 22px);
+  max-height: calc(100dvh - 22px);
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  overflow: hidden;
+}
+body.catalog-page .media-player-surface:has(video.live-controls-no-seek:not([hidden])) {
+  width: calc(100% + 32px);
+  min-height: 0;
+  margin: 0 -16px -16px;
+}
+body.catalog-page #media-player.live-controls-no-seek {
+  width: 100%;
+  height: auto;
+  max-height: min(50vh, 420px, calc(100vh - 310px));
+  max-height: min(50dvh, 420px, calc(100dvh - 310px));
+  margin: 0;
+  object-fit: contain;
+}
 body.catalog-page #trailer-player { display: block; width: 100%; height: auto; min-height: min(62vh, 520px); border: 0; background: #000; aspect-ratio: 16 / 9; }
 body.catalog-page #trailer-player[hidden] { display: none; }
 

@@ -419,7 +419,7 @@ function renderGrid() {
     card.addEventListener('keydown', (event) => {
       if (event.target === card && ['Enter', ' '].includes(event.key)) { event.preventDefault(); openItem(item); }
     });
-    const poster = document.createElement('span'); poster.className = 'catalog-poster';
+    const poster = document.createElement('span'); poster.className = `catalog-poster${item.kind === 'live' ? ' channel-poster' : ''}`;
     const image = document.createElement('img'); image.loading = 'lazy'; image.decoding = 'async'; image.alt = '';
     image.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
     image.addEventListener('error', () => {
@@ -575,6 +575,7 @@ function openItem(item) {
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
   elements.video.classList.remove('live-controls-no-seek');
+  elements.video.disablePictureInPicture = false;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
   elements.mediaKind.textContent = item.kind === 'show' ? 'SHOW' : 'FILME';
   elements.modalTitle.textContent = item.name || 'Sem título';
@@ -595,15 +596,6 @@ function openItem(item) {
 }
 
 function openLiveChannel(item) {
-  const currentVideo = elements.video;
-  if (state.selected?.kind === 'live' && state.mpegtsPlayer
-    && document.pictureInPictureElement === currentVideo) {
-    state.restoreModalAfterPictureInPicture = false;
-    detachLivePlaybackToDock();
-    if (document.pictureInPictureElement === currentVideo) {
-      void document.exitPictureInPicture().catch(() => {});
-    }
-  }
   stopPlayback();
   if (elements.seriesDialog.open) closeSeriesDetails();
   state.selected = { ...item, kind: 'live' };
@@ -643,6 +635,7 @@ function openLiveChannel(item) {
   elements.video.load();
   elements.video.controls = true;
   elements.video.classList.add('live-controls-no-seek');
+  elements.video.disablePictureInPicture = true;
   elements.video.hidden = false;
   elements.play.hidden = true;
   if (!elements.modal.open) elements.modal.showModal();
@@ -669,6 +662,7 @@ async function openSeries(series) {
   stopPlayback();
   elements.video.controls = true;
   elements.video.classList.remove('live-controls-no-seek');
+  elements.video.disablePictureInPicture = false;
   state.selected = null;
   state.activeSeries = series;
   state.activeSeriesEpisodes = [];
@@ -817,6 +811,7 @@ function openSeriesEpisode(episode) {
   stopPlayback();
   elements.video.controls = true;
   elements.video.classList.remove('live-controls-no-seek');
+  elements.video.disablePictureInPicture = false;
   elements.mediaKind.textContent = 'SÉRIE';
   elements.modalTitle.textContent = state.selected.seriesName;
   elements.modalMeta.textContent = `Temporada ${episode.season} · Episódio ${episode.episode_num}`;
@@ -861,22 +856,6 @@ function stopPlayback() {
 
 function bindMainVideoEvents(video) {
   const isCurrentVideo = (event) => event.currentTarget === elements.video;
-  video.addEventListener('enterpictureinpicture', (event) => {
-    if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !elements.modal.open) return;
-    state.restoreModalAfterPictureInPicture = false;
-    const pictureInPictureVideo = video;
-    detachLivePlaybackToDock();
-    if (document.pictureInPictureElement === pictureInPictureVideo) {
-      void document.exitPictureInPicture().catch(() => {});
-    }
-  });
-  video.addEventListener('leavepictureinpicture', (event) => {
-    if (!isCurrentVideo(event) || !state.restoreModalAfterPictureInPicture) return;
-    state.restoreModalAfterPictureInPicture = false;
-    if (state.selected?.kind === 'live' && state.mpegtsPlayer && !elements.modal.open) {
-      elements.modal.showModal();
-    }
-  });
   video.addEventListener('playing', (event) => {
     if (!isCurrentVideo(event)) return;
     elements.playerMessage.textContent = '';
@@ -1603,15 +1582,8 @@ elements.trailer.addEventListener('click', () => {
 });
 elements.close.addEventListener('click', () => elements.modal.close());
 elements.modal.addEventListener('close', () => {
-  if (state.preserveLiveOnModalClose) {
-    state.preserveLiveOnModalClose = false;
-    return;
-  }
-  if (state.selected?.kind === 'live' && state.mpegtsPlayer) {
-    detachLivePlaybackToDock();
-    return;
-  }
   stopPlayback();
+  state.selected = null;
 });
 elements.search.addEventListener('input', () => {
   window.clearTimeout(state.searchTimer);
