@@ -1,4 +1,4 @@
-const CACHE = 'evotv-catalogo-offline-v88';
+const CACHE = 'evotv-catalogo-offline-v90';
 const ISOLATION_CACHE = 'evotv-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
 const APP_SHELL = [
@@ -12,6 +12,7 @@ const APP_SHELL = [
   './catalog-db.js',
   './series-catalog-db.js',
   './vendor/mpegts.js',
+  './vendor/hls.min.js',
   './manifest.webmanifest',
   './assets/poster-placeholder.svg',
   './assets/fallback-shows.png',
@@ -62,12 +63,25 @@ self.addEventListener('fetch', (event) => {
   if (url.origin !== self.location.origin || event.request.method !== 'GET') return;
   event.respondWith((async () => {
     const cached = await caches.match(event.request);
-    if (cached) return event.request.mode === 'navigate' ? isolateNavigation(cached) : cached;
+    if (event.request.mode === 'navigate') {
+      try {
+        const response = await fetch(event.request);
+        if (response.ok) {
+          const responseCopy = response.clone();
+          void caches.open(CACHE).then(cache => cache.put(event.request, responseCopy)).catch(() => {});
+        }
+        return isolateNavigation(response);
+      } catch {
+        const fallback = cached || await caches.match(new URL('./index.html', self.registration.scope).href);
+        return isolateNavigation(fallback);
+      }
+    }
+    if (cached) return cached;
     const response = await fetch(event.request);
     if (response.ok) {
       const responseCopy = response.clone();
       void caches.open(CACHE).then(cache => cache.put(event.request, responseCopy)).catch(() => {});
     }
-    return event.request.mode === 'navigate' ? isolateNavigation(response) : response;
+    return response;
   })());
 });

@@ -49,7 +49,7 @@ const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
-  selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
+  selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, hlsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
   miniLivePlayers: new Map(), ownLiveScreens: new Map(), nextMiniLivePlayerId: 0, nextOwnScreenId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
   liveFavorites: null, adultLiveFavorites: null,
@@ -1267,6 +1267,10 @@ function stopPlayback() {
     try { state.mpegtsPlayer.pause(); state.mpegtsPlayer.unload(); state.mpegtsPlayer.detachMediaElement(); state.mpegtsPlayer.destroy(); } catch { /* player already stopped */ }
     state.mpegtsPlayer = null;
   }
+  if (state.hlsPlayer) {
+    try { state.hlsPlayer.destroy(); } catch { /* player already stopped */ }
+    state.hlsPlayer = null;
+  }
   elements.video.pause(); elements.video.removeAttribute('src'); elements.video.load();
   elements.trailerPlayer.removeAttribute('src'); elements.trailerPlayer.hidden = true;
 }
@@ -1291,6 +1295,7 @@ function bindMainVideoEvents(video) {
   });
   video.addEventListener('error', (event) => {
     if (!isCurrentVideo(event)) return;
+    if (state.selected?.evo_extra_episode && state.hlsPlayer) return;
     if (state.selected?.kind === 'live') {
       elements.playerMessage.textContent = 'A transmissão encontrou um erro. Tente trocar de canal e voltar para reconectar.';
       elements.playerMessage.classList.remove('visually-hidden');
@@ -1709,8 +1714,24 @@ async function tryCandidate() {
       }
     } else {
       elements.video.controls = true;
-      elements.video.src = playbackUrl;
-      elements.video.load(); void elements.video.play().catch(() => {});
+      if (state.selected.evo_extra_episode && window.Hls?.isSupported?.()
+        && !elements.video.canPlayType('application/vnd.apple.mpegurl')) {
+        const player = new window.Hls({ enableWorker: false, lowLatencyMode: false });
+        state.hlsPlayer = player;
+        player.attachMedia(elements.video);
+        player.on(window.Hls.Events.MEDIA_ATTACHED, () => player.loadSource(playbackUrl));
+        player.on(window.Hls.Events.MANIFEST_PARSED, () => {
+          if (attempt === state.playbackAttempt) void elements.video.play().catch(() => {});
+        });
+        player.on(window.Hls.Events.ERROR, (_event, data) => {
+          if (attempt !== state.playbackAttempt || !data?.fatal) return;
+          elements.playerMessage.textContent = `A mininovela encontrou um erro ao carregar o episódio (${String(data.type || 'HLS')}).`;
+          elements.playerMessage.classList.remove('visually-hidden');
+        });
+      } else {
+        elements.video.src = playbackUrl;
+        elements.video.load(); void elements.video.play().catch(() => {});
+      }
     }
   } catch (error) {
     if (attempt !== state.playbackAttempt) return;
@@ -2456,7 +2477,7 @@ async function start() {
 }
 
 if ('serviceWorker' in navigator) {
-  const isolationReloadKey = 'evotv:cross-origin-isolation-reload:v3';
+  const isolationReloadKey = 'evotv:cross-origin-isolation-reload:v4';
   const reloadWithPolicy = (policy) => {
     const controller = navigator.serviceWorker.controller;
     if (!controller) return false;
