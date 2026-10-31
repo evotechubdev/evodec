@@ -1,4 +1,4 @@
-import { EvoAuthApi } from './auth-api.js';
+import { EvoAuthApi, FIREBASE_API_KEY } from './auth-api.js';
 import { SHOWS_CATALOG } from './shows-catalog.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
@@ -31,6 +31,8 @@ const api = new EvoAuthApi();
 
 let storedView = 'grid';
 try { storedView = localStorage.getItem('evotv-catalog-view') === 'list' ? 'list' : 'grid'; } catch { /* opcional */ }
+let publicContactsCache = null;
+let publicContactsRequest = null;
 
 const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
@@ -50,6 +52,8 @@ const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
 const elements = {
   loginScreen: $('#login-screen'), profileScreen: $('#profile-screen'), appScreen: $('#app-screen'),
+  loginLogoButton: $('#login-logo-button'), contactsDialog: $('#contacts-dialog'), contactsStatus: $('#contacts-status'), contactLinks: $('#contact-links'),
+  commercialContact: $('#commercial-contact'), commercialNumber: $('#commercial-number'), supportContact: $('#support-contact'), supportNumber: $('#support-number'),
   loginForm: $('#login-form'), username: $('#username'), password: $('#password'), rememberLogin: $('#remember-login'),
   loginButton: $('#login-button'), loginError: $('#login-error'), profileGrid: $('#profile-grid'),
   profileUser: $('#profile-user'), profileError: $('#profile-error'), profilePinDialog: $('#profile-pin-dialog'),
@@ -152,6 +156,68 @@ function accountFingerprint(value) {
     hash ^= character.codePointAt(0); hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+async function loadPublicContacts() {
+  if (publicContactsCache) return publicContactsCache;
+  if (publicContactsRequest) return publicContactsRequest;
+  publicContactsRequest = (async () => {
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12_000);
+    try {
+      const url = `https://firestore.googleapis.com/v1/projects/multimideas-evotv/databases/(default)/documents/public/contatos?key=${FIREBASE_API_KEY}`;
+      const response = await fetch(url, { headers: { accept: 'application/json' }, signal: controller.signal });
+      if (!response.ok) throw new Error('CONTACTS_UNAVAILABLE');
+      const document = await response.json();
+      const fields = document?.fields || {};
+      publicContactsCache = {
+        commercial: typeof fields.whatsapp_comercial?.stringValue === 'string' ? fields.whatsapp_comercial.stringValue.trim() : '',
+        support: typeof fields.whatsapp_suporte?.stringValue === 'string' ? fields.whatsapp_suporte.stringValue.trim() : '',
+      };
+      return publicContactsCache;
+    } finally {
+      window.clearTimeout(timeout);
+      publicContactsRequest = null;
+    }
+  })();
+  return publicContactsRequest;
+}
+
+function whatsappUrl(rawNumber) {
+  const value = String(rawNumber || '').trim();
+  let digits = value.replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  else if (!value.startsWith('+') && digits.length <= 11) digits = `55${digits}`;
+  return `https://wa.me/${digits}`;
+}
+
+function setContactLink(link, numberElement, rawNumber) {
+  const number = String(rawNumber || '').trim();
+  const url = whatsappUrl(number);
+  link.hidden = !number || !url;
+  if (link.hidden) return;
+  link.href = url;
+  numberElement.textContent = number;
+}
+
+async function openContactsDialog() {
+  if (!elements.contactsDialog.open) elements.contactsDialog.showModal();
+  elements.contactsStatus.textContent = 'Carregando contatos…';
+  elements.contactsStatus.hidden = false;
+  elements.contactLinks.hidden = true;
+  try {
+    const contacts = await loadPublicContacts();
+    setContactLink(elements.commercialContact, elements.commercialNumber, contacts.commercial);
+    setContactLink(elements.supportContact, elements.supportNumber, contacts.support);
+    const hasContacts = Boolean(contacts.commercial || contacts.support);
+    elements.contactLinks.hidden = !hasContacts;
+    elements.contactsStatus.textContent = hasContacts ? '' : 'Os contatos ainda não estão disponíveis.';
+    elements.contactsStatus.hidden = hasContacts;
+  } catch {
+    elements.contactsStatus.textContent = 'Não foi possível carregar os contatos agora.';
+    elements.contactsStatus.hidden = false;
+  }
 }
 
 function profileAvatarStorageKey(profile = state.session?.profile) {
@@ -1751,6 +1817,7 @@ elements.loginForm.addEventListener('submit', async (event) => {
   } catch (error) { state.auth = null; state.account = null; elements.loginError.textContent = readableError(error); }
   finally { elements.loginButton.firstElementChild.textContent = 'ENTRAR'; setBusy(false); }
 });
+elements.loginLogoButton.addEventListener('click', () => { void openContactsDialog(); });
 
 elements.profilePinForm.addEventListener('submit', async (event) => {
   event.preventDefault(); if (state.busy || !state.auth || !state.pendingProfile) return;

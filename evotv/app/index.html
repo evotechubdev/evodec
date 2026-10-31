@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#08090c">
   <meta name="description" content="EVOTV PWA com catálogos de canais, filmes e séries.">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; upgrade-insecure-requests; block-all-mixed-content; script-src 'self'; style-src 'self'; img-src 'self' data: https:; media-src 'self' blob: https://evotv-offline-media-proxy.evotechubdev.workers.dev; frame-src https://www.youtube-nocookie.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://multimideas-evo-backend-app.onrender.com https://evotv-offline-media-proxy.evotechubdev.workers.dev; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; upgrade-insecure-requests; block-all-mixed-content; script-src 'self'; style-src 'self'; img-src 'self' data: https:; media-src 'self' blob: https://evotv-offline-media-proxy.evotechubdev.workers.dev; frame-src https://www.youtube-nocookie.com; connect-src 'self' https://identitytoolkit.googleapis.com https://securetoken.googleapis.com https://firestore.googleapis.com https://multimideas-evo-backend-app.onrender.com https://evotv-offline-media-proxy.evotechubdev.workers.dev; worker-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="icon" href="./assets/icon-192.png">
   <link rel="stylesheet" href="./styles.css">
@@ -15,8 +15,9 @@
   <main id="login-screen" class="login-screen">
     <div class="login-atmosphere" aria-hidden="true"><span class="orb orb-one"></span><span class="orb orb-two"></span><div class="signal-lines"></div></div>
     <section class="login-card" aria-labelledby="login-title">
-      <img class="login-logo" src="./assets/logo_evotv.png" alt="EVOTV">
-      <div class="login-heading"><span class="eyebrow">BEM-VINDO</span><h1 id="login-title">Entrar no EVOTV</h1><p>Use o mesmo acesso do Programa de PC.</p></div>
+      <button id="login-logo-button" class="login-logo-button" type="button" aria-label="Ver contatos do EVOTV" aria-haspopup="dialog" aria-controls="contacts-dialog">
+        <img class="login-logo" src="./assets/logo_evotv.png" alt="EVOTV">
+      </button>
       <form id="login-form" novalidate>
         <label class="field"><span>LOGIN</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h16v-3c0-2.5-3-5-8-5Zm-6 5c0-.92 1.9-3 6-3s6 2.08 6 3v1H6v-1Z"/></svg><input id="username" type="password" placeholder="Digite seu login" autocomplete="username" required></span></label>
         <label class="field"><span>SENHA</span><span class="input-shell"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a3 3 0 0 0-3 3v8a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-8a3 3 0 0 0-3-3Zm-7-2a2 2 0 0 1 4 0v2h-4V6Zm8 13a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v8Z"/></svg><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
@@ -24,9 +25,20 @@
         <p id="login-error" class="form-error" role="alert"></p>
         <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
       </form>
-      <p class="login-version">Versão: Saturno-67</p>
+      <p class="login-version">Versão: Saturno-68</p>
     </section>
   </main>
+
+  <dialog id="contacts-dialog" class="contacts-dialog" aria-labelledby="contacts-title">
+    <button class="modal-close" data-close-dialog type="button" aria-label="Fechar">×</button>
+    <img class="contacts-logo" src="./assets/logo_evotv.png" alt="EVOTV">
+    <h2 id="contacts-title">Contatos</h2>
+    <p id="contacts-status" class="contacts-status" role="status" aria-live="polite">Carregando contatos…</p>
+    <div id="contact-links" class="contact-links" hidden>
+      <a id="commercial-contact" class="contact-link" target="_blank" rel="noopener noreferrer" hidden><span>Comercial</span><strong id="commercial-number"></strong></a>
+      <a id="support-contact" class="contact-link" target="_blank" rel="noopener noreferrer" hidden><span>Suporte</span><strong id="support-number"></strong></a>
+    </div>
+  </dialog>
 
   <main id="profile-screen" class="profile-screen" hidden>
     <div class="profile-atmosphere" aria-hidden="true"></div>

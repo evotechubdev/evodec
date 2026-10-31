@@ -854,7 +854,9 @@ body.catalog-page main.profile-screen {
   background: linear-gradient(160deg, rgba(21,25,33,.96), rgba(10,12,17,.97));
   box-shadow: 0 32px 100px rgba(0,0,0,.5);
 }
-.login-logo { display: block; width: 190px; height: 70px; margin: 0 auto 27px; object-fit: contain; }
+.login-logo-button { display: block; margin: 0 auto 27px; padding: 0; border: 0; background: transparent; cursor: pointer; }
+.login-logo-button:focus-visible { outline: 2px solid var(--pc-accent-2); outline-offset: 5px; border-radius: 8px; }
+.login-logo { display: block; width: 190px; height: 70px; margin: 0; object-fit: contain; }
 .login-heading { text-align: center; }
 .login-heading h1 { margin: 8px 0 7px; font-size: 28px; letter-spacing: -.04em; }
 .login-heading p { margin: 0 0 24px; color: var(--pc-muted); font-size: 12px; }
@@ -897,6 +899,27 @@ body.catalog-page .input-shell input { height: 42px; }
 .privacy-note, .login-version { margin: 17px 0 0; color: #656b76; text-align: center; font-size: 10px; }
 .privacy-note span { color: #27d0ff; }
 .login-version { margin-top: 8px; }
+
+.contacts-dialog {
+  position: relative;
+  width: min(390px, calc(100vw - 28px));
+  padding: 27px 24px 24px;
+  border: 1px solid var(--pc-line);
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(160deg, #171b23, #0d0f13);
+  box-shadow: 0 35px 100px rgba(0, 0, 0, .75);
+}
+.contacts-dialog::backdrop { background: rgba(0, 0, 0, .78); backdrop-filter: blur(7px); }
+.contacts-logo { display: block; width: 150px; height: 56px; margin: 0 auto 13px; object-fit: contain; }
+.contacts-dialog h2 { margin: 0 40px 8px; text-align: center; font-size: 22px; letter-spacing: -.03em; }
+.contacts-status { min-height: 18px; margin: 0; color: #9299a5; font-size: 12px; line-height: 1.5; text-align: center; }
+.contact-links { display: grid; gap: 9px; margin-top: 15px; }
+.contact-link { min-height: 54px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 13px; border: 1px solid var(--pc-line); border-radius: 10px; color: #dfe4ec; background: rgba(255, 255, 255, .035); text-decoration: none; }
+.contact-link:hover, .contact-link:focus-visible { border-color: rgba(37, 216, 255, .55); background: rgba(37, 216, 255, .07); outline: none; }
+.contact-link span { color: #9299a5; font-size: 12px; }
+.contact-link strong { color: #f2f4f7; font-size: 13px; font-weight: 650; }
+.contact-links [hidden] { display: none !important; }
 
 .profile-panel { position: relative; z-index: 1; width: min(920px, 100%); text-align: center; }
 .profile-logo { width: 190px; height: 72px; margin-bottom: 34px; object-fit: contain; }
@@ -973,7 +996,8 @@ body.catalog-page .input-shell input { height: 42px; }
   .episode-number { width: 32px; height: 32px; }
   body.catalog-page main.login-screen, body.catalog-page main.profile-screen { padding: 18px; }
   .login-card { padding: 26px 22px 23px; }
-  .login-logo { width: 160px; margin-bottom: 20px; }
+  .login-logo-button { margin-bottom: 20px; }
+  .login-logo { width: 160px; margin-bottom: 0; }
   .profile-logo { width: 160px; margin-bottom: 24px; }
   .profile-grid { gap: 13px; margin-top: 28px; }
   .profile-card { width: 122px; }
