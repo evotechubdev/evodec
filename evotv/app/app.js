@@ -2455,5 +2455,20 @@ async function start() {
   showScreen('login');
 }
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(() => {});
+if ('serviceWorker' in navigator) {
+  const isolationReloadKey = 'evotv:cross-origin-isolation-reload:v1';
+  const reloadAfterServiceWorkerControl = () => {
+    try {
+      if (window.crossOriginIsolated) {
+        sessionStorage.removeItem(isolationReloadKey);
+        return;
+      }
+      if (!navigator.serviceWorker.controller || sessionStorage.getItem(isolationReloadKey)) return;
+      sessionStorage.setItem(isolationReloadKey, '1');
+      location.reload();
+    } catch { /* armazenamento de sessão indisponível */ }
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', reloadAfterServiceWorkerControl);
+  navigator.serviceWorker.register('./sw.js').then(reloadAfterServiceWorkerControl).catch(() => {});
+}
 void start();
