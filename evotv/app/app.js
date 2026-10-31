@@ -35,7 +35,6 @@ const state = {
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
-  livePlaybackUrl: '',
   miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
   liveFavorites: null, adultLiveFavorites: null,
@@ -72,7 +71,7 @@ const elements = {
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
   mediaKind: $('#media-kind'),
-  play: $('#play-media'), trailer: $('#trailer-media'), openLiveScreen: $('#open-live-screen'), close: $('#close-modal'),
+  play: $('#play-media'), trailer: $('#trailer-media'), close: $('#close-modal'),
   miniLiveDock: $('#live-mini-dock'), viewButtons: $$('[data-view]'),
 };
 
@@ -575,8 +574,6 @@ function openItem(item) {
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
   stopPlayback(); state.selected = item; state.candidateIndex = 0;
-  state.livePlaybackUrl = '';
-  elements.openLiveScreen.hidden = true;
   elements.video.classList.remove('live-controls-no-seek');
   elements.video.disablePictureInPicture = false;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
@@ -602,8 +599,6 @@ function openLiveChannel(item) {
   stopPlayback();
   if (elements.seriesDialog.open) closeSeriesDetails();
   state.selected = { ...item, kind: 'live' };
-  state.livePlaybackUrl = '';
-  elements.openLiveScreen.hidden = true;
   state.candidateIndex = 0;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
   elements.modalTitle.textContent = item.name || 'Canal';
@@ -1101,8 +1096,6 @@ async function tryCandidate() {
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
-      state.livePlaybackUrl = playbackUrl;
-      elements.openLiveScreen.hidden = false;
       elements.video.controls = true;
       elements.video.classList.add('live-controls-no-seek');
       createLivePlayer(playbackUrl, attempt, true);
@@ -1130,45 +1123,6 @@ async function tryCandidate() {
     elements.playerMessage.textContent = aborted ? 'O serviço demorou para responder. Tente novamente.'
       : `O serviço HTTPS ainda não conseguiu preparar esta mídia (${readableError(error)}).`;
   } finally { window.clearTimeout(timer); }
-}
-
-function openLiveScreenWindow() {
-  const playbackUrl = state.livePlaybackUrl;
-  if (state.selected?.kind !== 'live' || !playbackUrl) return;
-  const screenWindow = window.open('./live-screen.html', '_blank', 'popup=yes,width=1100,height=720');
-  if (!screenWindow) {
-    notice('Permita a abertura de janelas para assistir ao canal em uma tela separada.');
-    return;
-  }
-  const channelName = state.selected.name || 'Canal ao vivo';
-  let sent = false;
-  const cleanup = () => {
-    window.clearTimeout(timer);
-    window.removeEventListener('message', receiveMessage);
-  };
-  const timer = window.setTimeout(() => {
-    cleanup();
-    if (!sent) {
-      try { screenWindow.close(); } catch { /* a janela pode já ter sido fechada */ }
-      notice('A janela separada do canal não respondeu. Tente novamente.');
-    }
-  }, 15_000);
-  const receiveMessage = (event) => {
-    if (event.origin !== location.origin || event.source !== screenWindow) return;
-    if (event.data?.type !== 'EVOTV_LIVE_SCREEN_READY' || sent) return;
-    sent = true;
-    cleanup();
-    stopPlayback();
-    screenWindow.postMessage({ type: 'EVOTV_LIVE_SCREEN_PLAY', playbackUrl, channelName }, location.origin);
-    elements.modal.close();
-    window.setTimeout(() => {
-      window.close();
-      window.setTimeout(() => {
-        if (!window.closed) notice('O canal foi aberto em outra janela. O navegador impediu o fechamento automático desta janela.');
-      }, 250);
-    }, 100);
-  };
-  window.addEventListener('message', receiveMessage);
 }
 
 async function playShowVideo(attempt = state.playbackAttempt) {
@@ -1627,7 +1581,6 @@ elements.trailer.addEventListener('click', () => {
   window.open(url, '_blank', 'noopener,noreferrer');
 });
 elements.close.addEventListener('click', () => elements.modal.close());
-elements.openLiveScreen.addEventListener('click', openLiveScreenWindow);
 elements.modal.addEventListener('close', () => {
   stopPlayback();
   state.selected = null;
