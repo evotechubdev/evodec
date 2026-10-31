@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#080d13">
+  <title>EVOTV • Canal</title>
+  <link rel="stylesheet" href="./live-screen.css">
+</head>
+<body>
+  <main class="screen-player">
+    <header><h1 id="screen-title">Canal ao vivo</h1><span id="screen-status" role="status">Aguardando o canal…</span></header>
+    <video id="screen-video" controls controlslist="nodownload" disablepictureinpicture playsinline></video>
+  </main>
+  <script src="./vendor/mpegts.js"></script>
+  <script src="./live-screen.js"></script>
+</body>
+</html>

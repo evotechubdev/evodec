@@ -34,7 +34,7 @@ const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
-  selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0,
+  selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, playbackAttempt: 0, livePlaybackUrl: '',
   miniLivePlayers: new Map(), nextMiniLivePlayerId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
   liveFavorites: null, adultLiveFavorites: null,
@@ -846,6 +846,7 @@ function closeSeriesDetails() {
 
 function stopPlayback() {
   state.playbackAttempt += 1; state.ticketController?.abort(); state.ticketController = null;
+  state.livePlaybackUrl = '';
   state.restoreModalAfterPictureInPicture = false;
   if (document.pictureInPictureElement === elements.video) {
     void document.exitPictureInPicture().catch(() => {});
@@ -861,9 +862,8 @@ function stopPlayback() {
 function bindMainVideoEvents(video) {
   const isCurrentVideo = (event) => event.currentTarget === elements.video;
   video.addEventListener('enterpictureinpicture', (event) => {
-    if (!isCurrentVideo(event) || state.selected?.kind !== 'live' || !elements.modal.open) return;
-    state.preserveLiveOnModalClose = true;
-    elements.modal.close();
+    if (!isCurrentVideo(event) || state.selected?.kind !== 'live') return;
+    openOwnLiveScreen(video);
   });
   video.addEventListener('playing', (event) => {
     if (!isCurrentVideo(event)) return;
@@ -891,6 +891,67 @@ function bindMainVideoEvents(video) {
     state.candidateIndex += 1;
     void tryCandidate();
   });
+}
+
+function openOwnLiveScreen(video) {
+  if (!state.livePlaybackUrl || state.selected?.kind !== 'live') return;
+  const screenName = `evotv-live-${Date.now()}-${state.nextMiniLivePlayerId + 1}`;
+  const screen = window.open('./live-screen.html', screenName, 'popup=yes,width=960,height=600,resizable=yes');
+  if (!screen) {
+    elements.playerMessage.textContent = 'O navegador bloqueou a janela do canal. Permita janelas pop-up para abrir este ecrã.';
+    elements.playerMessage.classList.remove('visually-hidden');
+    return;
+  }
+
+  const origin = location.origin;
+  const playbackUrl = state.livePlaybackUrl;
+  const title = state.selected.name || 'Canal ao vivo';
+  let initialized = false;
+  let completed = false;
+  const cleanup = () => {
+    window.removeEventListener('message', onScreenMessage);
+    window.clearTimeout(readyTimer);
+    window.clearInterval(screenWatcher);
+  };
+  const closeSourceChannel = () => {
+    if (completed) return;
+    completed = true;
+    cleanup();
+    if (document.pictureInPictureElement === video) void document.exitPictureInPicture().catch(() => {});
+    if (elements.modal.open) {
+      state.preserveLiveOnModalClose = true;
+      elements.modal.close();
+    }
+    stopPlayback();
+    state.selected = null;
+  };
+  const onScreenMessage = (event) => {
+    if (event.origin !== origin || event.source !== screen || !event.data) return;
+    if (event.data.type === 'EVOTV_LIVE_SCREEN_READY' && !initialized) {
+      initialized = true;
+      screen.postMessage({ type: 'EVOTV_LIVE_SCREEN_START', playbackUrl, title }, origin);
+      return;
+    }
+    if (event.data.type === 'EVOTV_LIVE_SCREEN_STARTED' && !completed) {
+      closeSourceChannel();
+      return;
+    }
+    if (event.data.type === 'EVOTV_LIVE_SCREEN_ERROR') {
+      elements.playerMessage.textContent = String(event.data.message || 'Não foi possível iniciar o canal na nova janela.');
+      elements.playerMessage.classList.remove('visually-hidden');
+    }
+  };
+  window.addEventListener('message', onScreenMessage);
+  const readyTimer = window.setTimeout(() => {
+    if (initialized) return;
+    if (!screen.closed) screen.close();
+    elements.playerMessage.textContent = 'A janela do canal não respondeu. Tente novamente.';
+    elements.playerMessage.classList.remove('visually-hidden');
+    closeSourceChannel();
+  }, 15000);
+  const screenWatcher = window.setInterval(() => {
+    if (screen.closed) closeSourceChannel();
+  }, 500);
 }
 
 function stopMiniLivePlayer(id) {
@@ -1101,6 +1162,7 @@ async function tryCandidate() {
   try {
     const playbackUrl = await mediaTicket(source, controller.signal);
     if (attempt !== state.playbackAttempt || !state.session) return;
+    state.livePlaybackUrl = state.selected.kind === 'live' ? playbackUrl : '';
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
     elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
     if (state.selected.kind === 'live') {
