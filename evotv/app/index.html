@@ -24,7 +24,7 @@
         <p id="login-error" class="form-error" role="alert"></p>
         <button id="login-button" class="primary-button" type="submit"><span>ENTRAR</span><span aria-hidden="true">→</span></button>
       </form>
-      <p class="login-version">Versão: Saturno-59</p>
+      <p class="login-version">Versão: Saturno-62</p>
     </section>
   </main>
 
@@ -47,17 +47,9 @@
         <button id="movies-nav" class="pc-nav-item active" type="button" aria-current="page"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h16a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm0 5h3V5H4v3Zm5 0h6V5H9v3Zm8 0h3V5h-3v3ZM4 14h3v-4H4v4Zm5 0h6v-4H9v4Zm8 0h3v-4h-3v4Z"/></svg><span>Filmes</span></button>
         <button id="series-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v12h16V6H4Zm6 2 6 4-6 4V8Z"/></svg><span>Séries</span></button>
         <button id="shows-nav" class="pc-nav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 14a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v4a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-5 5.91V19h3v2H8v-2h3v-3.09A6 6 0 0 1 6 10h2a4 4 0 0 0 8 0h2Z"/></svg><span>Shows</span></button>
-        <button class="pc-nav-item future-section" type="button" data-future="Conteúdo Extra"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg><span>Conteúdo Extra</span></button>
+        <button class="pc-nav-item future-section" type="button" data-future="Conteúdo Extra"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z"/></svg><span>Conteúdo Extra</span><i class="extras-chevron" aria-hidden="true">⌄</i></button>
       </nav>
-      <button id="adult-nav" class="pc-nav-item adult-nav" type="button"><strong aria-hidden="true">18+</strong><span>Adulto 18+</span></button>
-      <div class="pc-sidebar-bottom">
-        <span id="account-type" class="pc-account-type">STANDARD</span>
-        <button id="profile-settings" class="sidebar-action" type="button" hidden>Gerenciar perfis</button>
-        <button id="parental-settings" class="sidebar-action" type="button" hidden>Controle parental</button>
-        <div class="pc-connection"><i></i><span><strong>Conectado</strong><small id="server-label">Perfil</small></span></div>
-        <button id="switch-profile" class="sidebar-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h2v-3c0-.92 1.9-3 6-3s6 2.08 6 3v3h2v-3c0-2.5-3-5-8-5Z"/></svg>Trocar perfil</button>
-        <button id="logout-button" class="sidebar-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17v-2h5V9h-5V7l-5 5 5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg>Sair</button>
-      </div>
+      <button id="adult-nav" class="pc-nav-item adult-nav" type="button"><strong aria-hidden="true">18+</strong><span>Adulto 18+</span><i class="adult-chevron" aria-hidden="true">⌄</i></button>
     </aside>
 
     <section class="pc-content-area">
@@ -65,7 +57,28 @@
         <div><span id="section-kicker" class="eyebrow">CATÁLOGO ON DEMAND</span><h1 id="catalog-heading">Filmes</h1></div>
         <div class="pc-top-actions">
           <label class="pc-search-box" aria-label="Buscar filmes"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 3a7.5 7.5 0 1 0 4.73 13.32L20.9 22 22 20.9l-5.68-5.67A7.5 7.5 0 0 0 10.5 3Zm0 2a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11Z"/></svg><input id="catalog-search" type="search" placeholder="Buscar filmes..." autocomplete="off"></label>
-          <div class="pc-view-switch" aria-label="Modo de visualização"><button class="active" data-view="grid" type="button" title="Grade" aria-label="Exibir em grade"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z"/></svg></button><button data-view="list" type="button" title="Lista" aria-label="Exibir em lista"><svg viewBox="0 0 24 24"><path d="M4 5h3v3H4V5Zm5 0h11v3H9V5Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Z"/></svg></button></div>
+          <div class="pc-view-account-tools">
+            <div class="pc-account-menu">
+              <button id="account-menu-toggle" class="account-avatar" type="button" aria-label="Abrir menu da conta" aria-expanded="false" aria-controls="account-menu-panel">
+                <svg class="account-avatar-fallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 2c-4.42 0-8 2.25-8 5v1.5h16V19c0-2.75-3.58-5-8-5Z"/></svg>
+                <img id="account-avatar-photo" alt="" hidden>
+              </button>
+              <div id="account-menu-panel" class="account-menu-panel" hidden>
+                <div class="account-menu-profile">
+                  <span class="account-menu-photo-wrap"><svg class="account-menu-photo-fallback" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a4.25 4.25 0 1 0 0-8.5 4.25 4.25 0 0 0 0 8.5Zm0 2c-4.42 0-8 2.25-8 5v1.5h16V19c0-2.75-3.58-5-8-5Z"/></svg><img id="account-menu-photo" alt="" hidden></span>
+                  <span class="account-menu-identity"><strong id="account-menu-profile-name">Perfil</strong><span id="account-type" class="pc-account-type">STANDARD</span></span>
+                </div>
+                <input id="profile-photo-input" class="visually-hidden" type="file" accept="image/png,image/jpeg,image/webp" tabindex="-1" aria-label="Escolher foto do perfil">
+                <button id="profile-photo-button" class="account-menu-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Zm0 2a2 2 0 1 1 0 4 2 2 0 0 1 0-4Zm8-5h-3.17l-1.84-2H9.01L7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2Zm0 14H4V7h4.05l1.84-2h4.22l1.84 2H20v12Z"/></svg>Alterar Foto</button>
+                <button id="switch-profile" class="account-menu-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10Zm0-2a3 3 0 1 1 0-6 3 3 0 0 1 0 6Zm0 3c-5 0-8 2.5-8 5v3h2v-3c0-.92 1.9-3 6-3s6 2.08 6 3v3h2v-3c0-2.5-3-5-8-5Z"/></svg>Trocar perfil</button>
+                <button id="parental-settings" class="account-menu-action" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 4 5v6c0 5.2 3.4 9.1 8 11 4.6-1.9 8-5.8 8-11V5l-8-3Zm0 2.1 6 2.25V11c0 4-2.4 7.2-6 8.9-3.6-1.7-6-4.9-6-8.9V6.35l6-2.25Zm0 3.4a3 3 0 0 0-3 3v1H8v5h8v-5h-1v-1a3 3 0 0 0-3-3Zm-1 4v-1a1 1 0 1 1 2 0v1h-2Z"/></svg>Controle parental</button>
+                <button id="profile-settings" class="account-menu-action" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m19.4 13 .1-1-.1-1 2-1.5-2-3.5-2.4 1a8 8 0 0 0-1.7-1L15 3h-4l-.4 2.9a8 8 0 0 0-1.7 1l-2.4-1-2 3.5 2 1.5-.1 1 .1 1-2 1.5 2 3.5 2.4-1a8 8 0 0 0 1.7 1L11 22h4l.4-2.9a8 8 0 0 0 1.7-1l2.4 1 2-3.5-2.1-1.6ZM13 17a5 5 0 1 1 0-10 5 5 0 0 1 0 10Zm0-2a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/></svg>Gerenciar perfis</button>
+                <button id="payment-system" class="account-menu-action" type="button" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4h18a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Zm0 2v3h18V6H3Zm0 5v7h18v-7H3Zm3 4h5v2H6v-2Z"/></svg>Sistema de Pagamento</button>
+                <button id="logout-button" class="account-menu-action" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 17v-2h5V9h-5V7l-5 5 5 5Zm1-14h8a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-8v-2h8V5h-8V3Z"/></svg>Sair</button>
+              </div>
+            </div>
+            <div class="pc-view-switch" aria-label="Modo de visualização"><button class="active" data-view="grid" type="button" title="Grade" aria-label="Exibir em grade"><svg viewBox="0 0 24 24"><path d="M3 3h8v8H3V3Zm10 0h8v8h-8V3ZM3 13h8v8H3v-8Zm10 0h8v8h-8v-8Z"/></svg></button><button data-view="list" type="button" title="Lista" aria-label="Exibir em lista"><svg viewBox="0 0 24 24"><path d="M4 5h3v3H4V5Zm5 0h11v3H9V5Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Zm-5 6h3v3H4v-3Zm5 0h11v3H9v-3Z"/></svg></button></div>
+          </div>
         </div>
       </header>
       <select id="category-filter" class="visually-hidden" aria-label="Categoria"><option value="">Todos</option></select>

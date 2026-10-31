@@ -62,7 +62,12 @@ const elements = {
   parentalNewPinLabel: $('#parental-new-pin-label'), parentalNewPin: $('#parental-new-pin'),
   parentalError: $('#parental-error'), parentalSubmit: $('#parental-submit'),
   profileSettingsButton: $('#profile-settings'), parentalSettingsButton: $('#parental-settings'),
-  switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'), serverLabel: $('#server-label'),
+  accountMenuToggle: $('#account-menu-toggle'), accountMenuPanel: $('#account-menu-panel'),
+  profilePhotoButton: $('#profile-photo-button'), profilePhotoInput: $('#profile-photo-input'),
+  accountAvatarPhoto: $('#account-avatar-photo'), accountAvatarFallback: $('.account-avatar-fallback'),
+  accountMenuPhoto: $('#account-menu-photo'), accountMenuPhotoFallback: $('.account-menu-photo-fallback'),
+  accountMenuProfileName: $('#account-menu-profile-name'), paymentSystem: $('#payment-system'),
+  switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'),
   adultNav: $('#adult-nav'), channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'), kicker: $('#section-kicker'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
@@ -82,6 +87,12 @@ function showScreen(name) {
   elements.loginScreen.hidden = name !== 'login';
   elements.profileScreen.hidden = name !== 'profiles';
   elements.appScreen.hidden = name !== 'app';
+}
+
+function setAccountMenuOpen(open, restoreFocus = false) {
+  elements.accountMenuPanel.hidden = !open;
+  elements.accountMenuToggle.setAttribute('aria-expanded', String(open));
+  if (restoreFocus) elements.accountMenuToggle.focus();
 }
 
 function readableError(error) {
@@ -127,6 +138,51 @@ function accountFingerprint(value) {
     hash ^= character.codePointAt(0); hash = Math.imul(hash, 16777619);
   }
   return (hash >>> 0).toString(16).padStart(8, '0');
+}
+
+function profileAvatarStorageKey(profile = state.session?.profile) {
+  const account = state.auth?.login;
+  const profileNumber = Number(profile);
+  if (!account || !Number.isInteger(profileNumber) || profileNumber < 1 || profileNumber > 20) return '';
+  return `evotv:profile-avatar:v1:${accountFingerprint(account)}:${profileNumber}`;
+}
+
+function renderProfileAvatar(dataUrl = '') {
+  for (const [photo, fallback] of [
+    [elements.accountAvatarPhoto, elements.accountAvatarFallback],
+    [elements.accountMenuPhoto, elements.accountMenuPhotoFallback],
+  ]) {
+    if (dataUrl) photo.src = dataUrl;
+    else photo.removeAttribute('src');
+    photo.hidden = !dataUrl;
+    fallback.hidden = Boolean(dataUrl);
+  }
+}
+
+async function makeProfileAvatarDataUrl(file) {
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 8 * 1024 * 1024) {
+    throw new Error('Escolha uma imagem JPG, PNG ou WEBP de até 8 MB.');
+  }
+  const bitmap = await createImageBitmap(file);
+  try {
+    const size = 256;
+    const scale = Math.max(size / bitmap.width, size / bitmap.height);
+    const width = bitmap.width * scale;
+    const height = bitmap.height * scale;
+    const canvas = document.createElement('canvas');
+    canvas.width = size; canvas.height = size;
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('Não foi possível preparar a foto.');
+    context.drawImage(bitmap, (size - width) / 2, (size - height) / 2, width, height);
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', .84));
+    if (!blob) throw new Error('Não foi possível preparar a foto.');
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Não foi possível ler a foto.'));
+      reader.readAsDataURL(blob);
+    });
+  } finally { bitmap.close(); }
 }
 
 function favoriteStorageKey() {
@@ -1409,9 +1465,17 @@ async function selectProfileWithPin(profile, pin, rememberPin, fromVault = false
 
 function updateSessionUi() {
   const principal = state.session?.profile === 1;
-  elements.accountType.textContent = state.session?.accountType || state.account?.accountType || 'STANDARD';
-  elements.serverLabel.textContent = state.session ? profileName(state.session.profile) : 'Perfil';
+  const activeProfileName = state.session ? profileName(state.session.profile) : 'Perfil';
+  const accountType = String(state.session?.accountType || state.account?.accountType || 'STANDARD').toUpperCase();
+  elements.accountMenuProfileName.textContent = activeProfileName;
+  elements.accountType.textContent = accountType;
+  elements.accountType.classList.toggle('premium', accountType === 'PREMIUM');
+  const avatarKey = profileAvatarStorageKey();
+  let savedAvatar = '';
+  try { savedAvatar = avatarKey ? localStorage.getItem(avatarKey) || '' : ''; } catch { /* foto opcional */ }
+  renderProfileAvatar(savedAvatar);
   elements.profileSettingsButton.hidden = !principal; elements.parentalSettingsButton.hidden = !principal;
+  elements.paymentSystem.hidden = !principal;
   const hiddenAdults = !state.session?.adultVisible || state.session?.parental?.adultMode === 'hidden';
   elements.adultNav.hidden = hiddenAdults;
 }
@@ -1739,6 +1803,37 @@ elements.backToLogin = $('#back-to-login');
 elements.backToLogin.addEventListener('click', () => { void logout(); });
 elements.switchProfile.addEventListener('click', () => { void returnToProfiles(); });
 elements.logout.addEventListener('click', () => { void logout(); });
+elements.profilePhotoButton.addEventListener('click', () => {
+  elements.profilePhotoInput.value = '';
+  elements.profilePhotoInput.click();
+});
+elements.profilePhotoInput.addEventListener('change', async () => {
+  const file = elements.profilePhotoInput.files?.[0];
+  if (!file) return;
+  try {
+    const avatar = await makeProfileAvatarDataUrl(file);
+    const key = profileAvatarStorageKey();
+    if (!key) throw new Error('Não foi possível identificar o perfil atual.');
+    localStorage.setItem(key, avatar);
+    renderProfileAvatar(avatar);
+    notice('Foto do perfil atualizada.');
+  } catch (error) { notice(readableError(error)); }
+});
+elements.paymentSystem.addEventListener('click', () => notice('Em Desenvolvimento'));
+elements.accountMenuToggle.addEventListener('click', () => {
+  setAccountMenuOpen(elements.accountMenuPanel.hidden);
+});
+elements.accountMenuPanel.addEventListener('click', (event) => {
+  if (event.target.closest('button')) setAccountMenuOpen(false);
+});
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.pc-account-menu')) setAccountMenuOpen(false);
+});
+document.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && !elements.accountMenuPanel.hidden) {
+    event.preventDefault(); setAccountMenuOpen(false, true);
+  }
+});
 elements.channelsNav.addEventListener('click', () => { void enterLiveView(); });
 elements.moviesNav.addEventListener('click', () => enterMovieView(false));
 elements.seriesNav.addEventListener('click', () => { void enterSeriesView(); });
