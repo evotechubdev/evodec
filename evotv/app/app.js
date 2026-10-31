@@ -240,10 +240,18 @@ function renderProfileAvatar(dataUrl = '') {
     [elements.accountAvatarPhoto, elements.accountAvatarFallback],
     [elements.accountMenuPhoto, elements.accountMenuPhotoFallback],
   ]) {
+    const hasPhoto = Boolean(dataUrl);
+    const wrapper = photo.parentElement;
+    wrapper.classList.toggle('has-photo', hasPhoto);
     if (dataUrl) photo.src = dataUrl;
     else photo.removeAttribute('src');
-    photo.hidden = !dataUrl;
-    fallback.hidden = Boolean(dataUrl);
+    photo.hidden = !hasPhoto;
+    fallback.hidden = hasPhoto;
+    photo.onerror = () => {
+      photo.hidden = true;
+      fallback.hidden = false;
+      wrapper.classList.remove('has-photo');
+    };
   }
 }
 
