@@ -596,7 +596,11 @@ function openItem(item) {
 }
 
 function openLiveChannel(item) {
-  stopPlayback();
+  if (state.selected?.kind === 'live' && document.pictureInPictureElement === elements.video) {
+    detachLivePlaybackToDock();
+  } else {
+    stopPlayback();
+  }
   if (elements.seriesDialog.open) closeSeriesDetails();
   state.selected = { ...item, kind: 'live' };
   state.candidateIndex = 0;
