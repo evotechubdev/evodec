@@ -1786,8 +1786,9 @@ async function mediaTicket(source, signal, download = false, contentItem = state
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(String(data?.code || `HTTP_${response.status}`));
   const playbackUrl = new URL(String(data?.playbackUrl || ''));
+  const expectedPrefix = content ? '/open-vod/' : '/open-stream/';
   if (playbackUrl.protocol !== 'https:' || playbackUrl.origin !== MEDIA_PROXY_ORIGIN
-    || !playbackUrl.pathname.startsWith('/open-stream/') || playbackUrl.search || playbackUrl.hash) {
+    || !playbackUrl.pathname.startsWith(expectedPrefix) || playbackUrl.search || playbackUrl.hash) {
     throw new Error('INVALID_PLAYBACK_URL');
   }
   return playbackUrl.href;
