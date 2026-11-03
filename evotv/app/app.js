@@ -1,6 +1,5 @@
 import { EvoAuthApi, FIREBASE_API_KEY } from './auth-api.js';
 import { SHOWS_CATALOG } from './shows-catalog.js';
-import { CUSTOM_SHOWS_CATALOG } from './custom-shows-catalog.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
 import {
@@ -29,6 +28,20 @@ const ALL_CATEGORY = 'all';
 const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
 const EXTRA_FAVORITES_CATEGORY = 'evo_extra_favorites';
+const CUSTOM_SHOWS_CATALOG = {
+  categories: [],
+  items: [{
+    stream_id: 'S00001', stream_type: 'custom_show', kind: 'show',
+    name: 'HARMONIA DO SAMBA - DVD AO VIVO EM BRASÍLIA',
+    category_id: '994', category_name: 'Shows', evo_show_category_key: 'channels:994',
+    stream_icon: './assets/harmonia-brasilia-cover.jpg',
+    plot: 'DVD ao vivo do Harmonia do Samba, gravado em Brasília. O show está dividido em faixas que podem ser selecionadas durante a reprodução.',
+    parts: [
+      { id: 'S00001-1', title: 'Abertura / Foi Só Te Ver', video_id: 'B3cxbpLwzKu3DN4', embed_url: 'https://anonmp4.to/embed/B3cxbpLwzKu3DN4' },
+      { id: 'S00001-2', title: 'Foi Só Te Ver', video_id: 'TIQxIWkyMNejzMQ', embed_url: 'https://anonmp4.to/embed/TIQxIWkyMNejzMQ' },
+    ],
+  }],
+};
 const EXTRA_GAMES_FALLBACK = [
   { id: 'nfsu2', title: 'Need for Speed Underground 2', description: 'Versão recompilada para navegador com WebAssembly e WebGPU, modo carreira, free roam e partidas online.', targetUrl: 'https://nfsu2.xyz/#play', imageFile: 'nfsu2-cover-hd.png', musicTitle: 'Get Low', musicArtist: 'Lil Jon & The East Side Boyz com Ying Yang Twins', musicFile: 'get-low.mp3' },
   { id: 'bt3', title: 'Dragon Ball Z: Budokai Tenkaichi 3', description: 'Dragon Ball Z: Budokai Tenkaichi 3 é um jogo eletrônico para PlayStation 2 e Wii em 3D, dos gêneros ação e luta, desenvolvido pela Spike e publicado pela Atari. Foi lançado em 2007.', targetUrl: 'https://dragonballbt3.online/', imageFile: 'bt3-cover-hd.png', musicTitle: 'Temos a Força', musicArtist: '', musicFile: 'temos-a-forca.m4a' },
