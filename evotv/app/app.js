@@ -27,20 +27,6 @@ const ALL_CATEGORY = 'all';
 const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
 const EXTRA_FAVORITES_CATEGORY = 'evo_extra_favorites';
-const CUSTOM_SHOWS_CATALOG = {
-  categories: [{ category_id: 'custom:shows', category_name: 'Shows' }],
-  items: [{
-    stream_id: 'S00001', stream_type: 'custom_show', kind: 'show',
-    name: 'HARMONIA DO SAMBA - DVD AO VIVO EM BRASÍLIA',
-    category_id: 'custom:shows', category_name: 'Shows', evo_show_category_key: 'custom:shows',
-    stream_icon: './assets/harmonia-brasilia-cover.jpg',
-    plot: 'DVD ao vivo do Harmonia do Samba, gravado em Brasília. O show está dividido em faixas que podem ser selecionadas durante a reprodução.',
-    parts: [
-      { id: 'S00001-1', title: 'Abertura / Foi Só Te Ver', video_id: 'B3cxbpLwzKu3DN4', embed_url: 'https://anonmp4.to/embed/B3cxbpLwzKu3DN4' },
-      { id: 'S00001-2', title: 'Foi Só Te Ver', video_id: 'TIQxIWkyMNejzMQ', embed_url: 'https://anonmp4.to/embed/TIQxIWkyMNejzMQ' },
-    ],
-  }],
-};
 const EXTRA_GAMES_FALLBACK = [
   { id: 'nfsu2', title: 'Need for Speed Underground 2', description: 'Versão recompilada para navegador com WebAssembly e WebGPU, modo carreira, free roam e partidas online.', targetUrl: 'https://nfsu2.xyz/#play', imageFile: 'nfsu2-cover-hd.png', musicTitle: 'Get Low', musicArtist: 'Lil Jon & The East Side Boyz com Ying Yang Twins', musicFile: 'get-low.mp3' },
   { id: 'bt3', title: 'Dragon Ball Z: Budokai Tenkaichi 3', description: 'Dragon Ball Z: Budokai Tenkaichi 3 é um jogo eletrônico para PlayStation 2 e Wii em 3D, dos gêneros ação e luta, desenvolvido pela Spike e publicado pela Atari. Foi lançado em 2007.', targetUrl: 'https://dragonballbt3.online/', imageFile: 'bt3-cover-hd.png', musicTitle: 'Temos a Força', musicArtist: '', musicFile: 'temos-a-forca.m4a' },
@@ -61,7 +47,7 @@ let publicContactsRequest = null;
 const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
-  activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: CUSTOM_SHOWS_CATALOG, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
+  activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: null, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, hlsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
   selectedShowPartIndex: 0,
   miniLivePlayers: new Map(), ownLiveScreens: new Map(), nextMiniLivePlayerId: 0, nextOwnScreenId: 0, preserveLiveOnModalClose: false,
@@ -932,12 +918,16 @@ function liveCatalogPage(idToken, params) {
   return fetchCatalogPage('/api/catalog/live/page', idToken, params);
 }
 
+function showsCatalog(idToken) {
+  return fetchCatalog('/api/catalog/shows', idToken);
+}
+
 function showsCatalogPage(params) {
   const categories = state.showCatalog.categories.filter(category => isAdultCategory(category) === params.adult);
   const allowed = new Set(categories.map(category => String(category.evo_show_category_key || category.category_id)));
   const query = normalized(params.query);
   const filtered = state.showCatalog.items.filter(item => {
-    const key = String(item.evo_show_category_key || '');
+    const key = String(item.evo_show_category_key || item.category_id || '');
     const inFavorites = state.favorites.has(String(item.stream_id || ''));
     const categoryMatch = params.category === SHOW_FAVORITES_CATEGORY
       ? inFavorites : params.category === ALL_CATEGORY || key === params.category;
@@ -973,6 +963,19 @@ async function fetchCatalogPage(path, idToken, params) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(String(data?.error || `Falha no catalogo (${response.status}).`));
   if (!Array.isArray(data.items)) throw new Error('Resposta de pagina do catalogo invalida.');
+  return data;
+}
+
+async function fetchCatalog(path, idToken) {
+  const response = await fetch(`${MEDIA_BACKEND_URL}${path}`, {
+    headers: {
+      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
+      'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
+    }, credentials: 'omit', cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(data?.error || `Falha no catalogo (${response.status}).`));
+  if (!Array.isArray(data.items) || !Array.isArray(data.categories)) throw new Error('Resposta do catalogo de shows invalida.');
   return data;
 }
 
@@ -1032,10 +1035,32 @@ function openItem(item) {
   elements.modal.showModal();
 }
 
-function playCustomShowPart(index) {
+async function anonMp4EmbedUrl(videoId) {
+  const fallback = `https://anonmp4.art/embed/${encodeURIComponent(videoId)}`;
+  const controller = new AbortController();
+  const timer = window.setTimeout(() => controller.abort(), 8000);
+  try {
+    const response = await fetch(`https://anonmp4api.xyz/info/${encodeURIComponent(videoId)}`, {
+      headers: { Accept: 'application/json' }, signal: controller.signal,
+    });
+    if (!response.ok) return fallback;
+    const info = await response.json();
+    const embed = new URL(info?.embed_url || '');
+    const validHost = ['anonmp4.to', 'www.anonmp4.to', 'anonmp4.art'].includes(embed.hostname.toLowerCase());
+    if (info?.success !== true || !validHost || embed.pathname !== `/embed/${videoId}`) return fallback;
+    return `https://anonmp4.art${embed.pathname}`;
+  } catch {
+    return fallback;
+  } finally {
+    window.clearTimeout(timer);
+  }
+}
+
+async function playCustomShowPart(index) {
   const item = state.selected;
   const part = item?.parts?.[index];
-  if (item?.kind !== 'show' || !part || !/^https:\/\/anonmp4\.to\/embed\/[A-Za-z0-9_-]+$/.test(part.embed_url || '')) return;
+  const videoId = String(part?.video_id || '');
+  if (item?.kind !== 'show' || !part || !/^[A-Za-z0-9_-]+$/.test(videoId)) return;
   stopPlayback();
   state.selectedShowPartIndex = index;
   elements.showParts.querySelectorAll('[data-part-index]').forEach(button => {
@@ -1043,15 +1068,20 @@ function playCustomShowPart(index) {
   });
   elements.mediaKind.textContent = `SHOW · FAIXA ${index + 1}/${item.parts.length}`;
   elements.modalMeta.textContent = part.title;
-  elements.playerMessage.textContent = '';
-  elements.playerMessage.classList.add('visually-hidden');
+  elements.playerMessage.textContent = 'Carregando vídeo…';
+  elements.playerMessage.classList.remove('visually-hidden');
   elements.trailerPlayer.title = `${item.name} — ${part.title}`;
-  elements.trailerPlayer.src = part.embed_url;
-  elements.trailerPlayer.hidden = false;
+  elements.trailerPlayer.hidden = true;
   elements.video.hidden = true;
   elements.play.hidden = true;
   elements.playerToolbar.hidden = true;
   elements.trailer.hidden = true;
+  const embedUrl = await anonMp4EmbedUrl(videoId);
+  if (state.selected !== item || state.selectedShowPartIndex !== index) return;
+  elements.trailerPlayer.src = embedUrl;
+  elements.trailerPlayer.hidden = false;
+  elements.playerMessage.textContent = '';
+  elements.playerMessage.classList.add('visually-hidden');
 }
 
 function openLiveChannel(item) {
@@ -1962,7 +1992,7 @@ async function logout() {
     // Sair encerra a sessão, mas preserva as credenciais e os PINs marcados para este aparelho.
     await clearRememberedAuth().catch(() => {});
   } else await forgetDevice(login);
-  state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null; state.showCatalog = CUSTOM_SHOWS_CATALOG;
+  state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null; state.showCatalog = null;
   state.extraCatalog = null; state.extraCatalogLoad = null;
   state.page.generation += 1; state.page.offset = 0; state.page.hasMore = false; state.page.loading = false; state.filtered = [];
   clearSeriesCatalogCache(); clearLegacyCatalog();
@@ -2079,7 +2109,7 @@ async function enterLiveView() {
   }
 }
 
-function enterShowsView() {
+async function enterShowsView() {
   if (!state.session) return;
   collapseExtraMenu();
   state.activeSection = 'shows';
@@ -2089,7 +2119,22 @@ function enterShowsView() {
   elements.heading.textContent = 'Shows';
   elements.searchLabel.setAttribute('aria-label', 'Buscar shows');
   elements.search.placeholder = 'Buscar shows...'; elements.search.value = '';
-  state.showCatalog = CUSTOM_SHOWS_CATALOG;
+  if (!state.showCatalog) {
+    elements.status.textContent = 'Carregando catálogo de shows...';
+    elements.status.parentElement.hidden = false; elements.status.classList.remove('error');
+    try {
+      const auth = state.auth;
+      const idToken = await api.currentToken(auth);
+      const catalog = await showsCatalog(idToken);
+      if (state.activeSection !== 'shows' || !state.session || auth !== state.auth) return;
+      state.showCatalog = catalog;
+    } catch (error) {
+      if (state.activeSection !== 'shows') return;
+      elements.status.textContent = `Não foi possível carregar shows (${readableError(error)}).`;
+      elements.status.parentElement.hidden = false; elements.status.classList.add('error');
+      return;
+    }
+  }
   elements.status.textContent = ''; elements.status.parentElement.hidden = true; elements.status.classList.remove('error');
   renderCategoryFilters(); applyFilters();
 }

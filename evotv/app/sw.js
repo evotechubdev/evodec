@@ -1,4 +1,4 @@
-const CACHE = 'evotv-catalogo-offline-v102';
+const CACHE = 'evotv-catalogo-offline-v104';
 const ISOLATION_CACHE = 'evotv-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
 const APP_SHELL = [
@@ -15,7 +15,6 @@ const APP_SHELL = [
   './manifest.webmanifest',
   './assets/poster-placeholder.svg',
   './assets/fallback-shows.png',
-  './assets/harmonia-brasilia-cover.jpg',
   './assets/logo_evotv.png',
   './assets/icon-192.png',
   './assets/icon-512.png',
