@@ -1039,7 +1039,11 @@ function playCustomShowPart(index) {
   const item = state.selected;
   const part = item?.parts?.[index];
   const videoId = String(part?.video_id || '');
-  if (item?.kind !== 'show' || !part || !/^[A-Za-z0-9_-]+$/.test(videoId)) return;
+  let embedUrl;
+  try { embedUrl = new URL(String(part?.embed_url || '')); } catch { return; }
+  if (item?.kind !== 'show' || !part || !/^[A-Za-z0-9_-]+$/.test(videoId)
+    || embedUrl.origin !== 'https://anonmp4.art' || embedUrl.pathname !== `/embed/${videoId}`
+    || embedUrl.search || embedUrl.hash) return;
   stopPlayback();
   state.selectedShowPartIndex = index;
   elements.showParts.querySelectorAll('[data-part-index]').forEach(button => {
@@ -1050,7 +1054,7 @@ function playCustomShowPart(index) {
   elements.playerMessage.textContent = '';
   elements.playerMessage.classList.add('visually-hidden');
   elements.trailerPlayer.title = `${item.name} — ${part.title}`;
-  elements.trailerPlayer.src = `https://anonmp4.art/embed/${encodeURIComponent(videoId)}`;
+  elements.trailerPlayer.src = embedUrl.href;
   elements.trailerPlayer.hidden = false;
   elements.video.hidden = true;
   elements.play.hidden = true;
