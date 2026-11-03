@@ -65,7 +65,7 @@ let publicContactsCache = null;
 let publicContactsRequest = null;
 
 const state = {
-  catalog: null, catalogLoad: null, categories: [], filtered: [],
+  catalog: null, catalogLoad: null, catalogWarmup: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: null, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, hlsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
@@ -977,6 +977,35 @@ function movieCatalogPage(idToken, params) {
   return fetchCatalogPage('/api/catalog/movies/page', idToken, params);
 }
 
+function prefetchProviderMovieSeries(auth, session) {
+  if (!auth || !session) return Promise.resolve();
+  clearSeriesCatalogCache();
+  const refresh = (async () => {
+    const idToken = await api.currentToken(auth);
+    const params = {
+      offset: 0, limit: 1, query: '', category: ALL_CATEGORY,
+      adult: false, favoriteIds: state.favorites, refresh: true,
+    };
+    const [movies, series] = await Promise.allSettled([
+      movieCatalogPage(idToken, params),
+      seriesCatalogPage(idToken, params),
+    ]);
+    if (state.auth !== auth || state.session !== session) return;
+    if (movies.status === 'fulfilled') {
+      state.catalog = { adult: false, patterns: movies.value.patterns || [] };
+      state.categories = Array.isArray(movies.value.categories) ? [...movies.value.categories] : [];
+    }
+    if (series.status === 'fulfilled') {
+      state.seriesCatalog = { adult: false, categories: series.value.categories || [], segments: [], patterns: [] };
+    }
+  })();
+  const tracked = refresh.catch(() => {}).finally(() => {
+    if (state.catalogWarmup === tracked) state.catalogWarmup = null;
+  });
+  state.catalogWarmup = tracked;
+  return tracked;
+}
+
 function liveCatalogPage(idToken, params) {
   return fetchCatalogPage('/api/catalog/live/page', idToken, params);
 }
@@ -1006,6 +1035,7 @@ async function fetchCatalogPage(path, idToken, params) {
     offset: String(params.offset), limit: String(params.limit), q: params.query,
     category: params.category, adult: params.adult ? '1' : '0',
   });
+  if (params.refresh === true) search.set('refresh', '1');
   if (params.category === FAVORITES_CATEGORY && params.favoriteIds?.size) {
     search.set('favorites', [...params.favoriteIds].filter(id => /^\d{1,20}$/.test(id) || /^series:\d{1,20}$/.test(id)).join(','));
   }
@@ -1964,6 +1994,8 @@ async function selectProfileWithPin(profile, pin, rememberPin, fromVault = false
   try {
     state.session = await api.selectProfile(state.auth, profile, pin);
     state.account.accountType = state.session.accountType || state.account.accountType;
+    state.catalog = null; state.catalogLoad = null; state.catalogWarmup = null; state.categories = [];
+    state.seriesCatalog = null; clearSeriesCatalogCache();
     loadFavorites();
     loadLiveFavorites();
     if (rememberPin) {
@@ -1975,6 +2007,7 @@ async function selectProfileWithPin(profile, pin, rememberPin, fromVault = false
     state.pendingProfile = 0; elements.profilePin.value = '';
     if (elements.profilePinDialog.open) elements.profilePinDialog.close();
     updateSessionUi(); showScreen('app'); void enterLiveView(); startSessionWatcher();
+    void prefetchProviderMovieSeries(state.auth, state.session);
   } catch (error) {
     state.session = null;
     if (fromVault) {
@@ -2063,6 +2096,10 @@ async function logout() {
 async function loadMovieCatalog() {
   if (state.catalog) return state.catalog;
   if (state.catalogLoad) return state.catalogLoad;
+  if (state.catalogWarmup) {
+    await state.catalogWarmup;
+    if (state.catalog) return state.catalog;
+  }
   const auth = state.auth;
   state.catalogLoad = (async () => {
     const idToken = await api.currentToken(auth);
@@ -2107,6 +2144,8 @@ async function enterSeriesView() {
   elements.search.placeholder = state.adultView ? 'Buscar séries adultas...' : 'Buscar séries...'; elements.search.value = '';
   elements.status.textContent = 'Carregando catálogo de séries…'; elements.status.parentElement.hidden = false;
   try {
+    if (state.catalogWarmup) await state.catalogWarmup;
+    if (state.activeSection !== 'series' || !state.session) return;
     const idToken = await api.currentToken(state.auth);
     if (!state.seriesCatalog || state.seriesCatalog.adult !== state.adultView) {
       const catalog = await seriesCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: state.adultView, favoriteIds: state.favorites });
