@@ -479,13 +479,13 @@ function mediaCandidates(item) {
         && /\.(?:webm|ogv)$/i.test(url.pathname) ? [url.href] : [];
     } catch { return []; }
   }
-  const id = String(item.stream_id || '');
+  const id = String(item.stream_id ?? item.vod_id ?? item.id ?? '');
   if (!/^\d{1,20}$/.test(id)) return [];
   if (item.kind === 'series') {
     const seriesId = String(item.series_id || '');
     return /^\d{1,20}$/.test(seriesId) ? [`series:${seriesId}:${id}`] : [];
   }
-  return item.kind === 'movie' ? [`movie:${id}`] : [];
+  return item.kind === 'movie' || (!item.kind && state.activeSection === 'movies') ? [`movie:${id}`] : [];
 }
 
 function renderCategoryFilters() {
@@ -735,7 +735,9 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
     } else if (section === 'live') {
       page.items = page.items.map(item => ({ ...item, kind: 'live', stream_id: String(item.stream_id) }));
     } else if (section === 'movies') {
-      page.items = page.items.map(item => ({ ...item, kind: 'movie', stream_id: String(item.stream_id) }));
+      page.items = page.items.map(item => ({
+        ...item, kind: 'movie', stream_id: String(item.stream_id ?? item.vod_id ?? item.id ?? ''),
+      }));
     } else if (section === 'shows') {
       page.items = page.items.map(item => ({ ...item, kind: 'show', stream_id: String(item.stream_id) }));
     }
