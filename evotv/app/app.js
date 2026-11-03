@@ -487,6 +487,7 @@ function renderCategoryFilters() {
     if (!state.liveCatalog) return;
     const source = state.liveCatalog.categories.filter(category =>
       String(category.category_id) === LIVE_MAINTENANCE_CATEGORY
+      || isShowCategory(category)
       || isAdultCategory(category) === state.adultView);
     const categories = [
       { category_id: LIVE_FAVORITES_CATEGORY, category_name: 'Canais Favoritos' },
@@ -931,6 +932,7 @@ function showsCatalogPage(params) {
   const allowed = new Set(categories.map(category => String(category.evo_show_category_key)));
   const query = normalized(params.query);
   const filtered = state.showCatalog.items.filter(item => {
+    if (String(item.stream_id || '') === '91577') return false;
     const key = String(item.evo_show_category_key || '');
     const inFavorites = state.favorites.has(String(item.stream_id || ''));
     const categoryMatch = params.category === SHOW_FAVORITES_CATEGORY
