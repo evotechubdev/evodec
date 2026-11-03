@@ -426,6 +426,9 @@ function supportsWindowsDirectPlayback(grant: PlaybackGrant): boolean {
   else if (requested === '0') sessionStorage.removeItem('evo_direct_http_test');
   const directTest = requested === '1' || sessionStorage.getItem('evo_direct_http_test') === '1';
   return directTest
+    // Browsers block HTTP media on the production HTTPS PWA (mixed content).
+    // Keep the diagnostic direct mode available only on HTTP development hosts.
+    && window.location.protocol === 'http:'
     && grant.expiresAt > Date.now();
 }
 
