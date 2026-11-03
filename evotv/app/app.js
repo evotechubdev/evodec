@@ -29,11 +29,11 @@ const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
 const EXTRA_FAVORITES_CATEGORY = 'evo_extra_favorites';
 const CUSTOM_SHOWS_CATALOG = {
-  categories: [],
+  categories: [{ category_id: 'custom:shows', category_name: 'Shows Personalizados' }],
   items: [{
     stream_id: 'S00001', stream_type: 'custom_show', kind: 'show',
     name: 'HARMONIA DO SAMBA - DVD AO VIVO EM BRASÍLIA',
-    category_id: '994', category_name: 'Shows', evo_show_category_key: 'channels:994',
+    category_id: 'custom:shows', category_name: 'Shows Personalizados', evo_show_category_key: 'custom:shows',
     stream_icon: './assets/harmonia-brasilia-cover.jpg',
     plot: 'DVD ao vivo do Harmonia do Samba, gravado em Brasília. O show está dividido em faixas que podem ser selecionadas durante a reprodução.',
     parts: [
@@ -512,7 +512,6 @@ function renderCategoryFilters() {
     if (!state.liveCatalog) return;
     const source = state.liveCatalog.categories.filter(category =>
       String(category.category_id) === LIVE_MAINTENANCE_CATEGORY
-      || isShowCategory(category)
       || isAdultCategory(category) === state.adultView);
     const categories = [
       { category_id: LIVE_FAVORITES_CATEGORY, category_name: 'Canais Favoritos' },
@@ -707,7 +706,8 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
         const category = params.category === SHOW_FAVORITES_CATEGORY ? LIVE_FAVORITES_CATEGORY
           : showCategory ? String(showCategory.category_id) : params.category;
         page = await liveCatalogPage(idToken, { ...params, category });
-        if (offset === 0 && (params.category === ALL_CATEGORY || normalized(showCategory?.category_name) === 'shows')) {
+        if (offset === 0 && (params.category === ALL_CATEGORY || params.category === 'custom:shows'
+          || normalized(showCategory?.category_name) === 'shows')) {
           const query = normalized(params.query);
           const custom = CUSTOM_SHOWS_CATALOG.items.filter(item => !query || normalized(item.name).includes(query));
           page.items = [...custom, ...page.items.filter(item => String(item.stream_id) !== '91577')];
@@ -959,7 +959,7 @@ function liveCatalogPage(idToken, params) {
 
 function showsCatalogPage(params) {
   const categories = state.showCatalog.categories.filter(category => isAdultCategory(category) === params.adult);
-  const allowed = new Set(categories.map(category => String(category.evo_show_category_key)));
+  const allowed = new Set(categories.map(category => String(category.evo_show_category_key || category.category_id)));
   const query = normalized(params.query);
   const filtered = state.showCatalog.items.filter(item => {
     if (String(item.stream_id || '') === '91577') return false;
