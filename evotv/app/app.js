@@ -1,6 +1,7 @@
 import { EvoAuthApi, FIREBASE_API_KEY } from './auth-api.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
+import { OTHER_SERIES_CATALOG } from './other-series-catalog.js';
 import {
   clearProfilePins,
   clearRememberedCredentials,
@@ -83,7 +84,7 @@ const elements = {
   accountMenuPhoto: $('#account-menu-photo'), accountMenuPhotoFallback: $('.account-menu-photo-fallback'),
   accountMenuProfileName: $('#account-menu-profile-name'), accountMenuType: $('#account-menu-type'), sidebarProfileName: $('#sidebar-profile-name'), paymentSystem: $('#payment-system'),
   switchProfile: $('#switch-profile'), logout: $('#logout-button'), accountType: $('#account-type'),
-  adultNav: $('#adult-nav'), extrasNav: $('#extras-nav'), extraTypes: $('#extra-types'), mininovelasNav: $('#vertical-mininovelas-nav'), gamesNav: $('#games-nav'),
+  adultNav: $('#adult-nav'), extrasNav: $('#extras-nav'), extraTypes: $('#extra-types'), mininovelasNav: $('#vertical-mininovelas-nav'), otherSeriesNav: $('#other-series-nav'), gamesNav: $('#games-nav'),
   channelsNav: $('#channels-nav'), moviesNav: $('#movies-nav'), seriesNav: $('#series-nav'), showsNav: $('#shows-nav'), heading: $('#catalog-heading'),
   notice: $('#app-notice'), search: $('#catalog-search'), searchLabel: $('.pc-search-box'), category: $('#category-filter'), categoryStrip: $('#category-strip'),
   grid: $('#catalog-grid'), status: $('#app-status'), sentinel: $('#load-sentinel'),
@@ -327,6 +328,7 @@ function toggleFavorite(item) {
   saveFavorites();
   if (elements.category.value === FAVORITES_CATEGORY
     || (state.activeSection === 'extras' && elements.category.value === EXTRA_FAVORITES_CATEGORY)
+    || (state.activeSection === 'other-series' && elements.category.value === EXTRA_FAVORITES_CATEGORY)
     || (state.activeSection === 'shows' && elements.category.value === SHOW_FAVORITES_CATEGORY)) applyFilters();
   else renderGrid();
 }
@@ -450,6 +452,14 @@ function mediaCandidates(item) {
   if (item.kind === 'live') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`live:${item.stream_id}`] : [];
   if (item.kind === 'show') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`show:${item.stream_id}`] : [];
   if (item.evo_extra_episode) return /^[a-z0-9-]{3,160}$/i.test(String(item.id || '')) ? [`extra:${item.id}`] : [];
+  if (item.evo_public_episode) {
+    try {
+      const url = new URL(String(item.url || ''));
+      return url.protocol === 'https:' && url.hostname === 'upload.wikimedia.org'
+        && !url.username && !url.password && !url.search && !url.hash
+        && /\.(?:webm|ogv)$/i.test(url.pathname) ? [url.href] : [];
+    } catch { return []; }
+  }
   const id = String(item.stream_id || '');
   if (!/^\d{1,20}$/.test(id)) return [];
   if (item.kind === 'series') {
@@ -460,6 +470,24 @@ function mediaCandidates(item) {
 }
 
 function renderCategoryFilters() {
+  if (state.activeSection === 'other-series') {
+    const categories = [
+      { category_id: 'all', category_name: 'Todas' },
+      { category_id: EXTRA_FAVORITES_CATEGORY, category_name: 'Favoritas' },
+      { category_id: 'public-domain', category_name: 'Domínio público' },
+    ];
+    elements.category.replaceChildren(...categories.map(category => {
+      const option = document.createElement('option'); option.value = category.category_id; option.textContent = category.category_name; return option;
+    }));
+    elements.category.value = 'all';
+    elements.categoryStrip.replaceChildren(...categories.map(category => {
+      const button = document.createElement('button'); button.type = 'button'; button.className = 'pc-category-button';
+      button.dataset.category = category.category_id; button.textContent = category.category_name;
+      button.addEventListener('click', () => { elements.category.value = button.dataset.category; applyFilters(); });
+      return button;
+    }));
+    return;
+  }
   if (state.activeSection === 'extras') {
     const categories = [
       { category_id: EXTRA_FAVORITES_CATEGORY, category_name: 'Favoritos' },
@@ -711,7 +739,21 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
 }
 
 function extraCatalogPage(params, section) {
-  const catalogItems = section === 'extras'
+  const catalogItems = section === 'other-series'
+    ? OTHER_SERIES_CATALOG.map(series => ({
+      ...series,
+      kind: 'series',
+      evo_public_series: true,
+      category_id: String(series.categoryId || 'public-domain'),
+      series_id: String(series.id),
+      stream_id: String(series.id),
+      stream_icon: series.imageUrl || '',
+      cover: series.imageUrl || '',
+      plot: series.synopsis || '',
+      category_name: 'Outras Séries',
+      mappedEpisodeCount: Number(series.episodes?.length || 0),
+    }))
+    : section === 'extras'
     ? (state.extraCatalog?.series || []).map(series => ({
       ...series,
       kind: 'series',
@@ -734,9 +776,11 @@ function extraCatalogPage(params, section) {
     }));
   const query = normalized(params.query);
   const filtered = catalogItems.filter(item => {
-    if (section === 'extras') {
+    if (section === 'extras' || section === 'other-series') {
       const favorite = state.favorites.has(`series:${item.series_id}`);
-      const categoryMatch = params.category === EXTRA_FAVORITES_CATEGORY ? favorite : String(item.category_id || '') === String(params.category || 'reelshort');
+      const categoryMatch = params.category === EXTRA_FAVORITES_CATEGORY ? favorite
+        : params.category === 'all' ? true
+          : String(item.category_id || '') === String(params.category || 'reelshort');
       return categoryMatch && (!query || normalized(`${item.name} ${item.description || item.plot || ''}`).includes(query));
     }
     return !query || normalized(`${item.name} ${item.description || ''}`).includes(query);
@@ -1129,7 +1173,7 @@ function syncSeriesFavoriteControls() {
 }
 
 async function openSeries(series) {
-  if (!state.session || (!state.seriesCatalog && !series.evo_extra_series)) return;
+  if (!state.session || (!state.seriesCatalog && !series.evo_extra_series && !series.evo_public_series)) return;
   stopPlayback();
   elements.video.controls = true;
   elements.video.classList.remove('live-controls-no-seek');
@@ -1152,7 +1196,13 @@ async function openSeries(series) {
 
   try {
     const idToken = await api.currentToken(state.auth);
-    const episodes = series.evo_extra_series
+    const episodes = series.evo_public_series
+      ? (series.episodes || []).map(episode => ({
+        ...episode, episode_id: episode.id, title: episode.name, episode_num: episode.number,
+        season: episode.season || '1', series_id: series.series_id,
+        evo_public_episode: true,
+      }))
+      : series.evo_extra_series
       ? (series.episodes || []).map(episode => ({
         ...episode, episode_id: episode.id, title: episode.name, episode_num: episode.number,
         season: episode.season || '1', series_id: series.series_id, container_extension: episode.extension || 'm3u8',
@@ -1654,6 +1704,7 @@ async function mediaTicket(source, signal, download = false, contentItem = state
   if (contentItem?.evo_extra_episode && /^extra:[a-z0-9-]{3,160}$/i.test(String(source))) {
     return api.extraStreamUrl(state.auth, state.session, String(source).slice('extra:'.length), download);
   }
+  if (contentItem?.evo_public_episode && mediaCandidates(contentItem).includes(String(source))) return String(source);
   const liveMatch = /^live:(\d{1,20})$/.exec(String(source));
   const movieMatch = /^movie:(\d{1,20})$/.exec(String(source));
   const seriesMatch = /^series:(\d{1,20}):(\d{1,20})$/.exec(String(source));
@@ -1768,7 +1819,9 @@ async function tryCandidate() {
     elements.playerSurface.classList.toggle('vertical-extra-screen', verticalExtra);
     elements.playerToolbar.hidden = false;
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
-    elements.video.crossOrigin = 'anonymous'; elements.video.hidden = false;
+    if (state.selected.evo_public_episode) elements.video.removeAttribute('crossorigin');
+    else elements.video.crossOrigin = 'anonymous';
+    elements.video.hidden = false;
     if (state.selected.kind === 'live') {
       elements.video.controls = true;
       elements.video.classList.add('live-controls-no-seek');
@@ -2118,7 +2171,7 @@ async function enterShowsView() {
 }
 
 async function enterExtraView(section) {
-  if (!state.session || !['extras', 'games'].includes(section)) return;
+  if (!state.session || !['extras', 'other-series', 'games'].includes(section)) return;
   window.clearTimeout(extraLoadingTimer);
   extraLoadingTimer = 0;
   if (activeGameFrame) void closeEmbeddedGame(false);
@@ -2139,11 +2192,12 @@ async function enterExtraView(section) {
   elements.extrasNav.setAttribute('aria-expanded', 'true');
   elements.extraTypes.hidden = false;
   elements.mininovelasNav.classList.toggle('active', section === 'extras');
+  elements.otherSeriesNav.classList.toggle('active', section === 'other-series');
   elements.gamesNav.classList.toggle('active', section === 'games');
   for (const nav of [elements.channelsNav, elements.moviesNav, elements.seriesNav, elements.showsNav, elements.adultNav]) nav.classList.remove('active');
-  elements.heading.textContent = section === 'extras' ? 'Mininovelas Verticais' : 'Games';
-  elements.searchLabel.setAttribute('aria-label', section === 'extras' ? 'Buscar mininovelas verticais' : 'Buscar games');
-  elements.search.placeholder = section === 'extras' ? 'Buscar mininovelas...' : 'Buscar games...';
+  elements.heading.textContent = section === 'extras' ? 'Mininovelas Verticais' : section === 'other-series' ? 'Outras Séries' : 'Games';
+  elements.searchLabel.setAttribute('aria-label', section === 'extras' ? 'Buscar mininovelas verticais' : section === 'other-series' ? 'Buscar outras séries' : 'Buscar games');
+  elements.search.placeholder = section === 'extras' ? 'Buscar mininovelas...' : section === 'other-series' ? 'Buscar outras séries...' : 'Buscar games...';
   elements.search.value = '';
   elements.searchLabel.classList.toggle('hidden', section === 'games');
   elements.categoryStrip.classList.toggle('hidden', section === 'games');
@@ -2159,7 +2213,7 @@ async function enterExtraView(section) {
   }, 250);
   try {
     const auth = state.auth;
-    if (!state.extraCatalog) {
+    if (section !== 'other-series' && !state.extraCatalog) {
       if (!state.extraCatalogLoad) {
         state.extraCatalogLoad = api.extraCatalog(auth, state.session).then(catalog => {
           const series = normalizeExtraSeries(catalog);
@@ -2431,6 +2485,7 @@ elements.extrasNav.addEventListener('click', () => {
   elements.extraTypes.hidden = expanded;
 });
 elements.mininovelasNav.addEventListener('click', () => { void enterExtraView('extras'); });
+elements.otherSeriesNav.addEventListener('click', () => { void enterExtraView('other-series'); });
 elements.gamesNav.addEventListener('click', () => { void enterExtraView('games'); });
 elements.adultNav.addEventListener('click', () => { void openAdultSection(); });
 elements.closeSeries.addEventListener('click', closeSeriesDetails);
