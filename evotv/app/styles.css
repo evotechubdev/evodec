@@ -1070,3 +1070,10 @@ body.catalog-page .input-shell input { height: 42px; }
   .profile-settings-row .field:last-child { grid-column: 2; }
   .parental-profile { grid-template-columns: 1fr; }
 }
+
+.show-parts { display: grid; gap: 8px; margin: 14px 0; }
+.show-part-button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 11px 13px; border: 1px solid var(--line); border-radius: 10px; color: inherit; text-align: left; background: rgba(255,255,255,.04); cursor: pointer; }
+.show-part-button:hover, .show-part-button.active { border-color: var(--accent, #38d9f5); background: rgba(56,217,245,.1); }
+.show-part-number { flex: 0 0 auto; color: #56dff5; font-size: 10px; font-weight: 800; letter-spacing: .08em; }
+.show-part-button strong { font-size: 13px; }
+.show-next-part { justify-self: end; padding: 8px 12px; border: 1px solid var(--line); border-radius: 8px; color: inherit; background: rgba(255,255,255,.06); cursor: pointer; }

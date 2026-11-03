@@ -1,5 +1,6 @@
 import { EvoAuthApi, FIREBASE_API_KEY } from './auth-api.js';
 import { SHOWS_CATALOG } from './shows-catalog.js';
+import { CUSTOM_SHOWS_CATALOG } from './custom-shows-catalog.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
 import {
@@ -50,6 +51,7 @@ const state = {
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, hlsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
+  selectedShowPartIndex: 0,
   miniLivePlayers: new Map(), ownLiveScreens: new Map(), nextMiniLivePlayerId: 0, nextOwnScreenId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
   liveFavorites: null, adultLiveFavorites: null,
@@ -90,6 +92,7 @@ const elements = {
   seriesDialog: $('#series-dialog'), seriesCover: $('#series-cover'), seriesTitle: $('#series-title'),
   seriesPlot: $('#series-plot'), seriesLoading: $('#series-loading'), seasonTabs: $('#season-tabs'), episodeList: $('#episode-list'),
   liveChoiceList: $('#live-choice-list'),
+  showParts: null,
   closeSeries: $('#close-series'), favoriteSeries: $('#favorite-series'), favoriteEpisodesFilter: $('#favorite-episodes-filter'),
   modal: $('#media-modal'), modalTitle: $('#media-title'), modalMeta: $('#media-meta'),
   modalImage: $('#media-image'), modalSynopsis: $('#media-synopsis'), video: $('#media-player'), trailerPlayer: $('#trailer-player'), playerMessage: $('#player-message'),
@@ -461,6 +464,15 @@ function mediaCandidates(item) {
   return item.kind === 'movie' ? [`movie:${id}`] : [];
 }
 
+function mergedShowsCatalog(base = SHOWS_CATALOG) {
+  const categories = new Map([...(base?.categories || []), ...CUSTOM_SHOWS_CATALOG.categories]
+    .map(category => [String(category.category_id), category]));
+  const items = [...(base?.items || [])];
+  const ids = new Set(items.map(item => String(item.stream_id)));
+  for (const item of CUSTOM_SHOWS_CATALOG.items) if (!ids.has(String(item.stream_id))) items.push(item);
+  return { ...base, categories: [...categories.values()], items };
+}
+
 function renderCategoryFilters() {
   if (state.activeSection === 'extras') {
     const categories = [
@@ -682,6 +694,11 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
         const category = params.category === SHOW_FAVORITES_CATEGORY ? LIVE_FAVORITES_CATEGORY
           : showCategory ? String(showCategory.category_id) : params.category;
         page = await liveCatalogPage(idToken, { ...params, category });
+        if (offset === 0 && (params.category === ALL_CATEGORY || normalized(showCategory?.category_name) === 'shows')) {
+          const query = normalized(params.query);
+          const custom = CUSTOM_SHOWS_CATALOG.items.filter(item => !query || normalized(item.name).includes(query));
+          page.items = [...custom, ...page.items.filter(item => String(item.stream_id) !== '91577')];
+        }
       } else page = showsCatalogPage(params);
     }
     else if (section === 'extras' || section === 'games') page = extraCatalogPage(params, section);
@@ -980,7 +997,7 @@ function openItem(item) {
   }
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
-  stopPlayback(); state.selected = item; state.candidateIndex = 0;
+  stopPlayback(); state.selected = item; state.candidateIndex = 0; state.selectedShowPartIndex = 0;
   elements.video.classList.remove('live-controls-no-seek');
   elements.video.disablePictureInPicture = true;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
@@ -990,6 +1007,30 @@ function openItem(item) {
   elements.modalMeta.textContent = item.category_name || (item.kind === 'show' ? 'Shows' : 'Filme');
   elements.modalSynopsis.hidden = false;
   elements.modalSynopsis.textContent = synopsisFrom(item);
+  if (!elements.showParts) {
+    elements.showParts = document.createElement('div');
+    elements.showParts.id = 'show-parts';
+    elements.showParts.className = 'show-parts';
+    elements.modalSynopsis.insertAdjacentElement('afterend', elements.showParts);
+  }
+  elements.showParts.replaceChildren();
+  const parts = Array.isArray(item.parts) ? item.parts : [];
+  elements.showParts.hidden = parts.length === 0;
+  if (parts.length > 1) {
+    const next = document.createElement('button');
+    next.type = 'button'; next.className = 'show-next-part'; next.textContent = 'Próxima faixa →';
+    next.addEventListener('click', () => playCustomShowPart(Math.min((state.selectedShowPartIndex || 0) + 1, parts.length - 1)));
+    elements.showParts.append(next);
+  }
+  parts.forEach((part, index) => {
+    const button = document.createElement('button');
+    button.type = 'button'; button.className = 'show-part-button'; button.dataset.partIndex = String(index);
+    const number = document.createElement('span'); number.className = 'show-part-number'; number.textContent = `FAIXA ${index + 1}`;
+    const title = document.createElement('strong'); title.textContent = part.title;
+    button.append(number, title);
+    button.addEventListener('click', () => playCustomShowPart(index));
+    elements.showParts.append(button);
+  });
   elements.modalImage.src = safeImage(item.stream_icon) || './assets/poster-placeholder.svg';
   elements.playerMessage.textContent = '';
   const hasTrailer = item.kind !== 'show' && Boolean(trailerFrom(item));
@@ -998,8 +1039,32 @@ function openItem(item) {
   elements.trailer.disabled = !hasTrailer;
   elements.trailer.classList.toggle('has-trailer', hasTrailer);
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
+  elements.trailerPlayer.removeAttribute('src'); elements.trailerPlayer.hidden = true;
   elements.video.controls = true;
+  elements.play.textContent = parts.length ? 'Reproduzir faixa 1' : 'Reproduzir';
   elements.modal.showModal();
+}
+
+function playCustomShowPart(index) {
+  const item = state.selected;
+  const part = item?.parts?.[index];
+  if (item?.kind !== 'show' || !part || !/^https:\/\/anonmp4\.to\/embed\/[A-Za-z0-9_-]+$/.test(part.embed_url || '')) return;
+  stopPlayback();
+  state.selectedShowPartIndex = index;
+  elements.showParts.querySelectorAll('[data-part-index]').forEach(button => {
+    button.classList.toggle('active', Number(button.dataset.partIndex) === index);
+  });
+  elements.mediaKind.textContent = `SHOW · FAIXA ${index + 1}/${item.parts.length}`;
+  elements.modalMeta.textContent = part.title;
+  elements.playerMessage.textContent = '';
+  elements.playerMessage.classList.add('visually-hidden');
+  elements.trailerPlayer.title = `${item.name} — ${part.title}`;
+  elements.trailerPlayer.src = part.embed_url;
+  elements.trailerPlayer.hidden = false;
+  elements.video.hidden = true;
+  elements.play.hidden = true;
+  elements.playerToolbar.hidden = true;
+  elements.trailer.hidden = true;
 }
 
 function openLiveChannel(item) {
@@ -2047,8 +2112,8 @@ async function enterShowsView() {
     });
     const liveShowCategories = (live.categories || []).filter(isShowCategory);
     state.showCatalog = liveShowCategories.length
-      ? { source: 'live', categories: liveShowCategories, items: [] }
-      : SHOWS_CATALOG;
+      ? mergedShowsCatalog({ source: 'live', categories: liveShowCategories, items: [] })
+      : mergedShowsCatalog(SHOWS_CATALOG);
     if (state.activeSection !== 'shows' || !state.session) return;
     elements.status.textContent = ''; elements.status.parentElement.hidden = true;
     elements.status.classList.remove('error');
@@ -2402,6 +2467,10 @@ $$('.future-section').forEach(button => button.addEventListener('click', () => n
 
 bindMainVideoEvents(elements.video);
 elements.play.addEventListener('click', () => {
+  if (state.selected?.parts?.length) {
+    playCustomShowPart(state.selectedShowPartIndex || 0);
+    return;
+  }
   if (state.selected?.kind === 'show' && elements.video.getAttribute('src')) {
     void playShowVideo();
     return;
