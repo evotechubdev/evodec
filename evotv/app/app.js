@@ -1,7 +1,6 @@
 import { EvoAuthApi, FIREBASE_API_KEY } from './auth-api.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
-import { OTHER_SERIES_CATALOG } from './other-series-catalog.js';
 import {
   clearProfilePins,
   clearRememberedCredentials,
@@ -28,6 +27,26 @@ const ALL_CATEGORY = 'all';
 const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
 const EXTRA_FAVORITES_CATEGORY = 'evo_extra_favorites';
+const OTHER_SERIES_CATALOG = [
+  {
+    id: 'adventures-of-superman-stamp-day', name: 'Adventures of Superman', categoryId: 'public-domain',
+    synopsis: 'Especial de 1954 produzido para uma campanha do Tesouro dos Estados Unidos. A página do arquivo identifica este episódio como domínio público nos EUA.',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:Stamp_Day_For_Superman.webm',
+    episodes: [{ id: 'superman-stamp-day-1954', name: 'Stamp Day for Superman', number: 1, season: '1', url: 'https://upload.wikimedia.org/wikipedia/commons/f/fd/Stamp_Day_For_Superman.webm' }],
+  },
+  {
+    id: 'super-circus-1954', name: 'Super Circus', categoryId: 'public-domain',
+    synopsis: 'Episódio de 1954 do programa infantil Super Circus. O arquivo está em OGV e a classificação de domínio público indicada vale para os EUA.',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:1954_Episode_of_the_TV_series_%22Super_Circus%22.ogv',
+    episodes: [{ id: 'super-circus-1954-episode', name: 'Episódio de 1954', number: 1, season: '1', url: 'https://upload.wikimedia.org/wikipedia/commons/2/2f/1954_Episode_of_the_TV_series_%22Super_Circus%22.ogv' }],
+  },
+  {
+    id: 'coke-time-1953', name: 'Coke Time with Eddie Fisher', categoryId: 'public-domain',
+    synopsis: 'Episódio de 29 de abril de 1953 do programa de TV Coke Time. O arquivo está em OGV e a classificação de domínio público indicada vale para os EUA.',
+    sourceUrl: 'https://commons.wikimedia.org/wiki/File:CokeTime1953Upgraded.ogv',
+    episodes: [{ id: 'coke-time-1953-episode', name: 'Episódio de 29 de abril de 1953', number: 1, season: '1', url: 'https://upload.wikimedia.org/wikipedia/commons/5/5f/CokeTime1953Upgraded.ogv' }],
+  },
+];
 const EXTRA_GAMES_FALLBACK = [
   { id: 'nfsu2', title: 'Need for Speed Underground 2', description: 'Versão recompilada para navegador com WebAssembly e WebGPU, modo carreira, free roam e partidas online.', targetUrl: 'https://nfsu2.xyz/#play', imageFile: 'nfsu2-cover-hd.png', musicTitle: 'Get Low', musicArtist: 'Lil Jon & The East Side Boyz com Ying Yang Twins', musicFile: 'get-low.mp3' },
   { id: 'bt3', title: 'Dragon Ball Z: Budokai Tenkaichi 3', description: 'Dragon Ball Z: Budokai Tenkaichi 3 é um jogo eletrônico para PlayStation 2 e Wii em 3D, dos gêneros ação e luta, desenvolvido pela Spike e publicado pela Atari. Foi lançado em 2007.', targetUrl: 'https://dragonballbt3.online/', imageFile: 'bt3-cover-hd.png', musicTitle: 'Temos a Força', musicArtist: '', musicFile: 'temos-a-forca.m4a' },
