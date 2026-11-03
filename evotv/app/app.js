@@ -703,7 +703,7 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
     if (section === 'shows') {
       page = showsCatalogPage(params);
     }
-    else if (section === 'extras' || section === 'games') page = extraCatalogPage(params, section);
+    else if (section === 'extras' || section === 'other-series' || section === 'games') page = extraCatalogPage(params, section);
     else {
       const idToken = await api.currentToken(auth);
       page = section === 'series' ? await seriesCatalogPage(idToken, params)
