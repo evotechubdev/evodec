@@ -1,5 +1,4 @@
 import { EvoAuthApi, FIREBASE_API_KEY } from './auth-api.js';
-import { SHOWS_CATALOG } from './shows-catalog.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
 import {
@@ -29,11 +28,11 @@ const LIVE_FAVORITES_CATEGORY = 'evo_channel_list';
 const LIVE_MAINTENANCE_CATEGORY = 'evo_live_maintenance';
 const EXTRA_FAVORITES_CATEGORY = 'evo_extra_favorites';
 const CUSTOM_SHOWS_CATALOG = {
-  categories: [{ category_id: 'custom:shows', category_name: 'Shows Personalizados' }],
+  categories: [{ category_id: 'custom:shows', category_name: 'Shows' }],
   items: [{
     stream_id: 'S00001', stream_type: 'custom_show', kind: 'show',
     name: 'HARMONIA DO SAMBA - DVD AO VIVO EM BRASÍLIA',
-    category_id: 'custom:shows', category_name: 'Shows Personalizados', evo_show_category_key: 'custom:shows',
+    category_id: 'custom:shows', category_name: 'Shows', evo_show_category_key: 'custom:shows',
     stream_icon: './assets/harmonia-brasilia-cover.jpg',
     plot: 'DVD ao vivo do Harmonia do Samba, gravado em Brasília. O show está dividido em faixas que podem ser selecionadas durante a reprodução.',
     parts: [
@@ -62,7 +61,7 @@ let publicContactsRequest = null;
 const state = {
   catalog: null, catalogLoad: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
-  activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: SHOWS_CATALOG, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
+  activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: CUSTOM_SHOWS_CATALOG, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
   selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, hlsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
   selectedShowPartIndex: 0,
   miniLivePlayers: new Map(), ownLiveScreens: new Map(), nextMiniLivePlayerId: 0, nextOwnScreenId: 0, preserveLiveOnModalClose: false,
@@ -177,9 +176,6 @@ const profileName = (profile) => state.account?.profileNames?.[profile - 1]?.tri
 const validParentalPin = (value) => /^\d{4,8}$/.test(value);
 const isAdultCategory = (category) => /(^|\s)(adultos?|hentai|18)(\s|$)/.test(normalized(category?.category_name));
 const isShowChannel = (item) => /^\s*\[\s*show\s*\]/i.test(String(item.name || ''));
-const isShowCategory = (category) => /\[\s*show\s*\]/i.test(String(category?.category_name || ''))
-  || normalized(category?.category_name) === 'shows';
-const sectionShowCategories = () => (state.showCatalog?.categories || []);
 const isReleaseCategory = (category) => normalized(category?.category_name).replace(/[^a-z0-9]+/g, ' ').trim() === 'filmes lancamentos 2026';
 
 function accountFingerprint(value) {
@@ -477,15 +473,6 @@ function mediaCandidates(item) {
   return item.kind === 'movie' ? [`movie:${id}`] : [];
 }
 
-function mergedShowsCatalog(base = SHOWS_CATALOG) {
-  const categories = new Map([...(base?.categories || []), ...CUSTOM_SHOWS_CATALOG.categories]
-    .map(category => [String(category.category_id), category]));
-  const items = [...(base?.items || [])];
-  const ids = new Set(items.map(item => String(item.stream_id)));
-  for (const item of CUSTOM_SHOWS_CATALOG.items) if (!ids.has(String(item.stream_id))) items.push(item);
-  return { ...base, categories: [...categories.values()], items };
-}
-
 function renderCategoryFilters() {
   if (state.activeSection === 'extras') {
     const categories = [
@@ -700,19 +687,7 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
   try {
     let page;
     if (section === 'shows') {
-      if (state.showCatalog?.source === 'live') {
-        const idToken = await api.currentToken(auth);
-        const showCategory = sectionShowCategories().find(category => String(category.category_id) === params.category);
-        const category = params.category === SHOW_FAVORITES_CATEGORY ? LIVE_FAVORITES_CATEGORY
-          : showCategory ? String(showCategory.category_id) : params.category;
-        page = await liveCatalogPage(idToken, { ...params, category });
-        if (offset === 0 && (params.category === ALL_CATEGORY || params.category === 'custom:shows'
-          || normalized(showCategory?.category_name) === 'shows')) {
-          const query = normalized(params.query);
-          const custom = CUSTOM_SHOWS_CATALOG.items.filter(item => !query || normalized(item.name).includes(query));
-          page.items = [...custom, ...page.items.filter(item => String(item.stream_id) !== '91577')];
-        }
-      } else page = showsCatalogPage(params);
+      page = showsCatalogPage(params);
     }
     else if (section === 'extras' || section === 'games') page = extraCatalogPage(params, section);
     else {
@@ -962,7 +937,6 @@ function showsCatalogPage(params) {
   const allowed = new Set(categories.map(category => String(category.evo_show_category_key || category.category_id)));
   const query = normalized(params.query);
   const filtered = state.showCatalog.items.filter(item => {
-    if (String(item.stream_id || '') === '91577') return false;
     const key = String(item.evo_show_category_key || '');
     const inFavorites = state.favorites.has(String(item.stream_id || ''));
     const categoryMatch = params.category === SHOW_FAVORITES_CATEGORY
@@ -1988,7 +1962,7 @@ async function logout() {
     // Sair encerra a sessão, mas preserva as credenciais e os PINs marcados para este aparelho.
     await clearRememberedAuth().catch(() => {});
   } else await forgetDevice(login);
-  state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null; state.showCatalog = SHOWS_CATALOG;
+  state.catalog = null; state.catalogLoad = null; state.categories = []; state.seriesCatalog = null; state.liveCatalog = null; state.showCatalog = CUSTOM_SHOWS_CATALOG;
   state.extraCatalog = null; state.extraCatalogLoad = null;
   state.page.generation += 1; state.page.offset = 0; state.page.hasMore = false; state.page.loading = false; state.filtered = [];
   clearSeriesCatalogCache(); clearLegacyCatalog();
@@ -2105,7 +2079,7 @@ async function enterLiveView() {
   }
 }
 
-async function enterShowsView() {
+function enterShowsView() {
   if (!state.session) return;
   collapseExtraMenu();
   state.activeSection = 'shows';
@@ -2115,34 +2089,9 @@ async function enterShowsView() {
   elements.heading.textContent = 'Shows';
   elements.searchLabel.setAttribute('aria-label', 'Buscar shows');
   elements.search.placeholder = 'Buscar shows...'; elements.search.value = '';
-  elements.status.textContent = 'Carregando catálogo de shows...';
-  elements.status.parentElement.hidden = false; elements.status.classList.remove('error');
-  try {
-    const idToken = await api.currentToken(state.auth);
-    const live = await liveCatalogPage(idToken, {
-      offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: state.adultView,
-      favoriteIds: state.favorites, liveFavoriteIds: selectedLiveFavorites(),
-    });
-    const liveShowCategories = (live.categories || []).filter(isShowCategory);
-    state.showCatalog = liveShowCategories.length
-      ? mergedShowsCatalog({ source: 'live', categories: liveShowCategories, items: [] })
-      : mergedShowsCatalog(SHOWS_CATALOG);
-    if (state.activeSection !== 'shows' || !state.session) return;
-    elements.status.textContent = ''; elements.status.parentElement.hidden = true;
-    elements.status.classList.remove('error');
-    if (!state.showCatalog.categories.length) {
-      elements.category.replaceChildren(); elements.categoryStrip.replaceChildren();
-      state.filtered = []; renderGrid();
-      elements.status.textContent = 'Este catálogo ainda não tem shows disponíveis.';
-      elements.status.parentElement.hidden = false;
-      return;
-    }
-    renderCategoryFilters(); applyFilters();
-  } catch (error) {
-    if (state.activeSection !== 'shows') return;
-    elements.status.textContent = `Não foi possível carregar shows (${readableError(error)}).`;
-    elements.status.parentElement.hidden = false; elements.status.classList.add('error');
-  }
+  state.showCatalog = CUSTOM_SHOWS_CATALOG;
+  elements.status.textContent = ''; elements.status.parentElement.hidden = true; elements.status.classList.remove('error');
+  renderCategoryFilters(); applyFilters();
 }
 
 async function enterExtraView(section) {

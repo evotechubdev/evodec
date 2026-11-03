@@ -1,4 +1,4 @@
-const CACHE = 'evotv-catalogo-offline-v101';
+const CACHE = 'evotv-catalogo-offline-v102';
 const ISOLATION_CACHE = 'evotv-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
 const APP_SHELL = [
@@ -6,7 +6,6 @@ const APP_SHELL = [
   './index.html',
   './styles.css',
   './app.js',
-  './shows-catalog.js',
   './auth-api.js',
   './device-vault.js',
   './catalog-db.js',
