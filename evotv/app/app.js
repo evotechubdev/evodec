@@ -160,7 +160,9 @@ async function forgetDevice(login = state.auth?.login || elements.username.value
 const profileName = (profile) => state.account?.profileNames?.[profile - 1]?.trim() || `Perfil ${profile}`;
 const validParentalPin = (value) => /^\d{4,8}$/.test(value);
 const isAdultCategory = (category) => /(^|\s)(adultos?|hentai|18)(\s|$)/.test(normalized(category?.category_name));
-const isShowChannel = (item) => /\[\s*show\s*\]/i.test(String(item.category_name || ''));
+const isShowChannel = (item) => /^\s*\[\s*show\s*\]/i.test(String(item.name || ''));
+const isShowCategory = (category) => /\[\s*show\s*\]/i.test(String(category?.category_name || ''))
+  || normalized(category?.category_name) === 'shows';
 const sectionShowCategories = () => (state.showCatalog?.categories || []);
 const isReleaseCategory = (category) => normalized(category?.category_name).replace(/[^a-z0-9]+/g, ' ').trim() === 'filmes lancamentos 2026';
 
@@ -673,15 +675,13 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
   try {
     let page;
     if (section === 'shows') {
-      const idToken = await api.currentToken(auth);
-      const showCategory = sectionShowCategories().find(category => String(category.category_id) === params.category);
-      const category = params.category === SHOW_FAVORITES_CATEGORY ? LIVE_FAVORITES_CATEGORY
-        : showCategory ? String(showCategory.category_id) : params.category;
-      page = await liveCatalogPage(idToken, { ...params, category });
-      page.items = params.category === SHOW_FAVORITES_CATEGORY
-        ? page.items.filter(item => isShowChannel(item))
-        : page.items.filter(item => isShowChannel(item));
-      page.hasMore = page.hasMore && page.items.length === params.limit;
+      if (state.showCatalog?.source === 'live') {
+        const idToken = await api.currentToken(auth);
+        const showCategory = sectionShowCategories().find(category => String(category.category_id) === params.category);
+        const category = params.category === SHOW_FAVORITES_CATEGORY ? LIVE_FAVORITES_CATEGORY
+          : showCategory ? String(showCategory.category_id) : params.category;
+        page = await liveCatalogPage(idToken, { ...params, category });
+      } else page = showsCatalogPage(params);
     }
     else if (section === 'extras' || section === 'games') page = extraCatalogPage(params, section);
     else {
@@ -2043,10 +2043,10 @@ async function enterShowsView() {
       offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: state.adultView,
       favoriteIds: state.favorites, liveFavoriteIds: selectedLiveFavorites(),
     });
-    state.showCatalog = {
-      categories: (live.categories || []).filter(category => /\[\s*show\s*\]/i.test(String(category.category_name || ''))),
-      items: [],
-    };
+    const liveShowCategories = (live.categories || []).filter(isShowCategory);
+    state.showCatalog = liveShowCategories.length
+      ? { source: 'live', categories: liveShowCategories, items: [] }
+      : SHOWS_CATALOG;
     if (state.activeSection !== 'shows' || !state.session) return;
     elements.status.textContent = ''; elements.status.parentElement.hidden = true;
     elements.status.classList.remove('error');
