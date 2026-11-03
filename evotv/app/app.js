@@ -1035,28 +1035,7 @@ function openItem(item) {
   elements.modal.showModal();
 }
 
-async function anonMp4EmbedUrl(videoId) {
-  const fallback = `https://anonmp4.art/embed/${encodeURIComponent(videoId)}`;
-  const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 8000);
-  try {
-    const response = await fetch(`https://anonmp4api.xyz/info/${encodeURIComponent(videoId)}`, {
-      headers: { Accept: 'application/json' }, signal: controller.signal,
-    });
-    if (!response.ok) return fallback;
-    const info = await response.json();
-    const embed = new URL(info?.embed_url || '');
-    const validHost = ['anonmp4.to', 'www.anonmp4.to', 'anonmp4.art'].includes(embed.hostname.toLowerCase());
-    if (info?.success !== true || !validHost || embed.pathname !== `/embed/${videoId}`) return fallback;
-    return `https://anonmp4.art${embed.pathname}`;
-  } catch {
-    return fallback;
-  } finally {
-    window.clearTimeout(timer);
-  }
-}
-
-async function playCustomShowPart(index) {
+function playCustomShowPart(index) {
   const item = state.selected;
   const part = item?.parts?.[index];
   const videoId = String(part?.video_id || '');
@@ -1068,20 +1047,15 @@ async function playCustomShowPart(index) {
   });
   elements.mediaKind.textContent = `SHOW · FAIXA ${index + 1}/${item.parts.length}`;
   elements.modalMeta.textContent = part.title;
-  elements.playerMessage.textContent = 'Carregando vídeo…';
-  elements.playerMessage.classList.remove('visually-hidden');
+  elements.playerMessage.textContent = '';
+  elements.playerMessage.classList.add('visually-hidden');
   elements.trailerPlayer.title = `${item.name} — ${part.title}`;
-  elements.trailerPlayer.hidden = true;
+  elements.trailerPlayer.src = `https://anonmp4.art/embed/${encodeURIComponent(videoId)}`;
+  elements.trailerPlayer.hidden = false;
   elements.video.hidden = true;
   elements.play.hidden = true;
   elements.playerToolbar.hidden = true;
   elements.trailer.hidden = true;
-  const embedUrl = await anonMp4EmbedUrl(videoId);
-  if (state.selected !== item || state.selectedShowPartIndex !== index) return;
-  elements.trailerPlayer.src = embedUrl;
-  elements.trailerPlayer.hidden = false;
-  elements.playerMessage.textContent = '';
-  elements.playerMessage.classList.add('visually-hidden');
 }
 
 function openLiveChannel(item) {
