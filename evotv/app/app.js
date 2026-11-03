@@ -439,7 +439,7 @@ function mediaSourceTarget(value) {
     const url = new URL(String(value || ''));
     if (url.protocol !== 'http:' || !MEDIA_SOURCE_HOSTS.has(url.host.toLowerCase())
       || url.username || url.password || url.search || url.hash
-      || !['/s3v3/', '/1-filmes/'].some(prefix => url.pathname.startsWith(prefix))) return '';
+      || !['/s3v3/', '/1-filmes/', '/vauth/', '/rauth/', '/live/', '/movie/', '/series/'].some(prefix => url.pathname.startsWith(prefix))) return '';
     return url.href;
   } catch { return ''; }
 }
@@ -448,24 +448,13 @@ function mediaCandidates(item) {
   if (item.kind === 'live') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`live:${item.stream_id}`] : [];
   if (item.kind === 'show') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`show:${item.stream_id}`] : [];
   if (item.evo_extra_episode) return /^[a-z0-9-]{3,160}$/i.test(String(item.id || '')) ? [`extra:${item.id}`] : [];
-  const candidates = [];
-  const direct = mediaSourceTarget(item.url_final);
-  if (direct) candidates.push(direct);
-  const extension = String(item.container_extension || 'mp4').replace(/[^a-z0-9]/gi, '') || 'mp4';
   const id = String(item.stream_id || '');
-  const sourcePatterns = item.kind === 'series' ? state.seriesCatalog?.patterns || [] : state.catalog?.patterns || [];
-  const patterns = [...sourcePatterns].sort((left, right) => {
-    if (left.id === item.url_padrao) return -1;
-    if (right.id === item.url_padrao) return 1;
-    return Number(right.count || 0) - Number(left.count || 0);
-  });
-  for (const pattern of patterns) {
-    if (!pattern.template.includes('{id}')) continue;
-    const url = pattern.template.replaceAll('{id}', id).replaceAll('{ext}', extension);
-    const target = mediaSourceTarget(url);
-    if (target && !candidates.includes(target)) candidates.push(target);
+  if (!/^\d{1,20}$/.test(id)) return [];
+  if (item.kind === 'series') {
+    const seriesId = String(item.series_id || '');
+    return /^\d{1,20}$/.test(seriesId) ? [`series:${seriesId}:${id}`] : [];
   }
-  return candidates;
+  return item.kind === 'movie' ? [`movie:${id}`] : [];
 }
 
 function renderCategoryFilters() {
@@ -694,6 +683,8 @@ async function loadCatalogPage(generation = state.page.generation, firstPage = f
       page.items = page.items.map(item => ({ ...item, kind: 'series', stream_id: String(item.series_id), stream_icon: item.cover || '', mappedEpisodeCount: Number(item.mappedEpisodeCount || 0) }));
     } else if (section === 'live') {
       page.items = page.items.map(item => ({ ...item, kind: 'live', stream_id: String(item.stream_id) }));
+    } else if (section === 'movies') {
+      page.items = page.items.map(item => ({ ...item, kind: 'movie', stream_id: String(item.stream_id) }));
     } else if (section === 'shows') {
       page.items = page.items.map(item => ({ ...item, kind: 'show', stream_id: String(item.stream_id) }));
     }
@@ -1093,7 +1084,7 @@ async function openSeries(series) {
         season: episode.season || '1', series_id: series.series_id, container_extension: episode.extension || 'm3u8',
         evo_extra_episode: true,
       }))
-      : await episodesForSeries(state.seriesCatalog, series, idToken, state.session);
+      : await episodesForSeries(state.seriesCatalog, series, idToken, state.session, state.adultView);
     if (!elements.seriesDialog.open || state.activeSeries !== series) return;
     state.activeSeriesEpisodes = episodes;
     renderSeriesDetails();
@@ -1590,22 +1581,24 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     return api.extraStreamUrl(state.auth, state.session, String(source).slice('extra:'.length), download);
   }
   const liveMatch = /^live:(\d{1,20})$/.exec(String(source));
+  const movieMatch = /^movie:(\d{1,20})$/.exec(String(source));
+  const seriesMatch = /^series:(\d{1,20}):(\d{1,20})$/.exec(String(source));
   const headers = {
     'content-type': 'application/json', 'x-evo-platform': 'web',
     'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
   };
   let endpoint = '/api/media-ticket';
-  const content = contentItem?.kind === 'series'
-    ? { kind: 'series', id: String(contentItem.series_id || ''), streamId: String(contentItem.stream_id || '') }
-    : contentItem && !['live', 'show'].includes(contentItem.kind)
-      ? { kind: 'movie', id: String(contentItem.stream_id || '') } : null;
-  let body = { target: source, download, ...(content ? { content } : {}) };
+  const content = seriesMatch
+    ? { kind: 'series', id: seriesMatch[1], streamId: seriesMatch[2], adult: state.adultView }
+    : movieMatch ? { kind: 'movie', id: movieMatch[1], adult: state.adultView } : null;
+  let body = content ? { content, download } : { target: source, download };
   const showMatch = /^show:(\d{1,20})$/.exec(String(source));
   if (liveMatch || showMatch) {
     const idToken = await api.currentToken(state.auth);
     endpoint = showMatch ? '/api/show-ticket' : '/api/live-ticket';
     headers.authorization = `Bearer ${idToken}`;
-    body = showMatch ? { stream_id: showMatch[1], download } : { stream_id: liveMatch[1] };
+    body = showMatch ? { stream_id: showMatch[1], download, adult: state.adultView }
+      : { stream_id: liveMatch[1], adult: state.adultView };
   } else if (download) {
     const idToken = await api.currentToken(state.auth);
     headers.authorization = `Bearer ${idToken}`;
@@ -1927,9 +1920,9 @@ async function loadMovieCatalog() {
   const auth = state.auth;
   state.catalogLoad = (async () => {
     const idToken = await api.currentToken(auth);
-    const catalog = await movieCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: false, favoriteIds: state.favorites });
+    const catalog = await movieCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: state.adultView, favoriteIds: state.favorites });
     if (state.auth !== auth) throw new Error('A sessao mudou durante o carregamento.');
-    state.catalog = { patterns: catalog.patterns || [] };
+    state.catalog = { adult: state.adultView, patterns: catalog.patterns || [] };
     state.categories = Array.isArray(catalog.categories) ? [...catalog.categories] : [];
     return state.catalog;
   })().finally(() => { state.catalogLoad = null; });
@@ -1945,7 +1938,8 @@ async function enterMovieView(adult = false) {
   elements.searchLabel.setAttribute('aria-label', adult ? 'Buscar filmes adultos' : 'Buscar filmes');
   elements.search.placeholder = adult ? 'Buscar filmes adultos...' : 'Buscar filmes...'; elements.search.value = '';
   if (!state.session) return;
-  if (!state.catalog) {
+  if (!state.catalog || state.catalog.adult !== adult) {
+    state.catalog = null;
     elements.status.textContent = 'Carregando catalogo de filmes...'; elements.status.parentElement.hidden = false;
     try { await loadMovieCatalog(); }
     catch (error) {
@@ -1968,9 +1962,9 @@ async function enterSeriesView() {
   elements.status.textContent = 'Carregando catálogo de séries…'; elements.status.parentElement.hidden = false;
   try {
     const idToken = await api.currentToken(state.auth);
-    if (!state.seriesCatalog) {
-      const catalog = await seriesCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: false, favoriteIds: state.favorites });
-      state.seriesCatalog = { categories: catalog.categories || [], segments: catalog.segments || [], patterns: [] };
+    if (!state.seriesCatalog || state.seriesCatalog.adult !== state.adultView) {
+      const catalog = await seriesCatalogPage(idToken, { offset: 0, limit: 1, query: '', category: ALL_CATEGORY, adult: state.adultView, favoriteIds: state.favorites });
+      state.seriesCatalog = { adult: state.adultView, categories: catalog.categories || [], segments: [], patterns: [] };
     }
     if (state.activeSection !== 'series' || !state.session) return;
     elements.status.textContent = '';
@@ -1999,12 +1993,12 @@ async function enterLiveView() {
   elements.status.parentElement.hidden = false; elements.status.classList.remove('error');
   try {
     const idToken = await api.currentToken(state.auth);
-    if (!state.liveCatalog || selectedLiveFavorites() === null) {
+    if (!state.liveCatalog || state.liveCatalog.adult !== state.adultView || selectedLiveFavorites() === null) {
       const catalog = await liveCatalogPage(idToken, {
         offset: 0, limit: PAGE_SIZE, query: '', category: LIVE_FAVORITES_CATEGORY, adult: state.adultView,
         favoriteIds: state.favorites, liveFavoriteIds: selectedLiveFavorites(),
       });
-      state.liveCatalog = { categories: catalog.categories || [] };
+      state.liveCatalog = { adult: state.adultView, categories: catalog.categories || [] };
       if (selectedLiveFavorites() === null) {
         setSelectedLiveFavorites(catalog.liveFavoriteIds || catalog.items.map(item => item.stream_id));
       }
