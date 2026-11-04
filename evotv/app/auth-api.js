@@ -1,6 +1,6 @@
 export const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
-export const APP_PWA_VERSION = 'Marte-02';
-export const APP_PWA_VERSION_CODE = 'e5c15ebe818818cb53b82e727b9d053d4587c6065bb8baf6e5c405a4917edadd';
+export const APP_PWA_VERSION = 'Marte-03';
+export const APP_PWA_VERSION_CODE = 'a7a32d2a1c2d8319f224575e2ab0c791b38a15cbf4eb0c1b8e912b18a1afa1c9';
 export const APP_PWA_CACHE_ID = `${APP_PWA_VERSION}${APP_PWA_VERSION_CODE}`;
 const FIREBASE_AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
 const FIREBASE_REFRESH_URL = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
