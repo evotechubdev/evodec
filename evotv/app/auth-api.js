@@ -1,4 +1,7 @@
 export const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
+export const APP_PWA_VERSION = 'Marte-02';
+export const APP_PWA_VERSION_CODE = 'e5c15ebe818818cb53b82e727b9d053d4587c6065bb8baf6e5c405a4917edadd';
+export const APP_PWA_CACHE_ID = `${APP_PWA_VERSION}${APP_PWA_VERSION_CODE}`;
 const FIREBASE_AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
 const FIREBASE_REFRESH_URL = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
 const APP_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
@@ -47,6 +50,14 @@ export class EvoAuthApi {
       screens,
       profileNames: Array.isArray(data.profileNames) ? data.profileNames.map(text) : [],
       accountType: (text(data.accountType) || 'STANDARD').toUpperCase(),
+    };
+  }
+
+  async appVersion(auth) {
+    const data = await this.backend('/api/app-version', auth);
+    return {
+      appPwa: text(data.app_pwa),
+      appPwaVersionCode: text(data.app_pwa_cod_versao),
     };
   }
 
@@ -234,6 +245,8 @@ function backendHeaders(token, extra = {}) {
     'content-type': 'application/json',
     authorization: `Bearer ${token}`,
     'x-evo-platform': CLIENT_PLATFORM,
+    'x-evo-version': APP_PWA_VERSION,
+    'x-evo-version-code': APP_PWA_VERSION_CODE,
   });
   new Headers(extra).forEach((value, key) => headers.set(key, value));
   return headers;

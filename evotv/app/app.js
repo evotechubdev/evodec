@@ -1,4 +1,10 @@
-import { EvoAuthApi, FIREBASE_API_KEY } from './auth-api.js';
+import {
+  APP_PWA_CACHE_ID,
+  APP_PWA_VERSION,
+  APP_PWA_VERSION_CODE,
+  EvoAuthApi,
+  FIREBASE_API_KEY,
+} from './auth-api.js';
 import { clearLegacyCatalog, normalized } from './catalog-db.js';
 import { clearSeriesCatalogCache, episodesForSeries } from './series-catalog-db.js';
 import {
@@ -18,6 +24,8 @@ const MEDIA_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
 const MEDIA_PROXY_ORIGIN = 'https://evotv-offline-media-proxy.evotechubdev.workers.dev';
 const MEDIA_SOURCE_HOSTS = new Set(['89.222.120.168:34871', '89.222.120.168:30266']);
 const TICKET_TIMEOUT_MS = 45_000;
+const MOVIE_TICKET_TIMEOUT_MS = 60_000;
+const APP_VERSION_MISMATCH_MESSAGE = 'Versão de cache diferente da versão publicada, faça limpeza de cache e cookies do seu navegador e teste novamente, se persistir o erro contate o suporte.';
 const SAVED_LOGIN_KEY = 'evo_app_login_v1';
 const MOVIE_RELEASES_CATEGORY = 'evo_movie_releases_2026';
 const RECENT_CATEGORY = 'evo_recent';
@@ -68,7 +76,7 @@ const state = {
   catalog: null, catalogLoad: null, catalogWarmup: null, categories: [], filtered: [],
   page: { offset: 0, hasMore: false, loading: false, generation: 0 }, searchTimer: 0,
   activeSection: 'live', seriesCatalog: null, liveCatalog: null, showCatalog: null, extraCatalog: null, extraCatalogLoad: null, activeSeries: null, activeSeriesEpisodes: [], seriesSeason: '', favoriteEpisodesOnly: false,
-  selected: null, candidateIndex: 0, ticketController: null, mpegtsPlayer: null, hlsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
+  selected: null, candidateIndex: 0, moviePlaybackRetries: 0, ticketController: null, mpegtsPlayer: null, hlsPlayer: null, playbackAttempt: 0, screenPlaybackUrl: '',
   selectedShowPartIndex: 0,
   miniLivePlayers: new Map(), ownLiveScreens: new Map(), nextMiniLivePlayerId: 0, nextOwnScreenId: 0, preserveLiveOnModalClose: false,
   restoreModalAfterPictureInPicture: false,
@@ -124,6 +132,20 @@ function showScreen(name) {
   elements.loginScreen.hidden = name !== 'login';
   elements.profileScreen.hidden = name !== 'profiles';
   elements.appScreen.hidden = name !== 'app';
+}
+
+async function validatePublishedAppVersion(auth) {
+  const published = await api.appVersion(auth);
+  let cacheMatches = false;
+  try {
+    if ('serviceWorker' in navigator) await navigator.serviceWorker.ready;
+    cacheMatches = 'caches' in window && await caches.has(APP_PWA_CACHE_ID);
+  } catch { cacheMatches = false; }
+  const publishedVersionCode = String(published.appPwaVersionCode || '').toLowerCase();
+  if (published.appPwa !== APP_PWA_VERSION || publishedVersionCode !== APP_PWA_VERSION_CODE || !cacheMatches) {
+    await clearRememberedAuth().catch(() => {});
+    throw new Error(APP_VERSION_MISMATCH_MESSAGE);
+  }
 }
 
 function setAccountMenuOpen(open, restoreFocus = false) {
@@ -1130,7 +1152,7 @@ function openItem(item) {
   }
   if (item.kind === 'live') { openLiveChannel(item); return; }
   if (item.kind === 'series') { void openSeries(item); return; }
-  stopPlayback(); state.selected = item; state.candidateIndex = 0; state.selectedShowPartIndex = 0;
+  stopPlayback(); state.selected = item; state.candidateIndex = 0; state.moviePlaybackRetries = 0; state.selectedShowPartIndex = 0;
   elements.video.classList.remove('live-controls-no-seek');
   elements.video.disablePictureInPicture = true;
   state.activeSeries = null; state.activeSeriesEpisodes = []; state.seriesSeason = ''; state.favoriteEpisodesOnly = false;
@@ -1174,6 +1196,7 @@ function openItem(item) {
   elements.trailer.classList.toggle('has-trailer', hasTrailer);
   elements.trailer.title = hasTrailer ? 'Abrir trailer no YouTube' : 'Carregando trailer...';
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
+  elements.video.preload = item.kind === 'movie' ? 'auto' : 'metadata';
   elements.trailerPlayer.removeAttribute('src'); elements.trailerPlayer.hidden = true;
   elements.video.controls = true;
   elements.play.textContent = parts.length ? 'Reproduzir faixa 1' : 'Reproduzir';
@@ -1217,6 +1240,7 @@ function openLiveChannel(item) {
   if (elements.seriesDialog.open) closeSeriesDetails();
   state.selected = { ...item, kind: 'live' };
   state.candidateIndex = 0;
+  elements.openLiveScreen.hidden = false;
   elements.mediaKind.textContent = 'CANAL AO VIVO';
   elements.modalTitle.textContent = item.name || 'Canal';
   elements.modalMeta.textContent = item.category_name || 'Televisão ao vivo';
@@ -1475,7 +1499,7 @@ function stopPlayback() {
   if (elements.playerToolbar) elements.playerToolbar.hidden = true;
   elements.playerSurface.classList.remove('screen-maximized');
   elements.playerSurface.classList.remove('vertical-extra-screen');
-  elements.openLiveScreen.hidden = false;
+  elements.openLiveScreen.hidden = true;
   elements.maximizeScreen?.setAttribute('aria-pressed', 'false');
   elements.maximizeScreen?.setAttribute('aria-label', 'Maximizar ecrã');
   state.restoreModalAfterPictureInPicture = false;
@@ -1518,6 +1542,15 @@ function bindMainVideoEvents(video) {
     if (state.selected?.kind === 'live') {
       elements.playerMessage.textContent = 'A transmissão encontrou um erro. Tente trocar de canal e voltar para reconectar.';
       elements.playerMessage.classList.remove('visually-hidden');
+      return;
+    }
+    if (state.selected?.kind === 'movie' && state.moviePlaybackRetries < 1) {
+      state.moviePlaybackRetries += 1;
+      elements.playerMessage.textContent = 'Reconectando ao filme com um novo token…';
+      elements.playerMessage.classList.remove('visually-hidden');
+      window.setTimeout(() => {
+        if (state.selected?.kind === 'movie') void tryCandidate();
+      }, 750);
       return;
     }
     state.candidateIndex += 1;
@@ -1940,13 +1973,14 @@ async function tryCandidate() {
   }
   elements.playerMessage.textContent = ''; elements.play.hidden = true;
   const controller = new AbortController(); state.ticketController = controller;
-  const timer = window.setTimeout(() => controller.abort(), TICKET_TIMEOUT_MS);
+  const ticketTimeout = state.selected.kind === 'movie' ? MOVIE_TICKET_TIMEOUT_MS : TICKET_TIMEOUT_MS;
+  const timer = window.setTimeout(() => controller.abort(), ticketTimeout);
   try {
     const playbackUrl = await mediaTicket(source, controller.signal);
     if (attempt !== state.playbackAttempt || !state.session) return;
     state.screenPlaybackUrl = playbackUrl;
     const verticalExtra = Boolean(state.selected.evo_extra_episode);
-    elements.openLiveScreen.hidden = verticalExtra;
+    elements.openLiveScreen.hidden = verticalExtra || state.selected.kind !== 'live';
     elements.playerSurface.classList.toggle('vertical-extra-screen', verticalExtra);
     elements.playerToolbar.hidden = false;
     state.ticketController = null; elements.playerMessage.textContent = ''; elements.playerMessage.classList.add('visually-hidden');
@@ -2502,7 +2536,9 @@ elements.loginForm.addEventListener('submit', async (event) => {
   if (!login || !password) { elements.loginError.textContent = 'Informe login e senha para continuar.'; return; }
   setBusy(true); elements.loginError.textContent = ''; elements.loginButton.firstElementChild.textContent = 'ENTRANDO...';
   try {
-    state.auth = await api.signIn(login, password); state.account = await api.account(state.auth);
+    state.auth = await api.signIn(login, password);
+    await validatePublishedAppVersion(state.auth);
+    state.account = await api.account(state.auth);
     state.rememberDevice = elements.rememberLogin.checked;
     if (state.rememberDevice) {
       try { localStorage.setItem(SAVED_LOGIN_KEY, state.auth.login); } catch { /* opcional */ }
