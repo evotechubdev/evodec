@@ -149,7 +149,12 @@ function positionAccountMenuPanel() {
 function readableError(error) {
   const code = String(error?.message || error);
   if (['LIVE_STREAM_NOT_CONFIGURED', 'LIVE_PROVIDER_NOT_CONFIGURED', 'LIVE_LINK_MAP_UNAVAILABLE', 'LIVE_CHANNEL_LINK_MISSING'].includes(code)) return 'Canal em Manuten\u00e7\u00e3o - Tente acessar outro canal correspondente fora de Manuten\u00e7\u00e3o.';
-  if (code === 'MOVIE_TOKEN_UNAVAILABLE') return 'O servidor de filmes não forneceu o token atual. Tente novamente em alguns segundos.';
+  if (code === 'MOVIE_TOKEN_UNAVAILABLE') {
+    const status = Number(error?.providerStatus || 0);
+    return status
+      ? `O servidor de filmes não forneceu o token atual (HTTP ${status}). Tente novamente em alguns segundos.`
+      : 'O servidor de filmes não respondeu ao backend durante a obtenção do token.';
+  }
   if (code === 'MOVIE_ROUTE_CHANGED') return 'A rota deste filme mudou e precisa ser atualizada no catálogo.';
   if (code === 'SERVICE_NOT_CONFIGURED') return 'O backend do app ainda não concluiu a configuração de mídia.';
   return String(error?.message || error || 'Não foi possível concluir a operação.').replace(/\bIPTV\b/gi, 'TV');
@@ -1770,7 +1775,12 @@ async function mediaTicket(source, signal, download = false, contentItem = state
   const content = seriesMatch
     ? { kind: 'series', id: seriesMatch[1], streamId: seriesMatch[2], adult: state.adultView }
     : movieMatch ? { kind: 'movie', id: movieMatch[1], adult: state.adultView } : null;
-  let body = content ? { content, download } : { target: source, download };
+  const movieDebug = content?.kind === 'movie' && content.id === '1037202';
+  let body = content ? { content, download, ...(movieDebug ? { debugMoviePlayback: true } : {}) } : { target: source, download };
+  if (movieDebug) {
+    console.info('[EVOTV filme 1037202] 1. Clique em reproduzir recebido.', { source, content, download });
+    console.info('[EVOTV filme 1037202] 2. Solicitando token e ticket ao backend.');
+  }
   const showMatch = /^show:(\d{1,20})$/.exec(String(source));
   if (liveMatch || showMatch) {
     const idToken = await api.currentToken(state.auth);
@@ -1787,13 +1797,36 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     headers, body: JSON.stringify(body), signal,
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(String(data?.code || `HTTP_${response.status}`));
+  if (movieDebug) {
+    console.info('[EVOTV filme 1037202] 3. Resposta do backend.', {
+      status: response.status,
+      code: data?.code || '',
+      providerStatus: Number(data?.providerStatus || 0),
+    });
+    for (const entry of data?.debug?.trace || []) {
+      console.info(`[EVOTV filme 1037202] backend: ${entry.stage}`, entry);
+    }
+    if (data?.debug?.httpUrl) {
+      console.info('[EVOTV filme 1037202] 4. LINK HTTP MONTADO:', data.debug.httpUrl);
+    } else {
+      console.warn('[EVOTV filme 1037202] 4. O link HTTP ainda não foi montado.');
+    }
+  }
+  if (!response.ok) {
+    const failure = new Error(String(data?.code || `HTTP_${response.status}`));
+    failure.providerStatus = Number(data?.providerStatus || 0);
+    if (failure.message === 'MOVIE_TOKEN_UNAVAILABLE') {
+      console.warn('movie_token_unavailable', { providerStatus: failure.providerStatus || 0 });
+    }
+    throw failure;
+  }
   const playbackUrl = new URL(String(data?.playbackUrl || ''));
   const expectedPrefix = content ? '/open-vod/' : '/open-stream/';
   if (playbackUrl.protocol !== 'https:' || playbackUrl.origin !== MEDIA_PROXY_ORIGIN
     || !playbackUrl.pathname.startsWith(expectedPrefix) || playbackUrl.search || playbackUrl.hash) {
     throw new Error('INVALID_PLAYBACK_URL');
   }
+  if (movieDebug) console.info('[EVOTV filme 1037202] 5. LINK HTTPS FINAL:', playbackUrl.href);
   return playbackUrl.href;
 }
 
