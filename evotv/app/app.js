@@ -1204,31 +1204,75 @@ function openItem(item) {
   if (item.kind === 'movie') void hydrateMovieDetails(item);
 }
 
-function playCustomShowPart(index) {
+async function playCustomShowPart(index) {
   const item = state.selected;
   const part = item?.parts?.[index];
-  const videoId = String(part?.video_id || '');
-  let embedUrl;
-  try { embedUrl = new URL(String(part?.embed_url || '')); } catch { return; }
-  if (item?.kind !== 'show' || !part || !/^[A-Za-z0-9_-]+$/.test(videoId)
-    || embedUrl.origin !== 'https://anonmp4.art' || embedUrl.pathname !== `/embed/${videoId}`
-    || embedUrl.search || embedUrl.hash) return;
+  const showId = String(item?.stream_id || '');
+  const partId = String(part?.id || '');
+  if (item?.kind !== 'show' || !part || !/^S\d{5,20}$/i.test(showId)
+    || !new RegExp(`^${showId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}-\\d{1,4}$`, 'i').test(partId)) return;
   stopPlayback();
+  const attempt = state.playbackAttempt;
   state.selectedShowPartIndex = index;
   elements.showParts.querySelectorAll('[data-part-index]').forEach(button => {
     button.classList.toggle('active', Number(button.dataset.partIndex) === index);
   });
   elements.mediaKind.textContent = `SHOW · FAIXA ${index + 1}/${item.parts.length}`;
   elements.modalMeta.textContent = part.title;
-  elements.playerMessage.textContent = '';
-  elements.playerMessage.classList.add('visually-hidden');
+  elements.playerMessage.textContent = 'Preparando faixa do show...';
+  elements.playerMessage.classList.remove('visually-hidden');
   elements.trailerPlayer.title = `${item.name} — ${part.title}`;
-  elements.trailerPlayer.src = embedUrl.href;
-  elements.trailerPlayer.hidden = false;
+  elements.trailerPlayer.removeAttribute('src');
+  elements.trailerPlayer.hidden = true;
   elements.video.hidden = true;
   elements.play.hidden = true;
   elements.playerToolbar.hidden = true;
   elements.trailer.hidden = true;
+  const controller = new AbortController();
+  state.ticketController = controller;
+  const timer = window.setTimeout(() => controller.abort(), TICKET_TIMEOUT_MS);
+  try {
+    const playbackUrl = await mediaTicket(`show:${showId}:${partId}`, controller.signal);
+    if (attempt !== state.playbackAttempt || state.selected !== item) return;
+    state.ticketController = null;
+    state.screenPlaybackUrl = playbackUrl;
+    elements.video.crossOrigin = 'anonymous';
+    elements.video.controls = true;
+    elements.video.hidden = false;
+    elements.playerToolbar.hidden = false;
+    elements.openLiveScreen.hidden = true;
+    const hls = window.Hls;
+    if (hls?.isSupported?.()) {
+      const player = new hls({ enableWorker: false, lowLatencyMode: false });
+      state.hlsPlayer = player;
+      player.attachMedia(elements.video);
+      player.on(hls.Events.MEDIA_ATTACHED, () => player.loadSource(playbackUrl));
+      player.on(hls.Events.MANIFEST_PARSED, () => {
+        if (attempt === state.playbackAttempt) void playShowVideo(attempt);
+      });
+      player.on(hls.Events.ERROR, (_event, data) => {
+        if (attempt !== state.playbackAttempt || !data?.fatal) return;
+        elements.playerMessage.textContent = 'A faixa encontrou um erro ao carregar a midia HLS.';
+        elements.playerMessage.classList.remove('visually-hidden');
+        elements.play.hidden = false;
+      });
+    } else if (elements.video.canPlayType('application/vnd.apple.mpegurl')) {
+      elements.video.src = playbackUrl;
+      elements.video.load();
+      void playShowVideo(attempt);
+    } else throw new Error('SHOW_HLS_UNSUPPORTED');
+  } catch (error) {
+    if (attempt !== state.playbackAttempt) return;
+    state.ticketController = null;
+    elements.video.hidden = true;
+    elements.playerToolbar.hidden = true;
+    elements.play.hidden = false;
+    const aborted = error instanceof DOMException && error.name === 'AbortError';
+    elements.playerMessage.textContent = aborted
+      ? 'O servico demorou para preparar esta faixa. Tente novamente.'
+      : `Nao foi possivel preparar esta faixa (${readableError(error)}).`;
+    elements.playerMessage.classList.remove('visually-hidden');
+  } finally { window.clearTimeout(timer); }
 }
 
 function openLiveChannel(item) {
@@ -1843,6 +1887,7 @@ async function mediaTicket(source, signal, download = false, contentItem = state
   const liveMatch = /^live:(\d{1,20})$/.exec(String(source));
   const movieMatch = /^movie:(\d{1,20})$/.exec(String(source));
   const seriesMatch = /^series:(\d{1,20}):(\d{1,20})$/.exec(String(source));
+  const customShowPartMatch = /^show:(S\d{5,20}):(S\d{5,20}-\d{1,4})$/i.exec(String(source));
   const headers = {
     'content-type': 'application/json', 'x-evo-platform': 'web',
     'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
@@ -1858,12 +1903,14 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     console.info('[EVOTV filme 1037202] 2. Solicitando token e ticket ao backend.');
   }
   const showMatch = /^show:(\d{1,20})$/.exec(String(source));
-  if (liveMatch || showMatch) {
+  if (liveMatch || showMatch || customShowPartMatch) {
     const idToken = await api.currentToken(state.auth);
-    endpoint = showMatch ? '/api/show-ticket' : '/api/live-ticket';
+    endpoint = showMatch || customShowPartMatch ? '/api/show-ticket' : '/api/live-ticket';
     headers.authorization = `Bearer ${idToken}`;
-    body = showMatch ? { stream_id: showMatch[1], download, adult: state.adultView }
-      : { stream_id: liveMatch[1], adult: state.adultView };
+    body = customShowPartMatch
+      ? { stream_id: customShowPartMatch[1], part_id: customShowPartMatch[2], adult: state.adultView }
+      : showMatch ? { stream_id: showMatch[1], download, adult: state.adultView }
+        : { stream_id: liveMatch[1], adult: state.adultView };
   } else if (download) {
     const idToken = await api.currentToken(state.auth);
     headers.authorization = `Bearer ${idToken}`;
