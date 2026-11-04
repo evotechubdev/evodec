@@ -433,10 +433,13 @@ function isEpisodeFavorite(episode) {
   return state.favorites.has(`${state.adultView ? 'adult-' : ''}episode:${episode.episode_id}`);
 }
 
-function synopsisFrom(item = {}) {
+function synopsisText(item = {}) {
   return String(item.plot || item.description || item.overview || item.info?.plot || item.info?.description
-    || item.movie_data?.plot || item.movie_data?.description || '').trim()
-    || 'Sinopse não informada neste catálogo.';
+    || item.movie_data?.plot || item.movie_data?.description || '').trim();
+}
+
+function synopsisFrom(item = {}) {
+  return synopsisText(item) || 'Sinopse não informada neste catálogo.';
 }
 
 function trailerFrom(item = {}) {
@@ -1082,6 +1085,43 @@ async function fetchCatalog(path, idToken) {
   return data;
 }
 
+async function fetchMovieDetails(movieId) {
+  if (!/^\d{1,20}$/.test(String(movieId || ''))) throw new Error('Filme inválido.');
+  const idToken = await api.currentToken(state.auth);
+  const search = new URLSearchParams({ adult: state.adultView ? '1' : '0' });
+  const response = await fetch(`${MEDIA_BACKEND_URL}/api/catalog/movies/${encodeURIComponent(movieId)}/details?${search}`, {
+    headers: {
+      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
+      'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
+    }, credentials: 'omit', cache: 'no-store',
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(String(data?.error || `Falha nos detalhes do filme (${response.status}).`));
+  if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Resposta de detalhes do filme inválida.');
+  return data;
+}
+
+async function hydrateMovieDetails(item) {
+  try {
+    const details = await fetchMovieDetails(item.stream_id);
+    Object.assign(item, details, { kind: 'movie' });
+    if (!elements.modal.open || state.selected !== item) return;
+    elements.modalTitle.textContent = item.name || 'Sem título';
+    elements.modalSynopsis.textContent = synopsisFrom(item);
+    const image = safeImage(item.stream_icon);
+    if (image) elements.modalImage.src = image;
+    const trailer = trailerFrom(item);
+    elements.trailer.dataset.url = trailer;
+    elements.trailer.disabled = !trailer;
+    elements.trailer.classList.toggle('has-trailer', Boolean(trailer));
+    elements.trailer.title = trailer ? 'Abrir trailer no YouTube' : 'Trailer não informado';
+  } catch {
+    if (!elements.modal.open || state.selected !== item) return;
+    elements.modalSynopsis.textContent = synopsisFrom(item);
+    elements.trailer.title = 'Trailer não informado';
+  }
+}
+
 function openItem(item) {
   if (!state.session) return;
   if (item.kind === 'game') {
@@ -1099,7 +1139,8 @@ function openItem(item) {
   elements.play.textContent = 'Reproduzir';
   elements.modalMeta.textContent = item.category_name || (item.kind === 'show' ? 'Shows' : 'Filme');
   elements.modalSynopsis.hidden = false;
-  elements.modalSynopsis.textContent = synopsisFrom(item);
+  elements.modalSynopsis.textContent = item.kind === 'movie' && !synopsisText(item)
+    ? 'Carregando sinopse...' : synopsisFrom(item);
   if (!elements.showParts) {
     elements.showParts = document.createElement('div');
     elements.showParts.id = 'show-parts';
@@ -1131,11 +1172,13 @@ function openItem(item) {
   elements.trailer.hidden = item.kind === 'show';
   elements.trailer.disabled = !hasTrailer;
   elements.trailer.classList.toggle('has-trailer', hasTrailer);
+  elements.trailer.title = hasTrailer ? 'Abrir trailer no YouTube' : 'Carregando trailer...';
   elements.video.removeAttribute('src'); elements.video.load(); elements.video.hidden = true; elements.play.hidden = false;
   elements.trailerPlayer.removeAttribute('src'); elements.trailerPlayer.hidden = true;
   elements.video.controls = true;
   elements.play.textContent = parts.length ? 'Reproduzir faixa 1' : 'Reproduzir';
   elements.modal.showModal();
+  if (item.kind === 'movie') void hydrateMovieDetails(item);
 }
 
 function playCustomShowPart(index) {
