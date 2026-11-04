@@ -147,8 +147,11 @@ function positionAccountMenuPanel() {
 }
 
 function readableError(error) {
-  if (['LIVE_STREAM_NOT_CONFIGURED', 'LIVE_PROVIDER_NOT_CONFIGURED', 'LIVE_LINK_MAP_UNAVAILABLE', 'LIVE_CHANNEL_LINK_MISSING'].includes(String(error?.message || error))) return 'Canal em Manuten\u00e7\u00e3o - Tente acessar outro canal correspondente fora de Manuten\u00e7\u00e3o.';
-  if (String(error?.message || error) === 'SERVICE_NOT_CONFIGURED') return 'O backend do app ainda não concluiu a configuração de mídia.';
+  const code = String(error?.message || error);
+  if (['LIVE_STREAM_NOT_CONFIGURED', 'LIVE_PROVIDER_NOT_CONFIGURED', 'LIVE_LINK_MAP_UNAVAILABLE', 'LIVE_CHANNEL_LINK_MISSING'].includes(code)) return 'Canal em Manuten\u00e7\u00e3o - Tente acessar outro canal correspondente fora de Manuten\u00e7\u00e3o.';
+  if (code === 'MOVIE_TOKEN_UNAVAILABLE') return 'O servidor de filmes não forneceu o token atual. Tente novamente em alguns segundos.';
+  if (code === 'MOVIE_ROUTE_CHANGED') return 'A rota deste filme mudou e precisa ser atualizada no catálogo.';
+  if (code === 'SERVICE_NOT_CONFIGURED') return 'O backend do app ainda não concluiu a configuração de mídia.';
   return String(error?.message || error || 'Não foi possível concluir a operação.').replace(/\bIPTV\b/gi, 'TV');
 }
 
