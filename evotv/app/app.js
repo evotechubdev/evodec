@@ -1902,12 +1902,10 @@ async function mediaTicket(source, signal, download = false, contentItem = state
   const content = seriesMatch
     ? { kind: 'series', id: seriesMatch[1], streamId: seriesMatch[2], adult: state.adultView }
     : movieMatch ? { kind: 'movie', id: movieMatch[1], adult: state.adultView } : null;
-  const movieDebug = content?.kind === 'movie' && content.id === '1037202';
-  let body = content ? { content, download, ...(movieDebug ? { debugMoviePlayback: true } : {}) } : { target: source, download };
-  if (movieDebug) {
-    console.info('[EVOTV filme 1037202] 1. Clique em reproduzir recebido.', { source, content, download });
-    console.info('[EVOTV filme 1037202] 2. Solicitando token e ticket ao backend.');
-  }
+  let debugLabel = content?.kind === 'series'
+    ? `série ${content.id}, episódio ${content.streamId}`
+    : content?.kind === 'movie' ? `filme ${content.id}` : '';
+  let body = content ? { content, download, debugMediaPlayback: true } : { target: source, download };
   const showMatch = /^show:(\d{1,20})$/.exec(String(source));
   if (liveMatch || showMatch || customShowPartMatch) {
     const idToken = await api.currentToken(state.auth);
@@ -1916,37 +1914,46 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     body = customShowPartMatch
       ? { stream_id: customShowPartMatch[1], part_id: customShowPartMatch[2], adult: state.adultView }
       : showMatch ? { stream_id: showMatch[1], download, adult: state.adultView }
-        : { stream_id: liveMatch[1], adult: state.adultView };
+        : { stream_id: liveMatch[1], adult: state.adultView, debugLivePlayback: true };
+    if (liveMatch) debugLabel = `canal ${liveMatch[1]}`;
   } else if (download) {
     const idToken = await api.currentToken(state.auth);
     headers.authorization = `Bearer ${idToken}`;
+  }
+  if (debugLabel) {
+    console.groupCollapsed(`[EVOTV diagnóstico ${debugLabel}]`);
+    console.info('1. Solicitando captura do token sem seguir a reprodução.', { source, content, download, endpoint });
   }
   const response = await fetch(`${MEDIA_BACKEND_URL}${endpoint}`, {
     method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
     headers, body: JSON.stringify(body), signal,
   });
   const data = await response.json().catch(() => ({}));
-  if (movieDebug) {
-    console.info('[EVOTV filme 1037202] 3. Resposta do backend.', {
+  if (debugLabel) {
+    console.info('2. Resposta do backend.', {
       status: response.status,
       code: data?.code || '',
       providerStatus: Number(data?.providerStatus || 0),
     });
     for (const entry of data?.debug?.trace || []) {
-      console.info(`[EVOTV filme 1037202] backend: ${entry.stage}`, entry);
+      console.info(`backend: ${entry.stage}`, entry);
     }
     if (data?.debug?.httpUrl) {
-      console.info('[EVOTV filme 1037202] 4. LINK HTTP MONTADO:', data.debug.httpUrl);
+      console.info('3. LINK HTTP COMPLETO MONTADO PELO SISTEMA:', data.debug.httpUrl);
     } else {
-      console.warn('[EVOTV filme 1037202] 4. O link HTTP ainda não foi montado.');
+      console.warn('3. O backend não conseguiu montar o link HTTP porque nenhum token válido foi capturado.');
     }
   }
   if (!response.ok) {
     const failure = new Error(String(data?.code || `HTTP_${response.status}`));
     failure.providerStatus = Number(data?.providerStatus || 0);
-    if (failure.message === 'MOVIE_TOKEN_UNAVAILABLE') {
-      console.warn('movie_token_unavailable', { providerStatus: failure.providerStatus || 0 });
+    if (['MOVIE_TOKEN_UNAVAILABLE', 'SERIES_TOKEN_UNAVAILABLE', 'LIVE_TOKEN_UNAVAILABLE'].includes(failure.message)) {
+      console.warn('media_token_unavailable', {
+        kind: content?.kind || (liveMatch ? 'live' : ''),
+        providerStatus: failure.providerStatus || 0,
+      });
     }
+    if (debugLabel) console.groupEnd();
     throw failure;
   }
   const playbackUrl = new URL(String(data?.playbackUrl || ''));
@@ -1955,7 +1962,11 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     || !playbackUrl.pathname.startsWith(expectedPrefix) || playbackUrl.search || playbackUrl.hash) {
     throw new Error('INVALID_PLAYBACK_URL');
   }
-  if (movieDebug) console.info('[EVOTV filme 1037202] 5. LINK HTTPS FINAL:', playbackUrl.href);
+  if (debugLabel) {
+    console.info('4. LINK HTTPS FINAL ENTREGUE AO PLAYER:', playbackUrl.href);
+    console.warn('Os links exibidos neste grupo contêm tokens temporários de acesso.');
+    console.groupEnd();
+  }
   return playbackUrl.href;
 }
 
