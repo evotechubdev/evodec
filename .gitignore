@@ -11,8 +11,6 @@ pages-dist/
 
 # Catálogos e diagnósticos gerados localmente (podem conter URLs diretas)
 /tmp/
-evotv/pwa-secundario/data/vod-direct-catalog*.json
-evotv/pwa-secundario/data/vod-direct-catalog*.jsonl
 **/login-e-senha.txt
 **/dados-login.txt
 
