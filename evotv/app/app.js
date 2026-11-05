@@ -1957,9 +1957,9 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     throw failure;
   }
   const playbackUrl = new URL(String(data?.playbackUrl || ''));
-  const expectedPrefix = content ? '/open-vod/' : '/open-stream/';
+  const expectedPrefixes = content ? ['/open-vod/', '/open-stream/'] : ['/open-stream/'];
   if (playbackUrl.protocol !== 'https:' || playbackUrl.origin !== MEDIA_PROXY_ORIGIN
-    || !playbackUrl.pathname.startsWith(expectedPrefix) || playbackUrl.search || playbackUrl.hash) {
+    || !expectedPrefixes.some(prefix => playbackUrl.pathname.startsWith(prefix)) || playbackUrl.search || playbackUrl.hash) {
     throw new Error('INVALID_PLAYBACK_URL');
   }
   if (debugLabel) {
