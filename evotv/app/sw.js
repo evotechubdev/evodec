@@ -1,5 +1,5 @@
 // Atualizacao Marte-04: captura atual de tokens rauth/vauth antes da reproducao.
-const CACHE = 'Marte-04-live-token-20261105';
+const CACHE = 'Marte-046eae0809cfa968ff4d8fd61a68cf1772eb4cabb830ae13fab958cecbe7e7cdb3';
 const ISOLATION_CACHE = 'evotv-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
 const APP_SHELL = [
