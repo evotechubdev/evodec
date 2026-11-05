@@ -171,6 +171,12 @@ function positionAccountMenuPanel() {
 function readableError(error) {
   const code = String(error?.message || error);
   if (['LIVE_STREAM_NOT_CONFIGURED', 'LIVE_PROVIDER_NOT_CONFIGURED', 'LIVE_LINK_MAP_UNAVAILABLE', 'LIVE_CHANNEL_LINK_MISSING'].includes(code)) return 'Canal em Manuten\u00e7\u00e3o - Tente acessar outro canal correspondente fora de Manuten\u00e7\u00e3o.';
+  if (code === 'LIVE_TOKEN_UNAVAILABLE') {
+    const status = Number(error?.providerStatus || 0);
+    return status
+      ? `O servidor de canais nÃ£o forneceu o token atual (HTTP ${status}). Tente novamente em alguns segundos.`
+      : 'O servidor de canais nÃ£o respondeu ao backend durante a obtenÃ§Ã£o do token.';
+  }
   if (code === 'MOVIE_TOKEN_UNAVAILABLE') {
     const status = Number(error?.providerStatus || 0);
     return status

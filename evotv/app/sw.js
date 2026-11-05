@@ -1,5 +1,5 @@
-// Atualizacao Marte-03: reproducao isolada das faixas de shows pelo proxy seguro.
-const CACHE = 'Marte-03a7a32d2a1c2d8319f224575e2ab0c791b38a15cbf4eb0c1b8e912b18a1afa1c9';
+// Atualizacao Marte-04: captura atual de tokens rauth/vauth antes da reproducao.
+const CACHE = 'Marte-04-live-token-20261105';
 const ISOLATION_CACHE = 'evotv-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
 const APP_SHELL = [
