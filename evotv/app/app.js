@@ -174,8 +174,8 @@ function readableError(error) {
   if (code === 'LIVE_TOKEN_UNAVAILABLE') {
     const status = Number(error?.providerStatus || 0);
     return status
-      ? `O servidor de canais nÃ£o forneceu o token atual (HTTP ${status}). Tente novamente em alguns segundos.`
-      : 'O servidor de canais nÃ£o respondeu ao backend durante a obtenÃ§Ã£o do token.';
+      ? `O servidor de canais n\u00e3o forneceu o token atual (HTTP ${status}). Tente novamente em alguns segundos.`
+      : 'O servidor de canais n\u00e3o respondeu ao backend durante a obten\u00e7\u00e3o do token.';
   }
   if (code === 'MOVIE_TOKEN_UNAVAILABLE') {
     const status = Number(error?.providerStatus || 0);
