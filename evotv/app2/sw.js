@@ -1,4 +1,4 @@
-// Atualizacao Marte-03: reproducao isolada das faixas de shows pelo proxy seguro.
+// Atualizacao Marte-04: reproducao isolada das faixas de shows pelo proxy seguro.
 const CACHE = 'app2-Marte-046eae0809cfa968ff4d8fd61a68cf1772eb4cabb830ae13fab958cecbe7e7cdb3';
 const ISOLATION_CACHE = 'evotv-app2-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
