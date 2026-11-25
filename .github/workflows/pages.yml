@@ -29,12 +29,15 @@ jobs:
           mkdir -p pages-dist/evotv
           cp index.html pages-dist/index.html
           cp -R public pages-dist/public
-          cp evotv/index.html pages-dist/evotv/index.html
+          cp -R evotv/app2/. pages-dist/evotv/
           cp -R evotv/app pages-dist/evotv/app
           cp -R evotv/app2 pages-dist/evotv/app2
           cp -R evotv/adm pages-dist/evotv/adm
           test -f pages-dist/index.html
           test -f pages-dist/public/imagens/EVODEC-logo.png
+          test -f pages-dist/evotv/index.html
+          test -f pages-dist/evotv/manifest.webmanifest
+          test -f pages-dist/evotv/sw.js
           test -f pages-dist/evotv/app/index.html
           test -f pages-dist/evotv/app2/index.html
           test -f pages-dist/evotv/adm/index.html
