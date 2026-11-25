@@ -140,7 +140,24 @@ function renderReelShortCatalog(series = []) {
     const copy = document.createElement('div');
     const title = document.createElement('strong'); title.textContent = item.name || 'Mininovela';
     const meta = document.createElement('span'); meta.textContent = `${Number(item.totalEpisodes) || 0} episódios${item.status ? ` · ${item.status}` : ''}`;
-    copy.append(title, meta); article.append(image, copy); root.append(article);
+    copy.append(title, meta); article.append(image, copy);
+    if (item.canDelete) {
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger reelshort-remove'; remove.textContent = 'Excluir';
+      remove.addEventListener('click', async () => {
+        if (!window.confirm(`Excluir “${item.name}” do catálogo? Esta ação remove a importação e permite importar novamente.`)) return;
+        remove.disabled = true;
+        try {
+          await request(`/api/admin/reelshort/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
+          const data = await request('/api/admin/reelshort'); renderReelShortCatalog(data.series || []);
+          $('#reelshort-status').textContent = `“${item.name}” foi excluída. Agora você pode corrigir o link e importar novamente.`;
+          $('#reelshort-status').className = 'success';
+        } catch (error) {
+          $('#reelshort-status').textContent = error.message; $('#reelshort-status').className = 'error'; remove.disabled = false;
+        }
+      });
+      article.append(remove);
+    }
+    root.append(article);
   }
   if (!series.length) root.textContent = 'Nenhuma mininovela cadastrada.';
 }

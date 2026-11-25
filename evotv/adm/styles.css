@@ -73,6 +73,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .reelshort-catalog article { min-width: 0; display: flex; align-items: center; gap: 11px; padding: 9px; border: 1px solid #ffffff12; border-radius: 10px; background: #080c13; }
 .reelshort-catalog img { width: 48px; height: 66px; flex: 0 0 auto; border-radius: 7px; object-fit: cover; background: #111722; }
 .reelshort-catalog article div { min-width: 0; display: grid; gap: 5px; }
+.reelshort-catalog .reelshort-remove { margin-left: auto; padding: 7px 9px; flex: 0 0 auto; font-size: 11px; }
 .reelshort-catalog strong, .reelshort-catalog span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reelshort-catalog strong { font-size: 13px; }
 .reelshort-catalog span { color: #8e9aac; font-size: 11px; }
