@@ -17,12 +17,13 @@
     <div class="login-atmosphere" aria-hidden="true"><span class="orb orb-one"></span><span class="orb orb-two"></span><div class="signal-lines"></div></div>
     <section id="login-panel" class="login-panel" aria-labelledby="login-title">
       <img class="login-logo" src="../app/assets/logo_evotv.png" alt="EVOTV">
-      <div class="login-heading"><span>PAINEL ADMINISTRATIVO</span><h2 id="login-title">Acesso Administrativo</h2><p>Escolha o módulo e use o mesmo login cadastrado na EVOTV.</p></div>
+      <div class="login-heading"><span id="login-title">PAINEL ADMINISTRATIVO</span></div>
       <form id="login-form" novalidate>
         <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" required><option value="home-news">Novidades da Home</option></select></span></label>
         <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="password" placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
         <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
-        <button class="primary-button" type="submit"><span>ENTRAR NO PAINEL</span><span aria-hidden="true">→</span></button>
+        <label class="show-password"><input id="show-password" type="checkbox"><span>Exibir Senha</span></label>
+        <button class="primary-button" type="submit">Entrar</button>
       </form>
     </section>
     <section id="module-panel" class="panel module-panel" hidden>

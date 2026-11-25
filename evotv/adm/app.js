@@ -83,6 +83,7 @@ $('#login-form').addEventListener('submit', async event => {
   finally { button.disabled = false; button.textContent = 'Acessar painel'; }
 });
 $('#module-select').addEventListener('change', event => openModule(event.target.value).catch(error => alert(error.message)));
+$('#show-password').addEventListener('change', event => { $('#password').type = event.target.checked ? 'text' : 'password'; });
 $('#add-card').addEventListener('click', () => { if (items.length < 5) { items.push(blank()); render(); } });
 $('#publish').addEventListener('click', async () => {
   const button = $('#publish'); button.disabled = true; message('Publicando...');
@@ -94,5 +95,5 @@ $('#publish').addEventListener('click', async () => {
   finally { button.disabled = false; }
 });
 $('#logout').addEventListener('click', () => {
-  token = ''; items = []; modules = []; document.body.classList.remove('authenticated'); $('#editor-panel').hidden = true; $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; $('#password').value = ''; message();
+  token = ''; items = []; modules = []; document.body.classList.remove('authenticated'); $('#editor-panel').hidden = true; $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; $('#password').value = ''; $('#password').type = 'password'; $('#show-password').checked = false; message();
 });

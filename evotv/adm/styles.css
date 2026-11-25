@@ -52,27 +52,29 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 }
 
 body:not(.authenticated) .topbar { display: none; }
-body:not(.authenticated) main { width: 100%; min-height: 100vh; margin: 0; padding: 32px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 12%, #10294b 0, #0a0c11 43%, #060709 82%); }
+body:not(.authenticated) main { width: 100%; height: 100vh; min-height: 520px; margin: 0; padding: 16px; display: grid; place-items: center; overflow: hidden; background: radial-gradient(circle at 50% 12%, #10294b 0, #0a0c11 43%, #060709 82%); }
 .login-atmosphere { position: fixed; inset: 0; pointer-events: none; overflow: hidden; }
 .signal-lines { position: absolute; inset: 0; opacity: .13; background-image: linear-gradient(rgba(37,216,255,.17) 1px, transparent 1px), linear-gradient(90deg, rgba(37,216,255,.1) 1px, transparent 1px); background-size: 85px 85px; mask-image: radial-gradient(circle at center, black, transparent 72%); }
 .orb { position: absolute; width: 430px; aspect-ratio: 1; border-radius: 50%; filter: blur(70px); opacity: .17; }
 .orb-one { left: -180px; top: -140px; background: #007bff; }
 .orb-two { right: -180px; bottom: -180px; background: #25d8ff; }
-.login-panel { position: relative; z-index: 1; width: min(430px, 100%); margin: 0; padding: 34px 38px 28px; border: 1px solid rgba(255,255,255,.1); border-radius: 22px; background: linear-gradient(160deg, rgba(21,25,33,.96), rgba(10,12,17,.97)); box-shadow: 0 32px 100px rgba(0,0,0,.5); }
-.login-logo { display: block; width: 190px; height: 70px; margin: 0 auto 12px; object-fit: contain; }
+.login-panel { position: relative; z-index: 1; width: min(390px, 100%); margin: 0; padding: 22px 32px 24px; border: 1px solid rgba(255,255,255,.1); border-radius: 20px; background: linear-gradient(160deg, rgba(21,25,33,.96), rgba(10,12,17,.97)); box-shadow: 0 32px 100px rgba(0,0,0,.5); }
+.login-logo { display: block; width: 190px; height: 70px; margin: 0 auto 5px; object-fit: contain; }
 .login-heading { text-align: center; }
 .login-heading > span { color: #25d8ff; font-size: 10px; font-weight: 800; letter-spacing: .16em; }
 .login-heading h2 { margin: 7px 0 8px; font-size: 24px; letter-spacing: -.04em; }
 .login-heading p { margin: 0 0 24px; color: #949aa5; font-size: 12px; }
 #login-form { width: min(100%, 310px); margin-inline: auto; }
-.field { gap: 7px; margin-top: 15px; color: #bdc2cb; font-size: 10px; font-weight: 750; letter-spacing: .08em; }
-.input-shell { min-height: 46px; display: flex; align-items: center; padding: 0 13px; border: 1px solid #ffffff1f; border-radius: 9px; background: #191c22; }
+.field { gap: 5px; margin-top: 10px; color: #bdc2cb; font-size: 10px; font-weight: 750; letter-spacing: .08em; }
+.input-shell { min-height: 40px; display: flex; align-items: center; padding: 0 12px; border: 1px solid #ffffff1f; border-radius: 9px; background: #191c22; }
 .input-shell:focus-within { border-color: #168cff; box-shadow: 0 0 0 3px rgba(0,109,255,.12); }
-.input-shell input, .input-shell select { height: 42px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
-.primary-button { width: 100%; min-height: 44px; margin-top: 20px; display: flex; align-items: center; justify-content: space-between; }
+.input-shell input, .input-shell select { height: 38px; min-height: 0; padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.show-password { display: flex; align-items: center; grid-template-columns: auto 1fr; gap: 8px; margin-top: 2px; color: #aeb8c7; font-size: 11px; font-weight: 500; }
+.show-password input { width: 15px; height: 15px; padding: 0; accent-color: #168fff; }
+.primary-button { width: 140px; min-height: 40px; margin: 4px auto 0; display: block; text-align: center; }
 body.authenticated .login-atmosphere { display: none; }
 @media (max-width: 700px) {
-  body:not(.authenticated) main { padding: 18px; }
-  .login-panel { padding: 26px 22px 23px; }
-  .login-logo { width: 160px; }
+  body:not(.authenticated) main { padding: 10px; }
+  .login-panel { padding: 18px 22px 20px; }
+  .login-logo { width: 160px; height: 70px; }
 }
