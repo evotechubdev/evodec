@@ -84,7 +84,7 @@ $('#login-form').addEventListener('submit', async event => {
     document.body.classList.add('authenticated'); $('#login-panel').hidden = true; $('#module-panel').hidden = false; $('#logout').hidden = false;
     await openModule(selectedModule);
   } catch (error) { token = ''; modules = []; alert(error.message); }
-  finally { button.disabled = false; button.textContent = 'Acessar painel'; }
+  finally { button.disabled = false; button.textContent = 'Entrar'; }
 });
 $('#module-select').addEventListener('change', event => openModule(event.target.value).catch(error => alert(error.message)));
 $('#show-password').addEventListener('change', event => { $('#password').type = event.target.checked ? 'text' : 'password'; });
