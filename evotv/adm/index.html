@@ -4,26 +4,32 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com; object-src 'none'; base-uri 'none'; form-action 'self'">
-  <title>EVOTV · Administrar Novidades</title>
+  <title>EVOTV · Painel Administrativo</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="topbar">
     <img src="../app/assets/logo_evotv.png" alt="EVOTV">
-    <div><span>PAINEL ADMINISTRATIVO</span><h1>Novidades da Home</h1></div>
+    <div><span>PAINEL ADMINISTRATIVO</span><h1 id="page-title">Central de Módulos</h1></div>
     <button id="logout" class="secondary" type="button" hidden>Sair</button>
   </header>
   <main>
-    <section id="login-panel" class="panel login-panel">
-      <h2>Entrar</h2>
-      <p>Use um e-mail cadastrado no Firebase Auth e autorizado em <code>EVOTV_ACESSOS_ADMIN_1</code>.</p>
-      <form id="login-form">
-        <label>E-mail<input id="email" type="email" autocomplete="username" required></label>
-        <label>Senha<input id="password" type="password" autocomplete="current-password" required></label>
-        <button type="submit">Acessar painel</button>
+    <div class="login-atmosphere" aria-hidden="true"><span class="orb orb-one"></span><span class="orb orb-two"></span><div class="signal-lines"></div></div>
+    <section id="login-panel" class="login-panel" aria-labelledby="login-title">
+      <img class="login-logo" src="../app/assets/logo_evotv.png" alt="EVOTV">
+      <div class="login-heading"><span>PAINEL ADMINISTRATIVO</span><h2 id="login-title">Acesso Administrativo</h2><p>Escolha o módulo e use o mesmo login cadastrado na EVOTV.</p></div>
+      <form id="login-form" novalidate>
+        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" required><option value="home-news">Novidades da Home</option></select></span></label>
+        <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="password" placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
+        <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
+        <button class="primary-button" type="submit"><span>ENTRAR NO PAINEL</span><span aria-hidden="true">→</span></button>
       </form>
     </section>
-    <section id="editor-panel" class="panel" hidden>
+    <section id="module-panel" class="panel module-panel" hidden>
+      <label>Módulo<select id="module-select" aria-label="Selecionar módulo administrativo"></select></label>
+      <p>Somente os módulos autorizados para este login são exibidos.</p>
+    </section>
+    <section id="editor-panel" class="panel module-content" hidden>
       <div class="editor-heading">
         <div><h2>Cards publicados</h2><p>Cadastre entre 1 e 5 itens. As alterações aparecem no PC e Android sem reinstalação.</p></div>
         <button id="add-card" class="secondary" type="button">+ Adicionar card</button>
