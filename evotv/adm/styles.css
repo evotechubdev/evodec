@@ -51,8 +51,8 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .resize-options > span[hidden] { display: none; }
 .resize-options input { width: 92px; }
 .hero-preview { position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid #ffffff17; border-radius: 11px; background: #030509; }
-.hero-preview-shade { position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(5,8,13,.18) 35%, rgba(5,8,13,.8) 62%, rgba(5,8,13,.9) 100%); }
-.hero-preview-copy { position: absolute; inset: 0 0 0 auto; width: 54%; display: flex; flex-direction: column; justify-content: center; padding: clamp(16px, 3vw, 38px); border-left: 1px solid #ffffff12; background: rgba(7,10,15,.32); backdrop-filter: blur(2px); }
+.hero-preview-shade { position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, rgba(5,8,13,.1) 38%, rgba(5,8,13,.42) 64%, rgba(5,8,13,.6) 100%); }
+.hero-preview-copy { position: absolute; inset: 0 0 0 auto; width: 52%; display: flex; flex-direction: column; justify-content: center; padding: clamp(16px, 3vw, 38px); border-left: 1px solid #ffffff12; background: rgba(7,10,15,.34); backdrop-filter: blur(1px); }
 .hero-preview-copy h3 { margin: 0 0 10px; color: #fff; font-size: clamp(18px, 2.3vw, 30px); line-height: 1.15; }
 .hero-preview-copy p { margin: 0 0 16px; color: #e0e4ec; font-size: clamp(11px, 1.1vw, 14px); line-height: 1.5; }
 .hero-preview-copy span { width: max-content; padding: 10px 14px; border-radius: 8px; color: #fff; background: linear-gradient(135deg,#168fff,#0759d8); font-size: 12px; font-weight: 800; }
