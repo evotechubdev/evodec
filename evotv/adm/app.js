@@ -123,7 +123,7 @@ function hideModulePanels() {
   $('#downloads-panel').hidden = true;
 }
 function reelShortLinks() {
-  return [...new Set($('#reelshort-links').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))];
+  return $('#reelshort-links').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
 }
 function updateReelShortCount() {
   const count = reelShortLinks().length;
@@ -147,7 +147,13 @@ function renderReelShortCatalog(series = []) {
 function renderImportResult(job) {
   const root = $('#reelshort-results'); root.replaceChildren();
   for (const item of job.imported || []) {
-    const line = document.createElement('p'); line.className = 'success'; line.textContent = `✓ ${item.name} · ${item.totalEpisodes} episódios`; root.append(line);
+    const line = document.createElement('p'); line.className = 'success';
+    const unavailable = Number(item.unavailableEpisodes) || 0;
+    line.textContent = `✓ Importada: ${item.name} · ${item.totalEpisodes} episódios${unavailable ? ` · ${unavailable} episódio(s) sem fonte ignorado(s)` : ''}`;
+    root.append(line);
+  }
+  for (const item of job.ignored || []) {
+    const line = document.createElement('p'); line.className = 'ignored'; line.textContent = `Linha ${item.index} ignorada: ${item.reason}`; root.append(line);
   }
   for (const item of job.rejected || []) {
     const line = document.createElement('p'); line.className = 'error'; line.textContent = `Linha ${item.index}: ${item.reason}`; root.append(line);
@@ -207,7 +213,7 @@ async function monitorReelShortImport(jobId) {
     $('#reelshort-progress').textContent = progress.total ? `${Math.min(Number(progress.index) || 0, progress.total)}/${progress.total} · ${progressLabel}` : '';
     renderImportResult(job);
     if (job.status === 'complete') {
-      $('#reelshort-status').textContent = `Importação concluída. ${job.imported.length} atualizada(s), ${job.rejected.length} rejeitada(s).`;
+      $('#reelshort-status').textContent = `Importação concluída: ${job.imported.length} importada(s), ${(job.ignored || []).length} ignorada(s) e ${job.rejected.length} com erro.`;
       $('#reelshort-status').className = 'success';
       currentImportJob = ''; $('#import-reelshort').disabled = false;
       const catalog = await request('/api/admin/reelshort'); renderReelShortCatalog(catalog.series || []);

@@ -82,6 +82,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 #status { color: #b8c4d4; font-size: 13px; }
 .error { color: #ff9cac !important; }
 .success { color: #7be6a8 !important; }
+.ignored { color: #ffd36e !important; }
 @media (max-width: 700px) {
   .topbar img { width: 92px; }
   .topbar h1 { font-size: 18px; }
