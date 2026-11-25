@@ -6,6 +6,7 @@ const $ = selector => document.querySelector(selector);
 let token = '';
 let items = [];
 let modules = [];
+let uploads = 0;
 
 function clearPassword() { $('#password').value = ''; $('#password').type = 'password'; $('#show-password').checked = false; }
 clearPassword();
@@ -24,6 +25,13 @@ async function request(path, options = {}) {
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a operação.');
   return data;
 }
+async function uploadImage(file) {
+  if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Selecione uma imagem JPEG, PNG ou WebP de até 5 MB.');
+  const response = await fetch(`${BACKEND}/api/admin/news/image`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': file.type }, body: file });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.imageUrl) throw new Error(data.error || 'Não foi possível enviar a imagem.');
+  return data.imageUrl;
+}
 function blank() { return { id: `novidade-${items.length + 1}`, title: '', cardImage: '', featureImage: '', information: '' }; }
 function render() {
   const root = $('#cards'); root.replaceChildren();
@@ -40,6 +48,19 @@ function render() {
       });
     }
     for (const image of node.querySelectorAll('[data-preview]')) image.src = item[image.dataset.preview] || '';
+    for (const input of node.querySelectorAll('[data-upload]')) {
+      const field = input.dataset.upload;
+      const uploadStatus = node.querySelector(`[data-upload-status="${field}"]`);
+      if (item[field]) uploadStatus.textContent = 'Imagem atual cadastrada. Selecione outra para substituir.';
+      input.addEventListener('change', async () => {
+        const file = input.files?.[0]; if (!file) return;
+        uploads += 1; $('#publish').disabled = true; input.disabled = true; uploadStatus.textContent = 'Enviando imagem…';
+        try {
+          item[field] = await uploadImage(file); node.querySelector(`[data-preview="${field}"]`).src = item[field]; uploadStatus.textContent = 'Imagem enviada e cadastrada com sucesso.';
+        } catch (error) { input.value = ''; uploadStatus.textContent = error.message; }
+        finally { uploads -= 1; input.disabled = false; $('#publish').disabled = uploads > 0; }
+      });
+    }
     node.querySelector('[data-action="up"]').disabled = index === 0;
     node.querySelector('[data-action="down"]').disabled = index === items.length - 1;
     node.querySelector('[data-action="remove"]').disabled = items.length === 1;
@@ -90,6 +111,7 @@ $('#module-select').addEventListener('change', event => openModule(event.target.
 $('#show-password').addEventListener('change', event => { $('#password').type = event.target.checked ? 'text' : 'password'; });
 $('#add-card').addEventListener('click', () => { if (items.length < 5) { items.push(blank()); render(); } });
 $('#publish').addEventListener('click', async () => {
+  if (uploads > 0) return;
   const button = $('#publish'); button.disabled = true; message('Publicando...');
   try {
     const payload = items.map(({ id, title, cardImage, featureImage, information }) => ({ id: slug(id), title: title.trim(), cardImage: cardImage.trim(), featureImage: featureImage.trim(), information: information.trim() }));
