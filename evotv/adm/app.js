@@ -34,7 +34,7 @@ async function uploadImage(file) {
 }
 async function resizedImage(file, field, mode, width, height) {
   if (mode === 'original') return file;
-  const automatic = field === 'featureImage' ? [1330, 750] : [600, 825];
+  const automatic = field === 'featureImage' ? [1125, 400] : [600, 825];
   const targetWidth = Math.max(240, Math.min(3200, Number(mode === 'manual' ? width : automatic[0]) || automatic[0]));
   const targetHeight = Math.max(180, Math.min(2400, Number(mode === 'manual' ? height : automatic[1]) || automatic[1]));
   const bitmap = await createImageBitmap(file);
