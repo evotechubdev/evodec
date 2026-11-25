@@ -32,7 +32,8 @@ async function uploadImage(file) {
   if (!response.ok || !data.imageUrl) throw new Error(data.error || 'Não foi possível enviar a imagem.');
   return data.imageUrl;
 }
-function blank() { return { id: `novidade-${items.length + 1}`, title: '', cardImage: '', featureImage: '', information: '' }; }
+function automaticId() { return `novidade-${Date.now().toString(36)}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`.slice(0, 64); }
+function blank() { return { id: automaticId(), title: '', cardImage: '', featureImage: '', information: '' }; }
 function render() {
   const root = $('#cards'); root.replaceChildren();
   items.forEach((item, index) => {
@@ -42,9 +43,7 @@ function render() {
       const field = input.dataset.field; input.value = item[field] || '';
       input.addEventListener('input', () => {
         item[field] = input.value;
-        if (field === 'title' && !item.idEdited) { item.id = slug(input.value) || `novidade-${index + 1}`; node.querySelector('[data-field="id"]').value = item.id; }
-        if (field === 'id') item.idEdited = true;
-        if (field === 'cardImage' || field === 'featureImage') node.querySelector(`[data-preview="${field}"]`).src = input.value;
+        if (!item.id) item.id = automaticId();
       });
     }
     for (const image of node.querySelectorAll('[data-preview]')) image.src = item[image.dataset.preview] || '';
@@ -56,9 +55,20 @@ function render() {
         const file = input.files?.[0]; if (!file) return;
         uploads += 1; $('#publish').disabled = true; input.disabled = true; uploadStatus.textContent = 'Enviando imagem…';
         try {
-          item[field] = await uploadImage(file); node.querySelector(`[data-preview="${field}"]`).src = item[field]; uploadStatus.textContent = 'Imagem enviada e cadastrada com sucesso.';
+          item[field] = await uploadImage(file); node.querySelector(`[data-preview="${field}"]`).src = item[field]; node.querySelector(`[data-remove-image="${field}"]`).hidden = false; uploadStatus.textContent = 'Imagem enviada e cadastrada com sucesso.';
         } catch (error) { input.value = ''; uploadStatus.textContent = error.message; }
         finally { uploads -= 1; input.disabled = false; $('#publish').disabled = uploads > 0; }
+      });
+    }
+    for (const button of node.querySelectorAll('[data-remove-image]')) {
+      const field = button.dataset.removeImage;
+      button.hidden = !item[field];
+      button.addEventListener('click', () => {
+        item[field] = '';
+        const preview = node.querySelector(`[data-preview="${field}"]`); preview.removeAttribute('src');
+        const input = node.querySelector(`[data-upload="${field}"]`); input.value = '';
+        node.querySelector(`[data-upload-status="${field}"]`).textContent = 'Imagem removida. Selecione outra antes de publicar.';
+        button.hidden = true;
       });
     }
     node.querySelector('[data-action="up"]').disabled = index === 0;
@@ -114,7 +124,8 @@ $('#publish').addEventListener('click', async () => {
   if (uploads > 0) return;
   const button = $('#publish'); button.disabled = true; message('Publicando...');
   try {
-    const payload = items.map(({ id, title, cardImage, featureImage, information }) => ({ id: slug(id), title: title.trim(), cardImage: cardImage.trim(), featureImage: featureImage.trim(), information: information.trim() }));
+    if (items.some(item => !item.cardImage || !item.featureImage)) throw new Error('Cada card precisa ter a imagem do card e a imagem de destaque.');
+    const payload = items.map(({ id, title, cardImage, featureImage, information }) => ({ id: slug(id || automaticId()), title: title.trim(), cardImage: cardImage.trim(), featureImage: featureImage.trim(), information: information.trim() }));
     const data = await request('/api/admin/news', { method: 'POST', body: JSON.stringify({ items: payload }) });
     items = data.items.map(item => ({ ...item })); render(); message('Novidades publicadas com sucesso.', 'success');
   } catch (error) { message(error.message, 'error'); }

@@ -17,6 +17,9 @@ label { display: grid; gap: 7px; color: #dce4ef; font-size: 12px; font-weight: 7
 input, textarea, select { width: 100%; padding: 12px 13px; border: 1px solid #ffffff1f; border-radius: 9px; color: #fff; background: #070a10; outline: 0; }
 input[type="file"] { padding: 9px; color: #cbd5e1; }
 label small { color: #8e9aac; font-size: 11px; font-weight: 500; }
+.image-field-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.remove-image { min-height: 30px; padding: 0 10px; border-color: #e2556a66; color: #ff9cac; background: #2b1118; font-size: 11px; }
+.remove-image[hidden] { display: none; }
 input:focus, textarea:focus, select:focus { border-color: #25d8ff; box-shadow: 0 0 0 3px #25d8ff1f; }
 button { min-height: 42px; padding: 0 17px; border: 1px solid #078bff; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #168fff, #0759d8); font-weight: 800; cursor: pointer; }
 button:disabled { opacity: .45; cursor: not-allowed; }

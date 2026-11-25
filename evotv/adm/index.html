@@ -44,9 +44,8 @@
       <div class="card-toolbar"><strong></strong><div><button data-action="up" class="icon" type="button" title="Mover para cima">↑</button><button data-action="down" class="icon" type="button" title="Mover para baixo">↓</button><button data-action="remove" class="danger icon" type="button" title="Remover">×</button></div></div>
       <div class="form-grid">
         <label>Título<input data-field="title" maxlength="120" required></label>
-        <label>Identificador<input data-field="id" maxlength="64" placeholder="gerado-pelo-titulo" required></label>
-        <label class="wide">Imagem do card<input data-upload="cardImage" type="file" accept="image/jpeg,image/png,image/webp"><small data-upload-status="cardImage">Selecione uma imagem JPEG, PNG ou WebP.</small></label>
-        <label class="wide">Imagem de destaque<input data-upload="featureImage" type="file" accept="image/jpeg,image/png,image/webp"><small data-upload-status="featureImage">Selecione uma imagem JPEG, PNG ou WebP.</small></label>
+        <label class="wide">Imagem do card<input data-upload="cardImage" type="file" accept="image/jpeg,image/png,image/webp"><span class="image-field-actions"><small data-upload-status="cardImage">Selecione uma imagem JPEG, PNG ou WebP.</small><button data-remove-image="cardImage" class="remove-image" type="button">Remover imagem</button></span></label>
+        <label class="wide">Imagem de destaque<input data-upload="featureImage" type="file" accept="image/jpeg,image/png,image/webp"><span class="image-field-actions"><small data-upload-status="featureImage">Selecione uma imagem JPEG, PNG ou WebP.</small><button data-remove-image="featureImage" class="remove-image" type="button">Remover imagem</button></span></label>
         <label class="wide">Texto de “Mais Informações”<textarea data-field="information" maxlength="4000" rows="7" required></textarea></label>
       </div>
       <div class="previews"><figure><figcaption>Card</figcaption><img data-preview="cardImage" alt="Prévia do card"></figure><figure><figcaption>Destaque</figcaption><img data-preview="featureImage" alt="Prévia do destaque"></figure></div>
