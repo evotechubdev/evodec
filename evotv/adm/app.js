@@ -1,13 +1,14 @@
 const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
 const LOGIN_DOMAIN = 'evotv.com.br';
 const BACKEND = 'https://multimideas-evo-backend.onrender.com';
-const MODULE_LOADERS = { 'home-news': loadNewsModule, 'extra-reelshort': loadReelShortModule };
+const MODULE_LOADERS = { 'home-news': loadNewsModule, 'extra-reelshort': loadReelShortModule, 'site-downloads': loadDownloadsModule };
 const $ = selector => document.querySelector(selector);
 let token = '';
 let items = [];
 let modules = [];
 let uploads = 0;
 let currentImportJob = '';
+let downloads = [];
 
 function clearPassword() { $('#password').value = ''; $('#password').type = 'password'; $('#show-password').checked = false; }
 clearPassword();
@@ -26,9 +27,9 @@ async function request(path, options = {}) {
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a operação.');
   return data;
 }
-async function uploadImage(file) {
+async function uploadImage(file, path = '/api/admin/news/image') {
   if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Selecione uma imagem JPEG, PNG ou WebP de até 5 MB.');
-  const response = await fetch(`${BACKEND}/api/admin/news/image`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': file.type }, body: file });
+  const response = await fetch(`${BACKEND}${path}`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': file.type }, body: file });
   const data = await response.json().catch(() => ({}));
   if (!response.ok || !data.imageUrl) throw new Error(data.error || 'Não foi possível enviar a imagem.');
   return data.imageUrl;
@@ -119,6 +120,7 @@ async function loadNewsModule() {
 function hideModulePanels() {
   $('#news-editor-panel').hidden = true;
   $('#reelshort-panel').hidden = true;
+  $('#downloads-panel').hidden = true;
 }
 function reelShortLinks() {
   return [...new Set($('#reelshort-links').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))];
@@ -158,6 +160,42 @@ async function loadReelShortModule() {
   $('#reelshort-panel').hidden = false;
   renderReelShortCatalog(Array.isArray(data.series) ? data.series : []);
   updateReelShortCount();
+}
+function renderDownloads() {
+  const root = $('#download-editors'); root.replaceChildren();
+  for (const item of downloads) {
+    const node = $('#download-template').content.firstElementChild.cloneNode(true);
+    node.querySelector('.card-toolbar strong').textContent = item.platform === 'android' ? 'Aplicativo Android' : 'Setup Windows';
+    node.querySelector('.platform-badge').textContent = item.platform.toUpperCase();
+    for (const input of node.querySelectorAll('[data-download-field]')) {
+      const field = input.dataset.downloadField; input.value = item[field] || '';
+      input.addEventListener('input', () => { item[field] = input.value; });
+    }
+    const preview = node.querySelector('[data-download-preview]');
+    if (item.imageUrl) preview.src = item.imageUrl; else preview.hidden = true;
+    const fileInput = node.querySelector('[data-download-image]');
+    const uploadStatus = node.querySelector('[data-download-upload-status]');
+    if (item.imageUrl) uploadStatus.textContent = 'Imagem atual cadastrada. Selecione outra para substituir.';
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0]; if (!file) return;
+      uploads += 1; $('#publish-downloads').disabled = true; fileInput.disabled = true; uploadStatus.textContent = 'Enviando imagem…';
+      try {
+        const prepared = await resizedImage(file, 'featureImage', 'manual', 1200, 675);
+        item.imageUrl = await uploadImage(prepared, '/api/admin/site-downloads/image');
+        preview.src = item.imageUrl; preview.hidden = false; uploadStatus.textContent = 'Imagem cadastrada com sucesso.';
+      } catch (error) { fileInput.value = ''; uploadStatus.textContent = error.message; }
+      finally { uploads -= 1; fileInput.disabled = false; $('#publish-downloads').disabled = uploads > 0; }
+    });
+    root.append(node);
+  }
+}
+async function loadDownloadsModule() {
+  hideModulePanels();
+  const data = await request('/api/admin/site-downloads');
+  downloads = Array.isArray(data.items) ? data.items.map(item => ({ ...item })) : [];
+  $('#page-title').textContent = 'Downloads do Site EVOTV';
+  $('#downloads-panel').hidden = false;
+  renderDownloads();
 }
 const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 async function monitorReelShortImport(jobId) {
@@ -235,6 +273,15 @@ $('#import-reelshort').addEventListener('click', async () => {
     currentImportJob = ''; button.disabled = false; $('#reelshort-status').className = 'error'; $('#reelshort-status').textContent = error.message;
   }
 });
+$('#publish-downloads').addEventListener('click', async () => {
+  if (uploads > 0) return;
+  const button = $('#publish-downloads'); button.disabled = true; $('#downloads-status').className = ''; $('#downloads-status').textContent = 'Publicando…';
+  try {
+    const data = await request('/api/admin/site-downloads', { method: 'POST', body: JSON.stringify({ items: downloads }) });
+    downloads = data.items.map(item => ({ ...item })); renderDownloads(); $('#downloads-status').className = 'success'; $('#downloads-status').textContent = 'Downloads publicados no site com sucesso.';
+  } catch (error) { $('#downloads-status').className = 'error'; $('#downloads-status').textContent = error.message; }
+  finally { button.disabled = false; }
+});
 $('#logout').addEventListener('click', () => {
-  token = ''; items = []; modules = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; clearPassword(); message();
+  token = ''; items = []; downloads = []; modules = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; clearPassword(); message();
 });

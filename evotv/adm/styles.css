@@ -76,6 +76,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .reelshort-catalog strong, .reelshort-catalog span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .reelshort-catalog strong { font-size: 13px; }
 .reelshort-catalog span { color: #8e9aac; font-size: 11px; }
+.download-editors { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 24px; }
+.platform-badge { padding: 6px 9px; border: 1px solid #25d8ff55; border-radius: 999px; color: #8cecff; background: #082039; font-size: 11px; font-weight: 900; }
+.download-image-preview { width: 100%; aspect-ratio: 16 / 9; margin-top: 16px; border: 1px solid #ffffff17; border-radius: 11px; object-fit: cover; background: #030509; }
 #status { color: #b8c4d4; font-size: 13px; }
 .error { color: #ff9cac !important; }
 .success { color: #7be6a8 !important; }
@@ -83,6 +86,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .topbar img { width: 92px; }
   .topbar h1 { font-size: 18px; }
   .form-grid, .previews { grid-template-columns: 1fr; }
+  .download-editors { grid-template-columns: 1fr; }
   .previews figure:first-child img { width: 138px; }
   .editor-heading, .actions, .module-panel { align-items: stretch; flex-direction: column; }
   .import-summary, .catalog-heading { align-items: stretch; flex-direction: column; }

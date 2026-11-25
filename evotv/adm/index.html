@@ -9,17 +9,17 @@
 </head>
 <body>
   <header class="topbar">
-    <img src="../app/assets/logo_evotv.png" alt="EVOTV">
+    <img src="../assets/logo-evotv.png" alt="EVOTV">
     <div><span>PAINEL ADMINISTRATIVO</span><h1 id="page-title">Central de Módulos</h1></div>
     <button id="logout" class="secondary" type="button" hidden>Sair</button>
   </header>
   <main>
     <div class="login-atmosphere" aria-hidden="true"><span class="orb orb-one"></span><span class="orb orb-two"></span><div class="signal-lines"></div></div>
     <section id="login-panel" class="login-panel" aria-labelledby="login-title">
-      <img class="login-logo" src="../app/assets/logo_evotv.png" alt="EVOTV">
+      <img class="login-logo" src="../assets/logo-evotv.png" alt="EVOTV">
       <div class="login-heading"><span id="login-title">PAINEL ADMINISTRATIVO</span></div>
       <form id="login-form" autocomplete="off" novalidate>
-        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" tabindex="5" required><option value="home-news">Novidades da Home</option><option value="extra-reelshort">Conteúdo Extra - Mininovelas (REEL SHORT)</option></select></span></label>
+        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" tabindex="5" required><option value="home-news">Novidades da Home</option><option value="extra-reelshort">Conteúdo Extra - Mininovelas (REEL SHORT)</option><option value="site-downloads">Downloads do Site EVOTV</option></select></span></label>
         <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="text" tabindex="1" autofocus placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
         <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" name="evotv-admin-access-key" type="password" tabindex="2" value="" placeholder="Digite Sua Senha" autocomplete="new-password" data-lpignore="true" data-1p-ignore required></span></label>
         <label class="show-password"><input id="show-password" type="checkbox" tabindex="3"><span>Exibir Senha</span></label>
@@ -52,6 +52,11 @@
       <div id="reelshort-catalog" class="reelshort-catalog"></div>
       <footer class="actions"><span id="reelshort-status" role="status"></span><button id="import-reelshort" type="button">Importar Mininovelas</button></footer>
     </section>
+    <section id="downloads-panel" class="panel module-content" hidden>
+      <div class="editor-heading"><div><h2>Downloads do Site EVOTV</h2><p>Atualize as duas opções exibidas no portal principal: Android e Windows.</p></div></div>
+      <div id="download-editors" class="download-editors"></div>
+      <footer class="actions"><span id="downloads-status" role="status"></span><button id="publish-downloads" type="button">Publicar Downloads</button></footer>
+    </section>
   </main>
   <template id="card-template">
     <article class="news-card">
@@ -64,6 +69,20 @@
         <label class="wide">Texto de “Mais Informações”<textarea data-field="information" maxlength="4000" rows="7" required></textarea></label>
       </div>
       <div class="previews"><figure><figcaption>Card</figcaption><img data-preview="cardImage" alt="Prévia do card"></figure><figure><figcaption>Prévia real do destaque</figcaption><div class="hero-preview"><img data-preview="featureImage" alt="Prévia do destaque"><div class="hero-preview-shade"></div><div class="hero-preview-copy"><h3 data-preview-title>Título da novidade</h3><p data-preview-synopsis>A sinopse aparecerá aqui, sobre a imagem de destaque.</p><span>Mais Informações</span></div></div></figure></div>
+    </article>
+  </template>
+  <template id="download-template">
+    <article class="news-card download-editor">
+      <div class="card-toolbar"><strong></strong><span class="platform-badge"></span></div>
+      <div class="form-grid">
+        <label>Título<input data-download-field="title" maxlength="80" required></label>
+        <label>Versão<input data-download-field="version" maxlength="30" required></label>
+        <label class="wide">Descrição<textarea data-download-field="description" maxlength="240" rows="3" required></textarea></label>
+        <label class="wide">Link de download<input data-download-field="downloadUrl" type="url" maxlength="1000" placeholder="https://..." required></label>
+        <label>Texto do botão<input data-download-field="buttonLabel" maxlength="40" required></label>
+        <label class="wide">Imagem real da aplicação<input data-download-image type="file" accept="image/jpeg,image/png,image/webp"><small data-download-upload-status>Selecione uma imagem JPEG, PNG ou WebP.</small></label>
+      </div>
+      <img class="download-image-preview" data-download-preview alt="Prévia da aplicação">
     </article>
   </template>
   <script type="module" src="app.js"></script>
