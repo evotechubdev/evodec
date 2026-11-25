@@ -18,10 +18,10 @@
     <section id="login-panel" class="login-panel" aria-labelledby="login-title">
       <img class="login-logo" src="../app/assets/logo_evotv.png" alt="EVOTV">
       <div class="login-heading"><span id="login-title">PAINEL ADMINISTRATIVO</span></div>
-      <form id="login-form" novalidate>
+      <form id="login-form" autocomplete="off" novalidate>
         <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" required><option value="home-news">Novidades da Home</option></select></span></label>
         <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="password" placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
-        <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" type="password" placeholder="Digite sua senha" autocomplete="current-password" required></span></label>
+        <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" name="evotv-admin-access-key" type="password" value="" placeholder="Digite Sua Senha" autocomplete="new-password" data-lpignore="true" data-1p-ignore required></span></label>
         <label class="show-password"><input id="show-password" type="checkbox"><span>Exibir Senha</span></label>
         <button class="primary-button" type="submit">Entrar</button>
       </form>

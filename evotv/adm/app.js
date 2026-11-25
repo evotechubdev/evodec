@@ -7,6 +7,10 @@ let token = '';
 let items = [];
 let modules = [];
 
+function clearPassword() { $('#password').value = ''; $('#password').type = 'password'; $('#show-password').checked = false; }
+clearPassword();
+window.addEventListener('pageshow', clearPassword);
+
 function message(text = '', type = '') { const node = $('#status'); node.textContent = text; node.className = type; }
 function slug(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64); }
 function loginEmail(value) {
@@ -95,5 +99,5 @@ $('#publish').addEventListener('click', async () => {
   finally { button.disabled = false; }
 });
 $('#logout').addEventListener('click', () => {
-  token = ''; items = []; modules = []; document.body.classList.remove('authenticated'); $('#editor-panel').hidden = true; $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; $('#password').value = ''; $('#password').type = 'password'; $('#show-password').checked = false; message();
+  token = ''; items = []; modules = []; document.body.classList.remove('authenticated'); $('#editor-panel').hidden = true; $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; clearPassword(); message();
 });
