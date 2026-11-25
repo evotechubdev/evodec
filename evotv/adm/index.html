@@ -19,7 +19,7 @@
       <img class="login-logo" src="../app/assets/logo_evotv.png" alt="EVOTV">
       <div class="login-heading"><span id="login-title">PAINEL ADMINISTRATIVO</span></div>
       <form id="login-form" autocomplete="off" novalidate>
-        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" tabindex="5" required><option value="home-news">Novidades da Home</option></select></span></label>
+        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" tabindex="5" required><option value="home-news">Novidades da Home</option><option value="extra-reelshort">Conteúdo Extra - Mininovelas (REEL SHORT)</option></select></span></label>
         <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="text" tabindex="1" autofocus placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
         <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" name="evotv-admin-access-key" type="password" tabindex="2" value="" placeholder="Digite Sua Senha" autocomplete="new-password" data-lpignore="true" data-1p-ignore required></span></label>
         <label class="show-password"><input id="show-password" type="checkbox" tabindex="3"><span>Exibir Senha</span></label>
@@ -30,13 +30,28 @@
       <label>Módulo<select id="module-select" aria-label="Selecionar módulo administrativo"></select></label>
       <p>Somente os módulos autorizados para este login são exibidos.</p>
     </section>
-    <section id="editor-panel" class="panel module-content" hidden>
+    <section id="news-editor-panel" class="panel module-content" hidden>
       <div class="editor-heading">
         <div><h2>Cards publicados</h2><p>Cadastre entre 1 e 5 itens. As alterações aparecem no PC e Android sem reinstalação.</p></div>
         <button id="add-card" class="secondary" type="button">+ Adicionar card</button>
       </div>
       <div id="cards" class="cards"></div>
       <footer class="actions"><span id="status" role="status"></span><button id="publish" type="button">Publicar Novidades</button></footer>
+    </section>
+    <section id="reelshort-panel" class="panel module-content" hidden>
+      <div class="editor-heading">
+        <div><h2>Atualizar Mininovelas</h2><p>Cole de 1 a 20 links, um por linha. O catálogo será atualizado sem reinstalar os aplicativos.</p></div>
+        <span id="reelshort-total" class="catalog-total"></span>
+      </div>
+      <label class="reelshort-links">Links ReelShort
+        <textarea id="reelshort-links" rows="10" maxlength="40960" placeholder="https://www.reelshort.com/pt/movie/...&#10;https://reelshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt"></textarea>
+        <small>Aceita páginas oficiais ReelShort, links detail/watch do Dramafren e links fedoq.com contendo a página no parâmetro pl.</small>
+      </label>
+      <div class="import-summary"><span id="reelshort-link-count">0 de 20 links</span><span id="reelshort-progress"></span></div>
+      <div id="reelshort-results" class="import-results" aria-live="polite"></div>
+      <div class="catalog-heading"><h3>Catálogo atual</h3><span>Somente metadados são exibidos; playlists permanecem protegidas no backend.</span></div>
+      <div id="reelshort-catalog" class="reelshort-catalog"></div>
+      <footer class="actions"><span id="reelshort-status" role="status"></span><button id="import-reelshort" type="button">Importar Mininovelas</button></footer>
     </section>
   </main>
   <template id="card-template">

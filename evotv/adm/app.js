@@ -1,12 +1,13 @@
 const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
 const LOGIN_DOMAIN = 'evotv.com.br';
 const BACKEND = 'https://multimideas-evo-backend.onrender.com';
-const MODULE_LOADERS = { 'home-news': loadNewsModule };
+const MODULE_LOADERS = { 'home-news': loadNewsModule, 'extra-reelshort': loadReelShortModule };
 const $ = selector => document.querySelector(selector);
 let token = '';
 let items = [];
 let modules = [];
 let uploads = 0;
+let currentImportJob = '';
 
 function clearPassword() { $('#password').value = ''; $('#password').type = 'password'; $('#show-password').checked = false; }
 clearPassword();
@@ -108,12 +109,79 @@ function render() {
   $('#add-card').disabled = items.length >= 5;
 }
 async function loadNewsModule() {
-  $('#editor-panel').hidden = true;
+  hideModulePanels();
   const data = await request('/api/admin/news');
   items = Array.isArray(data.items) && data.items.length ? data.items.map(item => ({ ...item })) : [blank()];
   $('#page-title').textContent = 'Novidades da Home';
-  $('#editor-panel').hidden = false;
+  $('#news-editor-panel').hidden = false;
   render();
+}
+function hideModulePanels() {
+  $('#news-editor-panel').hidden = true;
+  $('#reelshort-panel').hidden = true;
+}
+function reelShortLinks() {
+  return [...new Set($('#reelshort-links').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean))];
+}
+function updateReelShortCount() {
+  const count = reelShortLinks().length;
+  const node = $('#reelshort-link-count');
+  node.textContent = `${count} de 20 links`;
+  node.className = count > 20 ? 'error' : '';
+}
+function renderReelShortCatalog(series = []) {
+  $('#reelshort-total').textContent = `${series.length} mininovela${series.length === 1 ? '' : 's'}`;
+  const root = $('#reelshort-catalog'); root.replaceChildren();
+  for (const item of series) {
+    const article = document.createElement('article');
+    const image = document.createElement('img'); image.src = item.imageUrl || ''; image.alt = '';
+    const copy = document.createElement('div');
+    const title = document.createElement('strong'); title.textContent = item.name || 'Mininovela';
+    const meta = document.createElement('span'); meta.textContent = `${Number(item.totalEpisodes) || 0} episódios${item.status ? ` · ${item.status}` : ''}`;
+    copy.append(title, meta); article.append(image, copy); root.append(article);
+  }
+  if (!series.length) root.textContent = 'Nenhuma mininovela cadastrada.';
+}
+function renderImportResult(job) {
+  const root = $('#reelshort-results'); root.replaceChildren();
+  for (const item of job.imported || []) {
+    const line = document.createElement('p'); line.className = 'success'; line.textContent = `✓ ${item.name} · ${item.totalEpisodes} episódios`; root.append(line);
+  }
+  for (const item of job.rejected || []) {
+    const line = document.createElement('p'); line.className = 'error'; line.textContent = `Linha ${item.index}: ${item.reason}`; root.append(line);
+  }
+}
+async function loadReelShortModule() {
+  hideModulePanels();
+  const data = await request('/api/admin/reelshort');
+  $('#page-title').textContent = 'Conteúdo Extra - Mininovelas (REEL SHORT)';
+  $('#reelshort-panel').hidden = false;
+  renderReelShortCatalog(Array.isArray(data.series) ? data.series : []);
+  updateReelShortCount();
+}
+const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
+async function monitorReelShortImport(jobId) {
+  currentImportJob = jobId;
+  while (token && currentImportJob === jobId) {
+    const job = await request(`/api/admin/reelshort/import/${encodeURIComponent(jobId)}`);
+    const progress = job.progress || {};
+    const progressLabel = progress.name || (progress.state === 'rejected' ? 'Link rejeitado' : 'Processando…');
+    $('#reelshort-progress').textContent = progress.total ? `${Math.min(Number(progress.index) || 0, progress.total)}/${progress.total} · ${progressLabel}` : '';
+    renderImportResult(job);
+    if (job.status === 'complete') {
+      $('#reelshort-status').textContent = `Importação concluída. ${job.imported.length} atualizada(s), ${job.rejected.length} rejeitada(s).`;
+      $('#reelshort-status').className = 'success';
+      currentImportJob = ''; $('#import-reelshort').disabled = false;
+      const catalog = await request('/api/admin/reelshort'); renderReelShortCatalog(catalog.series || []);
+      return;
+    }
+    if (job.status === 'failed') {
+      $('#reelshort-status').textContent = job.error || 'A importação falhou.'; $('#reelshort-status').className = 'error';
+      currentImportJob = ''; $('#import-reelshort').disabled = false; return;
+    }
+    $('#reelshort-status').textContent = job.status === 'saving' ? 'Salvando no catálogo…' : 'Importando episódios…';
+    await wait(2000);
+  }
 }
 async function openModule(moduleId) {
   const module = modules.find(item => item.id === moduleId);
@@ -154,6 +222,19 @@ $('#publish').addEventListener('click', async () => {
   } catch (error) { message(error.message, 'error'); }
   finally { button.disabled = false; }
 });
+$('#reelshort-links').addEventListener('input', updateReelShortCount);
+$('#import-reelshort').addEventListener('click', async () => {
+  const links = reelShortLinks();
+  if (!links.length || links.length > 20) return alert('Informe de 1 a 20 links, um por linha.');
+  const button = $('#import-reelshort'); button.disabled = true; $('#reelshort-results').replaceChildren();
+  $('#reelshort-status').className = ''; $('#reelshort-status').textContent = 'Iniciando importação segura…';
+  try {
+    const data = await request('/api/admin/reelshort/import', { method: 'POST', body: JSON.stringify({ links }) });
+    await monitorReelShortImport(data.jobId);
+  } catch (error) {
+    currentImportJob = ''; button.disabled = false; $('#reelshort-status').className = 'error'; $('#reelshort-status').textContent = error.message;
+  }
+});
 $('#logout').addEventListener('click', () => {
-  token = ''; items = []; modules = []; document.body.classList.remove('authenticated'); $('#editor-panel').hidden = true; $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; clearPassword(); message();
+  token = ''; items = []; modules = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; clearPassword(); message();
 });
