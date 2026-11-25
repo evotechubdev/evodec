@@ -52,7 +52,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .resize-options input { width: 92px; }
 .hero-preview { position: relative; width: 100%; aspect-ratio: 15 / 4; overflow: hidden; border: 1px solid #ffffff17; border-radius: 11px; background: #030509; }
 .hero-preview-shade { position: absolute; inset: 0; background: linear-gradient(90deg, transparent 0%, transparent 42%, rgba(5,8,13,.2) 58%, rgba(5,8,13,.68) 75%, rgba(5,8,13,.9) 100%); }
-.hero-preview-copy { position: absolute; inset: 0 0 0 auto; width: 35%; display: flex; flex-direction: column; justify-content: center; padding: clamp(12px, 2vw, 28px); border-left: 1px solid #ffffff12; background: rgba(7,10,15,.34); backdrop-filter: blur(1px); }
+.hero-preview-copy { position: absolute; inset: 0 0 0 65%; width: auto; display: flex; flex-direction: column; justify-content: center; padding: clamp(12px, 2vw, 28px); border-left: 1px solid #ffffff12; background: rgba(7,10,15,.34); backdrop-filter: blur(1px); }
 .hero-preview-copy::before { content: ""; display: block; flex: 0 0 30px; height: 30px; }
 .hero-preview-copy h3 { margin: 0 0 10px; color: #fff; font-size: clamp(18px, 2.3vw, 30px); line-height: 1.15; }
 .hero-preview-copy p { height: 4.5em; max-height: 4.5em; margin: 0 0 16px; overflow-x: hidden; overflow-y: auto; padding-right: 6px; color: #e0e4ec; font-size: clamp(11px, 1.1vw, 14px); line-height: 1.5; scrollbar-width: thin; scrollbar-color: #596273 rgba(255,255,255,.08); }
