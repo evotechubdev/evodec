@@ -66,6 +66,7 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .import-results:empty { display: none; }
 .import-results p { margin: 0; padding: 9px 11px; border: 1px solid #ffffff12; border-radius: 8px; background: #080c13; font-size: 13px; }
 .catalog-heading { align-items: end; margin-top: 28px; padding-bottom: 10px; border-bottom: 1px solid #ffffff14; }
+.catalog-heading > div { display: flex; align-items: center; gap: 12px; }
 .catalog-heading h3 { margin: 0; font-size: 19px; }
 .catalog-heading span { text-align: right; }
 .reelshort-catalog { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; max-height: 430px; margin-top: 14px; overflow-y: auto; }

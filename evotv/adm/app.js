@@ -130,7 +130,7 @@ function updateReelShortCount() {
   node.className = count > 20 ? 'error' : '';
 }
 function renderReelShortCatalog(series = []) {
-  $('#reelshort-total').textContent = `${series.length} mininovela${series.length === 1 ? '' : 's'}`;
+  $('#reelshort-total').textContent = `Total: ${series.length} mininovela${series.length === 1 ? '' : 's'}`;
   const root = $('#reelshort-catalog'); root.replaceChildren();
   for (const item of series) {
     const article = document.createElement('article');

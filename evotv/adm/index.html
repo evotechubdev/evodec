@@ -41,7 +41,6 @@
     <section id="reelshort-panel" class="panel module-content" hidden>
       <div class="editor-heading">
         <div><h2>Atualizar Mininovelas</h2><p>Cole de 1 a 20 links, um por linha. O catálogo será atualizado sem reinstalar os aplicativos.</p></div>
-        <span id="reelshort-total" class="catalog-total"></span>
       </div>
       <label class="reelshort-links">Links ReelShort
         <textarea id="reelshort-links" rows="10" maxlength="40960" placeholder="https://www.reelshort.com/pt/movie/...&#10;https://reelshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt"></textarea>
@@ -49,7 +48,7 @@
       </label>
       <div class="import-summary"><span id="reelshort-link-count">0 de 20 links</span><span id="reelshort-progress"></span></div>
       <div id="reelshort-results" class="import-results" aria-live="polite"></div>
-      <div class="catalog-heading"><h3>Catálogo atual</h3><span>Somente metadados são exibidos; playlists permanecem protegidas no backend.</span></div>
+      <div class="catalog-heading"><div><h3>Catálogo atual</h3><strong id="reelshort-total" class="catalog-total"></strong></div><span>Somente metadados são exibidos; playlists permanecem protegidas no backend.</span></div>
       <div id="reelshort-catalog" class="reelshort-catalog"></div>
       <footer class="actions"><span id="reelshort-status" role="status"></span><button id="import-reelshort" type="button">Importar Mininovelas</button></footer>
     </section>
