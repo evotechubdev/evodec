@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <title>EVOTV · Administrar Novidades</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <img src="../app/assets/logo_evotv.png" alt="EVOTV">
+    <div><span>PAINEL ADMINISTRATIVO</span><h1>Novidades da Home</h1></div>
+    <button id="logout" class="secondary" type="button" hidden>Sair</button>
+  </header>
+  <main>
+    <section id="login-panel" class="panel login-panel">
+      <h2>Entrar</h2>
+      <p>Use um e-mail cadastrado no Firebase Auth e autorizado em <code>EVOTV_ACESSOS_ADMIN_1</code>.</p>
+      <form id="login-form">
+        <label>E-mail<input id="email" type="email" autocomplete="username" required></label>
+        <label>Senha<input id="password" type="password" autocomplete="current-password" required></label>
+        <button type="submit">Acessar painel</button>
+      </form>
+    </section>
+    <section id="editor-panel" class="panel" hidden>
+      <div class="editor-heading">
+        <div><h2>Cards publicados</h2><p>Cadastre entre 1 e 5 itens. As alterações aparecem no PC e Android sem reinstalação.</p></div>
+        <button id="add-card" class="secondary" type="button">+ Adicionar card</button>
+      </div>
+      <div id="cards" class="cards"></div>
+      <footer class="actions"><span id="status" role="status"></span><button id="publish" type="button">Publicar Novidades</button></footer>
+    </section>
+  </main>
+  <template id="card-template">
+    <article class="news-card">
+      <div class="card-toolbar"><strong></strong><div><button data-action="up" class="icon" type="button" title="Mover para cima">↑</button><button data-action="down" class="icon" type="button" title="Mover para baixo">↓</button><button data-action="remove" class="danger icon" type="button" title="Remover">×</button></div></div>
+      <div class="form-grid">
+        <label>Título<input data-field="title" maxlength="120" required></label>
+        <label>Identificador<input data-field="id" maxlength="64" placeholder="gerado-pelo-titulo" required></label>
+        <label class="wide">URL HTTPS da imagem do card<input data-field="cardImage" type="url" required></label>
+        <label class="wide">URL HTTPS da imagem de destaque<input data-field="featureImage" type="url" required></label>
+        <label class="wide">Texto de “Mais Informações”<textarea data-field="information" maxlength="4000" rows="7" required></textarea></label>
+      </div>
+      <div class="previews"><figure><figcaption>Card</figcaption><img data-preview="cardImage" alt="Prévia do card"></figure><figure><figcaption>Destaque</figcaption><img data-preview="featureImage" alt="Prévia do destaque"></figure></div>
+    </article>
+  </template>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
