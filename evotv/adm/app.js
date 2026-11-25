@@ -32,8 +32,22 @@ async function uploadImage(file) {
   if (!response.ok || !data.imageUrl) throw new Error(data.error || 'Não foi possível enviar a imagem.');
   return data.imageUrl;
 }
+async function resizedImage(file, field, mode, width, height) {
+  if (mode === 'original') return file;
+  const automatic = field === 'featureImage' ? [1330, 750] : [600, 825];
+  const targetWidth = Math.max(240, Math.min(3200, Number(mode === 'manual' ? width : automatic[0]) || automatic[0]));
+  const targetHeight = Math.max(180, Math.min(2400, Number(mode === 'manual' ? height : automatic[1]) || automatic[1]));
+  const bitmap = await createImageBitmap(file);
+  const canvas = document.createElement('canvas'); canvas.width = targetWidth; canvas.height = targetHeight;
+  const context = canvas.getContext('2d', { alpha: false });
+  const scale = Math.max(targetWidth / bitmap.width, targetHeight / bitmap.height);
+  const drawWidth = bitmap.width * scale, drawHeight = bitmap.height * scale;
+  context.drawImage(bitmap, (targetWidth - drawWidth) / 2, (targetHeight - drawHeight) / 2, drawWidth, drawHeight);
+  bitmap.close?.();
+  return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Não foi possível redimensionar a imagem.')), 'image/jpeg', .9));
+}
 function automaticId() { return `novidade-${Date.now().toString(36)}-${crypto.getRandomValues(new Uint32Array(1))[0].toString(36)}`.slice(0, 64); }
-function blank() { return { id: automaticId(), title: '', cardImage: '', featureImage: '', information: '' }; }
+function blank() { return { id: automaticId(), title: '', cardImage: '', featureImage: '', synopsis: '', information: '' }; }
 function render() {
   const root = $('#cards'); root.replaceChildren();
   items.forEach((item, index) => {
@@ -44,18 +58,26 @@ function render() {
       input.addEventListener('input', () => {
         item[field] = input.value;
         if (!item.id) item.id = automaticId();
+        if (field === 'title') node.querySelector('[data-preview-title]').textContent = input.value.trim() || 'Título da novidade';
+        if (field === 'synopsis') node.querySelector('[data-preview-synopsis]').textContent = input.value.trim() || 'A sinopse aparecerá aqui, sobre a imagem de destaque.';
       });
     }
+    node.querySelector('[data-preview-title]').textContent = item.title || 'Título da novidade';
+    node.querySelector('[data-preview-synopsis]').textContent = item.synopsis || 'A sinopse aparecerá aqui, sobre a imagem de destaque.';
     for (const image of node.querySelectorAll('[data-preview]')) image.src = item[image.dataset.preview] || '';
     for (const input of node.querySelectorAll('[data-upload]')) {
       const field = input.dataset.upload;
       const uploadStatus = node.querySelector(`[data-upload-status="${field}"]`);
+      const mode = node.querySelector(`[data-resize-mode="${field}"]`);
+      const manual = node.querySelector(`[data-manual-size="${field}"]`);
+      mode.addEventListener('change', () => { manual.hidden = mode.value !== 'manual'; });
       if (item[field]) uploadStatus.textContent = 'Imagem atual cadastrada. Selecione outra para substituir.';
       input.addEventListener('change', async () => {
         const file = input.files?.[0]; if (!file) return;
         uploads += 1; $('#publish').disabled = true; input.disabled = true; uploadStatus.textContent = 'Enviando imagem…';
         try {
-          item[field] = await uploadImage(file); node.querySelector(`[data-preview="${field}"]`).src = item[field]; node.querySelector(`[data-remove-image="${field}"]`).hidden = false; uploadStatus.textContent = 'Imagem enviada e cadastrada com sucesso.';
+          const prepared = await resizedImage(file, field, mode.value, node.querySelector(`[data-width="${field}"]`).value, node.querySelector(`[data-height="${field}"]`).value);
+          item[field] = await uploadImage(prepared); node.querySelector(`[data-preview="${field}"]`).src = item[field]; node.querySelector(`[data-remove-image="${field}"]`).hidden = false; uploadStatus.textContent = 'Imagem redimensionada, enviada e cadastrada com sucesso.';
         } catch (error) { input.value = ''; uploadStatus.textContent = error.message; }
         finally { uploads -= 1; input.disabled = false; $('#publish').disabled = uploads > 0; }
       });
@@ -125,7 +147,8 @@ $('#publish').addEventListener('click', async () => {
   const button = $('#publish'); button.disabled = true; message('Publicando...');
   try {
     if (items.some(item => !item.cardImage || !item.featureImage)) throw new Error('Cada card precisa ter a imagem do card e a imagem de destaque.');
-    const payload = items.map(({ id, title, cardImage, featureImage, information }) => ({ id: slug(id || automaticId()), title: title.trim(), cardImage: cardImage.trim(), featureImage: featureImage.trim(), information: information.trim() }));
+    if (items.some(item => !item.synopsis?.trim())) throw new Error('Informe a sinopse de cada card.');
+    const payload = items.map(({ id, title, cardImage, featureImage, synopsis, information }) => ({ id: slug(id || automaticId()), title: title.trim(), cardImage: cardImage.trim(), featureImage: featureImage.trim(), synopsis: synopsis.trim(), information: information.trim() }));
     const data = await request('/api/admin/news', { method: 'POST', body: JSON.stringify({ items: payload }) });
     items = data.items.map(item => ({ ...item })); render(); message('Novidades publicadas com sucesso.', 'success');
   } catch (error) { message(error.message, 'error'); }
