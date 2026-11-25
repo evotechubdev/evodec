@@ -19,11 +19,11 @@
       <img class="login-logo" src="../app/assets/logo_evotv.png" alt="EVOTV">
       <div class="login-heading"><span id="login-title">PAINEL ADMINISTRATIVO</span></div>
       <form id="login-form" autocomplete="off" novalidate>
-        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" required><option value="home-news">Novidades da Home</option></select></span></label>
-        <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="password" placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
-        <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" name="evotv-admin-access-key" type="password" value="" placeholder="Digite Sua Senha" autocomplete="new-password" data-lpignore="true" data-1p-ignore required></span></label>
-        <label class="show-password"><input id="show-password" type="checkbox"><span>Exibir Senha</span></label>
-        <button class="primary-button" type="submit">Entrar</button>
+        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" tabindex="5" required><option value="home-news">Novidades da Home</option></select></span></label>
+        <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="text" tabindex="1" autofocus placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
+        <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" name="evotv-admin-access-key" type="password" tabindex="2" value="" placeholder="Digite Sua Senha" autocomplete="new-password" data-lpignore="true" data-1p-ignore required></span></label>
+        <label class="show-password"><input id="show-password" type="checkbox" tabindex="3"><span>Exibir Senha</span></label>
+        <button class="primary-button" type="submit" tabindex="4">Entrar</button>
       </form>
     </section>
     <section id="module-panel" class="panel module-panel" hidden>
