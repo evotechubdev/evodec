@@ -277,7 +277,8 @@ function reelShortProgressLabel(progress = {}) {
   if (!seriesIndex) return `Preparando ${seriesTotal} série${seriesTotal === 1 ? '' : 's'}…`;
   let label = `Importando Série ${seriesIndex}/${seriesTotal}`;
   const episodeTotal = Number(progress.episodeTotal) || 0;
-  if (episodeTotal) label += ` · Episódio ${Math.min(Number(progress.episodeIndex) || 0, episodeTotal)}/${episodeTotal}`;
+  const episodeIndex = Math.max(Number(progress.episodeIndex) || 0, Number(progress.startedEpisodes) || 0);
+  if (episodeTotal) label += ` · Episódio ${Math.min(episodeIndex, episodeTotal)}/${episodeTotal}`;
   const importedEpisodes = Number(progress.importedEpisodes) || 0;
   if (episodeTotal || importedEpisodes) label += ` · ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}`;
   if (progress.sourceProvider === 'dramafren') label += ' · Dramafren';
