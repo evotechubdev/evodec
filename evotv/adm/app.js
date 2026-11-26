@@ -33,7 +33,7 @@ for (const field of [$('#login'), $('#password')]) {
 clearCredentials();
 preventSilentCredentialAccess();
 window.addEventListener('pageshow', clearCredentials);
-window.addEventListener('pagehide', clearCredentials);
+window.addEventListener('pagehide', () => { void cancelActiveImport({ keepalive: true, quiet: true }); clearCredentials(); });
 
 function message(text = '', type = '') { const node = $('#status'); node.textContent = text; node.className = type; }
 function slug(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64); }
@@ -47,6 +47,33 @@ async function request(path, options = {}) {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a operação.');
   return data;
+}
+async function cancelActiveImport({ keepalive = false, quiet = false } = {}) {
+  const hadActiveJob = Boolean(currentImportJob);
+  currentImportJob = '';
+  if (!token || !hadActiveJob) return false;
+  try {
+    const response = await fetch(`${BACKEND}/api/admin/reelshort/import/cancel-active`, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+      body: '{}',
+      keepalive,
+    });
+    if (!response.ok) throw new Error('Não foi possível cancelar a importação em andamento.');
+    if (!quiet) {
+      $('#reelshort-status').textContent = 'Importação cancelada. Nenhum conteúdo incompleto foi salvo.';
+      $('#reelshort-status').className = 'ignored';
+      $('#import-reelshort').disabled = false;
+    }
+    return true;
+  } catch (error) {
+    if (!quiet) {
+      $('#reelshort-status').textContent = error.message;
+      $('#reelshort-status').className = 'error';
+      $('#import-reelshort').disabled = false;
+    }
+    return false;
+  }
 }
 async function uploadImage(file, path = '/api/admin/news/image') {
   if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Selecione uma imagem JPEG, PNG ou WebP de até 5 MB.');
@@ -152,8 +179,9 @@ function normalizedStreamingName(value) {
 }
 function updateReelShortCount() {
   const count = reelShortLinks().length;
-  const node = $('#reelshort-link-count');
-  node.textContent = `${count} de 20 links`;
+  if (currentImportJob) return;
+  const node = $('#reelshort-status');
+  node.textContent = count ? `${count} de 20 links informados.` : 'Nenhum link informado.';
   node.className = count > 20 ? 'error' : '';
 }
 function renderReelShortCatalog(series = []) {
@@ -250,6 +278,8 @@ function reelShortProgressLabel(progress = {}) {
   let label = `Importando Série ${seriesIndex}/${seriesTotal}`;
   const episodeTotal = Number(progress.episodeTotal) || 0;
   if (episodeTotal) label += ` · Episódio ${Math.min(Number(progress.episodeIndex) || 0, episodeTotal)}/${episodeTotal}`;
+  const importedEpisodes = Number(progress.importedEpisodes) || 0;
+  if (episodeTotal || importedEpisodes) label += ` · ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}`;
   if (progress.sourceProvider === 'dramafren') label += ' · Dramafren';
   if (progress.name) label += ` · ${progress.name}`;
   return label;
@@ -304,10 +334,13 @@ async function monitorReelShortImport(jobId) {
   while (token && currentImportJob === jobId) {
     const job = await request(`/api/admin/reelshort/import/${encodeURIComponent(jobId)}`);
     const progress = job.progress || {};
-    $('#reelshort-progress').textContent = reelShortProgressLabel(progress);
+    const progressLabel = reelShortProgressLabel(progress);
+    if (progressLabel) $('#reelshort-status').textContent = progressLabel;
     renderImportResult(job);
     if (job.status === 'complete') {
-      $('#reelshort-status').textContent = `Importação concluída: ${job.imported.length} importada(s), ${(job.ignored || []).length} ignorada(s) e ${job.rejected.length} com erro.`;
+      const importedEpisodes = Number(job.importedEpisodes) || (job.imported || []).reduce((total, item) => total + (Number(item.totalEpisodes) || 0), 0);
+      const importedSeries = (job.imported || []).length;
+      $('#reelshort-status').textContent = `Importação concluída: ${importedSeries} série${importedSeries === 1 ? '' : 's'} e ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}; ${(job.ignored || []).length} ignorada(s) e ${(job.rejected || []).length} com erro.`;
       $('#reelshort-status').className = 'success';
       currentImportJob = ''; $('#import-reelshort').disabled = false;
       const catalog = await request('/api/admin/reelshort'); renderReelShortCatalog(catalog.series || []);
@@ -317,11 +350,20 @@ async function monitorReelShortImport(jobId) {
       $('#reelshort-status').textContent = job.error || 'A importação falhou.'; $('#reelshort-status').className = 'error';
       currentImportJob = ''; $('#import-reelshort').disabled = false; return;
     }
-    $('#reelshort-status').textContent = job.status === 'saving' ? 'Salvando no catálogo…' : 'Importando episódios…';
+    if (['cancelled', 'cancelling'].includes(job.status)) {
+      $('#reelshort-status').textContent = job.status === 'cancelled'
+        ? 'Importação cancelada. Nenhum conteúdo incompleto foi salvo.'
+        : 'Cancelando importação…';
+      $('#reelshort-status').className = 'ignored';
+      if (job.status === 'cancelled') { currentImportJob = ''; $('#import-reelshort').disabled = false; return; }
+    }
+    const importedEpisodes = Number(job.importedEpisodes) || 0;
+    if (job.status === 'saving') $('#reelshort-status').textContent = `Salvando ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} no catálogo…`;
     await wait(2000);
   }
 }
 async function openModule(moduleId) {
+  if (moduleId !== 'extra-reelshort' && currentImportJob) await cancelActiveImport();
   if (!moduleId) {
     hideModulePanels();
     $('#module-select').value = '';
@@ -394,6 +436,7 @@ $('#publish-downloads').addEventListener('click', async () => {
   } catch (error) { $('#downloads-status').className = 'error'; $('#downloads-status').textContent = error.message; }
   finally { button.disabled = false; }
 });
-$('#logout').addEventListener('click', () => {
+$('#logout').addEventListener('click', async () => {
+  await cancelActiveImport({ quiet: true });
   token = ''; items = []; downloads = []; modules = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-navigation').hidden = true; $('#module-select').replaceChildren(new Option('Home', '')); $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Home'; clearCredentials(); preventSilentCredentialAccess(); message();
 });

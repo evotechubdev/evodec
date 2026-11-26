@@ -55,11 +55,13 @@
         <textarea id="reelshort-links" rows="10" maxlength="40960" placeholder="https://reelshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt&#10;https://netshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt"></textarea>
         <small>Informe links pertencentes ao streaming selecionado. O formato técnico da fonte será identificado durante a importação.</small>
       </label>
-      <div class="import-summary"><span id="reelshort-link-count">0 de 20 links</span><span id="reelshort-progress"></span></div>
-      <div id="reelshort-results" class="import-results" aria-live="polite"></div>
+      <div id="reelshort-import-info" class="import-info" aria-live="polite">
+        <p id="reelshort-status" role="status">Nenhum link informado.</p>
+        <div id="reelshort-results" class="import-results"></div>
+      </div>
       <div class="catalog-heading"><div><h3>Catálogo atual</h3><strong id="reelshort-total" class="catalog-total"></strong></div><span>Altere o streaming sem excluir ou recadastrar episódios. As playlists permanecem protegidas no backend.</span></div>
       <div id="reelshort-catalog" class="reelshort-catalog"></div>
-      <footer class="actions"><span id="reelshort-status" role="status"></span><button id="import-reelshort" type="button">Importar Mininovelas</button></footer>
+      <footer class="actions reelshort-actions"><button id="import-reelshort" type="button">Importar Mininovelas</button></footer>
     </section>
     <section id="downloads-panel" class="panel module-content" hidden>
       <div class="editor-heading"><div><h2>Downloads do Site EVOTV</h2><p>Atualize as duas opções exibidas no portal principal: Android e Windows.</p></div></div>
