@@ -22,8 +22,8 @@ jobs:
           cp index.html pages-dist/index.html
           cp -R public pages-dist/public
           cp evotv/index.html evotv/site.css evotv/site.js pages-dist/evotv/
-          cp evotv/programa_pc/assets/logo-evotv.png pages-dist/evotv/assets/logo-evotv.png
-          cp evotv/programa_pc/assets/app-icon-256.png pages-dist/evotv/assets/app-icon-256.png
+          cp evotv/app/assets/logo_evotv.png pages-dist/evotv/assets/logo-evotv.png
+          cp evotv/app/assets/icon-512.png pages-dist/evotv/assets/app-icon-256.png
           cp -R evotv/adm/. pages-dist/evotv/adm/
       - name: Verify independent EVOTV routes
         shell: bash

@@ -141,10 +141,10 @@ function renderReelShortCatalog(series = []) {
     const title = document.createElement('strong'); title.textContent = item.name || 'Mininovela';
     const meta = document.createElement('span'); meta.textContent = `${Number(item.totalEpisodes) || 0} episódios${item.status ? ` · ${item.status}` : ''}`;
     copy.append(title, meta); article.append(image, copy);
-    if (item.canDelete) {
+    if (item.id) {
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger reelshort-remove'; remove.textContent = 'Excluir';
       remove.addEventListener('click', async () => {
-        if (!window.confirm(`Excluir “${item.name}” do catálogo? Esta ação remove a importação e permite importar novamente.`)) return;
+        if (!window.confirm(`Excluir “${item.name}” do catálogo do programa de PC e do aplicativo Android? Depois será possível importar novamente.`)) return;
         remove.disabled = true;
         try {
           await request(`/api/admin/reelshort/${encodeURIComponent(item.id)}`, { method: 'DELETE' });
