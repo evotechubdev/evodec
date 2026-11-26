@@ -166,7 +166,8 @@ function renderImportResult(job) {
   for (const item of job.imported || []) {
     const line = document.createElement('p'); line.className = 'success';
     const unavailable = Number(item.unavailableEpisodes) || 0;
-    line.textContent = `✓ Importada: ${item.name} · ${item.totalEpisodes} episódios${unavailable ? ` · ${unavailable} episódio(s) sem fonte ignorado(s)` : ''}`;
+    const dramafren = Number(item.dramafrenEpisodes) || 0;
+    line.textContent = `✓ Importada: ${item.name} · ${item.totalEpisodes} episódios${dramafren ? ` · ${dramafren} via Dramafren` : ''}${unavailable ? ` · ${unavailable} episódio(s) sem fonte ignorado(s)` : ''}`;
     root.append(line);
   }
   for (const item of job.ignored || []) {
@@ -204,6 +205,7 @@ function reelShortProgressLabel(progress = {}) {
   let label = `Importando Série ${seriesIndex}/${seriesTotal}`;
   const episodeTotal = Number(progress.episodeTotal) || 0;
   if (episodeTotal) label += ` · Episódio ${Math.min(Number(progress.episodeIndex) || 0, episodeTotal)}/${episodeTotal}`;
+  if (progress.sourceProvider === 'dramafren') label += ' · Dramafren';
   if (progress.name) label += ` · ${progress.name}`;
   return label;
 }
