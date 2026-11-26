@@ -818,13 +818,13 @@ function extraCatalogPage(params, section) {
       ...series,
       kind: 'series',
       evo_extra_series: true,
-      category_id: String(series.categoryId || series.category_id || 'reelshort'),
+      category_id: String(series.categoryId || series.category_id || ''),
       series_id: String(series.id),
       stream_id: String(series.id),
       stream_icon: series.imageUrl || '',
       cover: series.imageUrl || '',
       plot: series.synopsis || '',
-      category_name: 'Mininovela Vertical',
+      category_name: String(series.streamingName || series.contentType || ''),
       mappedEpisodeCount: Number(series.totalEpisodes || series.episodes?.length || 0),
     }))
     : (state.extraCatalog?.games || []).map(game => ({
@@ -2460,9 +2460,9 @@ async function enterExtraView(section) {
           state.extraCatalog = {
             ...catalog,
             series,
-            categories: Array.isArray(catalog.categories) && catalog.categories.length
-              ? catalog.categories.map(category => ({ id: String(category.id || category.category_id || 'reelshort'), name: String(category.name || category.category_name || 'ReelShort') }))
-              : [{ id: 'reelshort', name: 'ReelShort' }],
+            categories: Array.isArray(catalog.categories)
+              ? catalog.categories.map(category => ({ id: String(category.id || category.category_id || ''), name: String(category.name || category.category_name || '') })).filter(category => category.id && category.name)
+              : [],
             games: Array.isArray(catalog.games) && catalog.games.length ? catalog.games : EXTRA_GAMES_FALLBACK,
           };
           return state.extraCatalog;
@@ -2499,7 +2499,7 @@ function normalizeExtraSeries(catalog) {
   for (const item of catalog.items) {
     const id = String(item?.seriesId || item?.series_id || '');
     if (!/^[a-z0-9-]{3,160}$/i.test(id) || !item?.id) continue;
-    if (!groups.has(id)) groups.set(id, { id, name: String(item.seriesName || item.series_name || id.replace(/-/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())), categoryId: String(item.categoryId || item.category_id || 'reelshort'), imageUrl: item.imageUrl || '', synopsis: item.synopsis || '', episodes: [] });
+    if (!groups.has(id)) groups.set(id, { id, name: String(item.seriesName || item.series_name || id.replace(/-/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase())), categoryId: String(item.categoryId || item.category_id || ''), streamingName: String(item.streamingName || item.contentType || ''), imageUrl: item.imageUrl || '', synopsis: item.synopsis || '', episodes: [] });
     groups.get(id).episodes.push({ ...item, number: Number(item.number || item.episode_num || groups.get(id).episodes.length + 1), season: item.season || '1' });
   }
   return [...groups.values()].map(series => ({ ...series, totalEpisodes: series.episodes.length }));

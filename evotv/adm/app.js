@@ -139,12 +139,16 @@ async function loadNewsModule() {
   render();
 }
 function hideModulePanels() {
+  $('#admin-home').hidden = true;
   $('#news-editor-panel').hidden = true;
   $('#reelshort-panel').hidden = true;
   $('#downloads-panel').hidden = true;
 }
 function reelShortLinks() {
   return $('#reelshort-links').value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+}
+function normalizedStreamingName(value) {
+  return String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleUpperCase('pt-BR');
 }
 function updateReelShortCount() {
   const count = reelShortLinks().length;
@@ -158,11 +162,31 @@ function renderReelShortCatalog(series = []) {
   for (const item of series) {
     const article = document.createElement('article');
     const image = document.createElement('img'); image.src = item.imageUrl || ''; image.alt = '';
-    const copy = document.createElement('div');
+    const copy = document.createElement('div'); copy.className = 'reelshort-copy';
     const title = document.createElement('strong'); title.textContent = item.name || 'Mininovela';
+    const streaming = document.createElement('span'); streaming.className = 'streaming-badge'; streaming.textContent = item.streamingName || 'STREAMING NÃO INFORMADO';
     const meta = document.createElement('span'); meta.textContent = `${Number(item.totalEpisodes) || 0} episódios${item.status ? ` · ${item.status}` : ''}`;
-    copy.append(title, meta); article.append(image, copy);
+    copy.append(title, streaming, meta); article.append(image, copy);
     if (item.id) {
+      const controls = document.createElement('div'); controls.className = 'reelshort-card-actions';
+      const editor = document.createElement('div'); editor.className = 'streaming-editor';
+      const input = document.createElement('input'); input.value = item.streamingName || ''; input.maxLength = 40; input.setAttribute('list', 'streaming-options'); input.setAttribute('aria-label', `Streaming de ${item.name || 'mininovela'}`);
+      const save = document.createElement('button'); save.type = 'button'; save.className = 'secondary'; save.textContent = 'Salvar streaming';
+      save.addEventListener('click', async () => {
+        const streamingName = normalizedStreamingName(input.value);
+        if (!streamingName) return alert('Informe o streaming desta mininovela.');
+        input.value = streamingName; input.disabled = true; save.disabled = true;
+        try {
+          const data = await request(`/api/admin/reelshort/${encodeURIComponent(item.id)}/streaming`, { method: 'POST', body: JSON.stringify({ streamingName }) });
+          item.streamingName = data.series?.streamingName || streamingName;
+          input.value = item.streamingName; streaming.textContent = item.streamingName;
+          $('#reelshort-status').textContent = `Streaming de “${item.name}” atualizado para ${item.streamingName}, sem alterar os episódios.`;
+          $('#reelshort-status').className = 'success';
+        } catch (error) {
+          $('#reelshort-status').textContent = error.message; $('#reelshort-status').className = 'error';
+        } finally { input.disabled = false; save.disabled = false; }
+      });
+      editor.append(input, save); controls.append(editor);
       const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'danger reelshort-remove'; remove.textContent = 'Excluir';
       remove.addEventListener('click', async () => {
         if (!window.confirm(`Excluir “${item.name}” do catálogo do programa de PC e do aplicativo Android? Depois será possível importar novamente.`)) return;
@@ -176,7 +200,7 @@ function renderReelShortCatalog(series = []) {
           $('#reelshort-status').textContent = error.message; $('#reelshort-status').className = 'error'; remove.disabled = false;
         }
       });
-      article.append(remove);
+      controls.append(remove); article.append(controls);
     }
     root.append(article);
   }
@@ -188,7 +212,7 @@ function renderImportResult(job) {
     const line = document.createElement('p'); line.className = 'success';
     const unavailable = Number(item.unavailableEpisodes) || 0;
     const dramafren = Number(item.dramafrenEpisodes) || 0;
-    line.textContent = `✓ Importada: ${item.name} · ${item.totalEpisodes} episódios${dramafren ? ` · ${dramafren} via Dramafren` : ''}${unavailable ? ` · ${unavailable} episódio(s) sem fonte ignorado(s)` : ''}`;
+    line.textContent = `✓ Importada: ${item.name}${item.streamingName ? ` · ${item.streamingName}` : ''} · ${item.totalEpisodes} episódios${dramafren ? ` · ${dramafren} via Dramafren` : ''}${unavailable ? ` · ${unavailable} episódio(s) sem fonte ignorado(s)` : ''}`;
     root.append(line);
   }
   for (const item of job.ignored || []) {
@@ -233,7 +257,7 @@ function reelShortProgressLabel(progress = {}) {
 async function loadReelShortModule() {
   hideModulePanels();
   const data = await request('/api/admin/reelshort');
-  $('#page-title').textContent = 'Conteúdo Extra - Mininovelas (REEL SHORT)';
+  $('#page-title').textContent = 'Conteúdo Extra - Mininovelas';
   $('#reelshort-panel').hidden = false;
   renderReelShortCatalog(Array.isArray(data.series) ? data.series : []);
   updateReelShortCount();
@@ -302,6 +326,7 @@ async function openModule(moduleId) {
     hideModulePanels();
     $('#module-select').value = '';
     $('#page-title').textContent = 'Home';
+    $('#admin-home').hidden = false;
     return;
   }
   const module = modules.find(item => item.id === moduleId);
@@ -348,10 +373,13 @@ $('#reelshort-links').addEventListener('input', updateReelShortCount);
 $('#import-reelshort').addEventListener('click', async () => {
   const links = reelShortLinks();
   if (!links.length || links.length > 20) return alert('Informe de 1 a 20 links, um por linha.');
+  const streamingName = normalizedStreamingName($('#reelshort-streaming').value);
+  if (!streamingName) return alert('Informe o streaming das mininovelas.');
+  $('#reelshort-streaming').value = streamingName;
   const button = $('#import-reelshort'); button.disabled = true; $('#reelshort-results').replaceChildren();
   $('#reelshort-status').className = ''; $('#reelshort-status').textContent = 'Iniciando importação segura…';
   try {
-    const data = await request('/api/admin/reelshort/import', { method: 'POST', body: JSON.stringify({ links }) });
+    const data = await request('/api/admin/reelshort/import', { method: 'POST', body: JSON.stringify({ links, streamingName }) });
     await monitorReelShortImport(data.jobId);
   } catch (error) {
     currentImportJob = ''; button.disabled = false; $('#reelshort-status').className = 'error'; $('#reelshort-status').textContent = error.message;
