@@ -174,7 +174,38 @@ function renderImportResult(job) {
   }
   for (const item of job.rejected || []) {
     const line = document.createElement('p'); line.className = 'error'; line.textContent = `Linha ${item.index}: ${item.reason}`; root.append(line);
+    const unavailable = Array.isArray(item.unavailableEpisodes) ? item.unavailableEpisodes : [];
+    if (unavailable.length) {
+      const details = document.createElement('details'); details.className = 'episode-errors'; details.open = true;
+      const summary = document.createElement('summary'); summary.textContent = `${item.name || 'Mininovela'}: ${unavailable.length} episódio(s) não localizado(s)`;
+      const list = document.createElement('ol');
+      for (const episode of unavailable) {
+        const entry = document.createElement('li');
+        const message = document.createElement('span'); message.textContent = `Episódio ${Number(episode.number) || '?'} — ${episode.reason || 'Fonte indisponível.'}`;
+        entry.append(message);
+        try {
+          const page = new URL(episode.pageUrl);
+          if (page.protocol === 'https:' && ['reelshort.com', 'www.reelshort.com'].includes(page.hostname)) {
+            const link = document.createElement('a'); link.href = page.href; link.target = '_blank'; link.rel = 'noopener noreferrer'; link.textContent = 'Ver página consultada';
+            entry.append(link);
+          }
+        } catch { /* URL ausente ou inválida */ }
+        list.append(entry);
+      }
+      details.append(summary, list); root.append(details);
+    }
   }
+}
+function reelShortProgressLabel(progress = {}) {
+  const seriesTotal = Number(progress.seriesTotal ?? progress.total) || 0;
+  if (!seriesTotal) return '';
+  const seriesIndex = Math.min(Number(progress.seriesIndex ?? progress.index) || 0, seriesTotal);
+  if (!seriesIndex) return `Preparando ${seriesTotal} série${seriesTotal === 1 ? '' : 's'}…`;
+  let label = `Importando Série ${seriesIndex}/${seriesTotal}`;
+  const episodeTotal = Number(progress.episodeTotal) || 0;
+  if (episodeTotal) label += ` · Episódio ${Math.min(Number(progress.episodeIndex) || 0, episodeTotal)}/${episodeTotal}`;
+  if (progress.name) label += ` · ${progress.name}`;
+  return label;
 }
 async function loadReelShortModule() {
   hideModulePanels();
@@ -226,8 +257,7 @@ async function monitorReelShortImport(jobId) {
   while (token && currentImportJob === jobId) {
     const job = await request(`/api/admin/reelshort/import/${encodeURIComponent(jobId)}`);
     const progress = job.progress || {};
-    const progressLabel = progress.name || (progress.state === 'rejected' ? 'Link rejeitado' : 'Processando…');
-    $('#reelshort-progress').textContent = progress.total ? `${Math.min(Number(progress.index) || 0, progress.total)}/${progress.total} · ${progressLabel}` : '';
+    $('#reelshort-progress').textContent = reelShortProgressLabel(progress);
     renderImportResult(job);
     if (job.status === 'complete') {
       $('#reelshort-status').textContent = `Importação concluída: ${job.imported.length} importada(s), ${(job.ignored || []).length} ignorada(s) e ${job.rejected.length} com erro.`;
