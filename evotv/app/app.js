@@ -1379,7 +1379,7 @@ async function openSeries(series) {
         evo_public_episode: true,
       }))
       : series.evo_extra_series
-      ? (series.episodes || []).map(episode => ({
+      ? (await api.extraSeriesEpisodes(state.auth, state.session, series.series_id)).map(episode => ({
         ...episode, episode_id: episode.id, title: episode.name, episode_num: episode.number,
         season: episode.season || '1', series_id: series.series_id, container_extension: episode.extension || 'm3u8',
         evo_extra_episode: true,
@@ -1887,7 +1887,7 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     throw new Error('HTTPS_REQUIRED');
   }
   if (contentItem?.evo_extra_episode && /^extra:[a-z0-9-]{3,160}$/i.test(String(source))) {
-    return api.extraStreamUrl(state.auth, state.session, String(source).slice('extra:'.length), download);
+    return api.extraStreamUrl(state.auth, state.session, String(source).slice('extra:'.length), contentItem.series_id, download);
   }
   if (contentItem?.evo_public_episode && mediaCandidates(contentItem).includes(String(source))) return String(source);
   const liveMatch = /^live:(\d{1,20})$/.exec(String(source));
