@@ -10,7 +10,9 @@ body { margin: 0; min-height: 100vh; background: radial-gradient(circle at 85% 0
 .module-navigation[hidden] { display: none; }
 .module-navigation label { margin-bottom: 4px; color: #8cecff; font-size: 10px; letter-spacing: .12em; }
 .module-navigation .input-shell { min-height: 42px; border-color: #25d8ff44; background: #0a1725; }
-.module-navigation .input-shell select { min-width: 0; height: 40px; padding: 0 30px 0 0; border: 0; background: transparent; box-shadow: none; font-size: 14px; font-weight: 700; }
+.module-navigation .input-shell select { min-width: 0; height: 40px; padding: 0 30px 0 0; border: 0; color: #f4f7fb; background: #0a1725; box-shadow: none; color-scheme: dark; font-size: 14px; font-weight: 700; }
+.module-navigation select option { color: #f4f7fb; background-color: #0a1725; }
+.module-navigation select option:checked { color: #fff; background-color: #12365c; }
 .select-shell { position: relative; }
 .select-shell::after { content: ""; position: absolute; right: 15px; width: 8px; height: 8px; border-right: 2px solid #8cecff; border-bottom: 2px solid #8cecff; transform: translateY(-3px) rotate(45deg); pointer-events: none; }
 .select-shell select { appearance: none; }
