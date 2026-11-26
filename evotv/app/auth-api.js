@@ -62,24 +62,19 @@ export class EvoAuthApi {
   }
 
   extraCatalog(auth, session) {
-    return this.backend('/api/extras/catalog?compact=1', auth, { headers: sessionHeaders(session) });
+    return this.backend('/api/extras/catalog', auth, { headers: sessionHeaders(session) });
   }
 
-  async extraSeriesEpisodes(auth, session, seriesId) {
-    const data = await this.backend(`/api/extras/series/${encodeURIComponent(String(seriesId || ''))}/episodes`, auth, { headers: sessionHeaders(session) });
-    return Array.isArray(data.episodes) ? data.episodes : [];
-  }
-
-  async extraStreamUrl(auth, session, id, seriesId, download = false) {
+  async extraStreamUrl(auth, session, id, download = false) {
     const path = download ? '/api/extras/download-ticket' : '/api/extras/stream-ticket';
     const data = await this.backend(path, auth, {
       method: 'POST',
       headers: sessionHeaders(session),
-      body: JSON.stringify({ id: String(id || ''), seriesId: String(seriesId || '') }),
+      body: JSON.stringify({ id: String(id || '') }),
     });
     const url = new URL(requiredText(data, 'url'));
     if (url.protocol !== 'https:' || url.origin !== APP_BACKEND_URL
-      || !url.pathname.startsWith(download ? '/extra-download/' : '/extra-stream/')) {
+      || !url.pathname.startsWith(download ? '/api/extras/download/' : '/api/extras/stream/')) {
       throw new EvoApiError('O servidor retornou um link de conteúdo extra inválido.');
     }
     return url.href;
