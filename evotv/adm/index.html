@@ -9,26 +9,25 @@
 </head>
 <body>
   <header class="topbar">
-    <img src="../assets/logo-evotv.png" alt="EVOTV">
-    <div><span>PAINEL ADMINISTRATIVO</span><h1 id="page-title">Central de Módulos</h1></div>
+    <img src="../app/assets/logo_evotv.png" alt="EVOTV">
+    <div class="topbar-title"><span>PAINEL ADMINISTRATIVO</span><h1 id="page-title">Home</h1></div>
+    <nav id="module-navigation" class="module-navigation" aria-label="Navegação entre módulos" hidden>
+      <label for="module-select">MÓDULO</label>
+      <span class="input-shell select-shell"><select id="module-select" aria-label="Selecionar módulo administrativo"><option value="">Home</option></select></span>
+    </nav>
     <button id="logout" class="secondary" type="button" hidden>Sair</button>
   </header>
   <main>
     <div class="login-atmosphere" aria-hidden="true"><span class="orb orb-one"></span><span class="orb orb-two"></span><div class="signal-lines"></div></div>
     <section id="login-panel" class="login-panel" aria-labelledby="login-title">
-      <img class="login-logo" src="../assets/logo-evotv.png" alt="EVOTV">
+      <img class="login-logo" src="../app/assets/logo_evotv.png" alt="EVOTV">
       <div class="login-heading"><span id="login-title">PAINEL ADMINISTRATIVO</span></div>
-      <form id="login-form" autocomplete="off" novalidate>
-        <label class="field"><span>MÓDULO</span><span class="input-shell"><select id="login-module" tabindex="5" required><option value="home-news">Novidades da Home</option><option value="extra-reelshort">Conteúdo Extra - Mininovelas (REEL SHORT)</option><option value="site-downloads">Downloads do Site EVOTV</option></select></span></label>
-        <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="text" tabindex="1" autofocus placeholder="Digite seu login" autocomplete="username" maxlength="64" required></span></label>
-        <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" name="evotv-admin-access-key" type="password" tabindex="2" value="" placeholder="Digite Sua Senha" autocomplete="new-password" data-lpignore="true" data-1p-ignore required></span></label>
+      <form id="login-form" autocomplete="off" data-form-type="other" data-lpignore="true" novalidate>
+        <label class="field"><span>LOGIN</span><span class="input-shell"><input id="login" type="text" tabindex="1" value="" placeholder="Digite seu login" autocomplete="off" aria-autocomplete="none" autocapitalize="none" autocorrect="off" spellcheck="false" data-lpignore="true" data-1p-ignore data-bwignore readonly maxlength="64" required></span></label>
+        <label class="field"><span>SENHA</span><span class="input-shell"><input id="password" type="password" tabindex="2" value="" placeholder="Digite sua senha" autocomplete="off" aria-autocomplete="none" data-lpignore="true" data-1p-ignore data-bwignore readonly required></span></label>
         <label class="show-password"><input id="show-password" type="checkbox" tabindex="3"><span>Exibir Senha</span></label>
         <button class="primary-button" type="submit" tabindex="4">Entrar</button>
       </form>
-    </section>
-    <section id="module-panel" class="panel module-panel" hidden>
-      <label>Módulo<select id="module-select" aria-label="Selecionar módulo administrativo"></select></label>
-      <p>Somente os módulos autorizados para este login são exibidos.</p>
     </section>
     <section id="news-editor-panel" class="panel module-content" hidden>
       <div class="editor-heading">

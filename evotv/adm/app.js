@@ -10,9 +10,30 @@ let uploads = 0;
 let currentImportJob = '';
 let downloads = [];
 
-function clearPassword() { $('#password').value = ''; $('#password').type = 'password'; $('#show-password').checked = false; }
-clearPassword();
-window.addEventListener('pageshow', clearPassword);
+function preventSilentCredentialAccess() {
+  const request = navigator.credentials?.preventSilentAccess?.();
+  request?.catch?.(() => {});
+}
+function clearCredentials() {
+  $('#login-form').reset();
+  $('#login').value = '';
+  $('#login').readOnly = true;
+  $('#password').value = '';
+  $('#password').type = 'password';
+  $('#password').readOnly = true;
+  $('#show-password').checked = false;
+}
+function unlockCredentialField(event) { event.currentTarget.readOnly = false; }
+for (const field of [$('#login'), $('#password')]) {
+  field.addEventListener('focus', unlockCredentialField);
+  field.addEventListener('pointerdown', unlockCredentialField);
+  field.addEventListener('keydown', unlockCredentialField);
+  field.addEventListener('blur', () => { if (!field.value) field.readOnly = true; });
+}
+clearCredentials();
+preventSilentCredentialAccess();
+window.addEventListener('pageshow', clearCredentials);
+window.addEventListener('pagehide', clearCredentials);
 
 function message(text = '', type = '') { const node = $('#status'); node.textContent = text; node.className = type; }
 function slug(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64); }
@@ -277,6 +298,12 @@ async function monitorReelShortImport(jobId) {
   }
 }
 async function openModule(moduleId) {
+  if (!moduleId) {
+    hideModulePanels();
+    $('#module-select').value = '';
+    $('#page-title').textContent = 'Home';
+    return;
+  }
   const module = modules.find(item => item.id === moduleId);
   const loader = MODULE_LOADERS[moduleId];
   if (!module || !loader) throw new Error('Módulo indisponível para esta conta.');
@@ -287,17 +314,19 @@ async function openModule(moduleId) {
 $('#login-form').addEventListener('submit', async event => {
   event.preventDefault(); const button = event.submitter; button.disabled = true; button.textContent = 'Entrando...';
   try {
-    const selectedModule = $('#login-module').value;
-    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: loginEmail($('#login').value), password: $('#password').value, returnSecureToken: true }) });
+    const email = loginEmail($('#login').value);
+    const password = $('#password').value;
+    clearCredentials();
+    const response = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email, password, returnSecureToken: true }) });
     const auth = await response.json();
     if (!response.ok) throw new Error('Login, senha ou autorização administrativa inválidos.');
     token = auth.idToken;
     const access = await request('/api/admin/modules'); modules = Array.isArray(access.modules) ? access.modules : [];
-    if (!modules.some(module => module.id === selectedModule)) throw new Error('Este login não possui acesso ao módulo selecionado.');
-    const select = $('#module-select'); select.replaceChildren(...modules.map(module => { const option = document.createElement('option'); option.value = module.id; option.textContent = module.name; return option; }));
-    document.body.classList.add('authenticated'); $('#login-panel').hidden = true; $('#module-panel').hidden = false; $('#logout').hidden = false;
-    await openModule(selectedModule);
-  } catch (error) { token = ''; modules = []; alert(error.message); }
+    const home = document.createElement('option'); home.value = ''; home.textContent = 'Home';
+    const select = $('#module-select'); select.replaceChildren(home, ...modules.map(module => { const option = document.createElement('option'); option.value = module.id; option.textContent = module.name; return option; }));
+    document.body.classList.add('authenticated'); $('#login-panel').hidden = true; $('#module-navigation').hidden = false; $('#logout').hidden = false;
+    await openModule('');
+  } catch (error) { token = ''; modules = []; clearCredentials(); alert(error.message); }
   finally { button.disabled = false; button.textContent = 'Entrar'; }
 });
 $('#module-select').addEventListener('change', event => openModule(event.target.value).catch(error => alert(error.message)));
@@ -338,5 +367,5 @@ $('#publish-downloads').addEventListener('click', async () => {
   finally { button.disabled = false; }
 });
 $('#logout').addEventListener('click', () => {
-  token = ''; items = []; downloads = []; modules = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-panel').hidden = true; $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Central de Módulos'; clearPassword(); message();
+  token = ''; items = []; downloads = []; modules = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-navigation').hidden = true; $('#module-select').replaceChildren(new Option('Home', '')); $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Home'; clearCredentials(); preventSilentCredentialAccess(); message();
 });
