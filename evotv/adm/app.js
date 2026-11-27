@@ -277,11 +277,25 @@ function reelShortProgressLabel(progress = {}) {
   if (!seriesIndex) return `Preparando ${seriesTotal} série${seriesTotal === 1 ? '' : 's'}…`;
   let label = `Importando Série ${seriesIndex}/${seriesTotal}`;
   const episodeTotal = Number(progress.episodeTotal) || 0;
-  const episodeIndex = Math.max(Number(progress.episodeIndex) || 0, Number(progress.startedEpisodes) || 0);
-  if (episodeTotal) label += ` · Episódio ${Math.min(episodeIndex, episodeTotal)}/${episodeTotal}`;
-  const importedEpisodes = Number(progress.importedEpisodes) || 0;
-  if (episodeTotal || importedEpisodes) label += ` · ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}`;
-  if (progress.sourceProvider === 'dramafren') label += ' · Dramafren';
+  const processedEpisodes = Math.min(Number(progress.processedEpisodes) || 0, episodeTotal);
+  const currentEpisode = Math.min(processedEpisodes + (processedEpisodes < episodeTotal ? 1 : 0), episodeTotal);
+  if (episodeTotal) label += ` · Episódio ${Math.max(currentEpisode, 1)}/${episodeTotal}`;
+  if (episodeTotal) label += ` · ${processedEpisodes}/${episodeTotal} processados`;
+  const locatedEpisodes = Number(progress.availableEpisodes) || 0;
+  if (episodeTotal) label += ` · ${locatedEpisodes} fonte${locatedEpisodes === 1 ? '' : 's'} validada${locatedEpisodes === 1 ? '' : 's'}`;
+  const unavailableEpisodes = Number(progress.unavailableEpisodes) || 0;
+  if (unavailableEpisodes) label += ` · ${unavailableEpisodes} ${unavailableEpisodes === 1 ? 'indisponível' : 'indisponíveis'}`;
+  if (progress.sourceProvider === 'dramafren') {
+    const stage = String(progress.episodeStage || '');
+    const resumeAt = Number(progress.dramafrenResumeAt) || 0;
+    const waitSeconds = resumeAt > Date.now()
+      ? Math.ceil((resumeAt - Date.now()) / 1000)
+      : Math.ceil((Number(progress.dramafrenWaitMs) || 0) / 1000);
+    if (stage === 'dramafren-waiting' && waitSeconds > 0) label += ` · Dramafren: aguardando ${waitSeconds}s`;
+    else if (stage === 'dramafren-requesting') label += ' · Dramafren: consultando';
+    else if (Number(progress.dramafrenStatus) === 403) label += ' · Dramafren: pausa após HTTP 403';
+    else label += ' · Dramafren';
+  }
   if (progress.name) label += ` · ${progress.name}`;
   return label;
 }
