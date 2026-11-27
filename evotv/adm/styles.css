@@ -76,6 +76,14 @@ button:disabled { opacity: .45; cursor: not-allowed; }
 .catalog-heading { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 13px; color: #9eabba; font-size: 13px; }
 .import-info { margin-top: 14px; padding: 12px 14px; border: 1px solid #25d8ff33; border-radius: 10px; background: #08121e; }
 .import-info > p { margin: 0; color: #b8c4d4; font-size: 13px; font-weight: 700; }
+.windows-connector { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 20px; padding: 12px 14px; border: 1px solid #ffffff1f; border-radius: 10px; background: #0b111b; }
+.windows-connector > div:first-child { display: grid; gap: 3px; }
+.windows-connector strong { color: #fff; font-size: 13px; }
+.windows-connector span { color: #aeb9c8; font-size: 12px; }
+.windows-connector span.success { color: #65e6a2; }
+.windows-connector span.error { color: #ff9a9a; }
+.windows-connector-actions { display: flex; align-items: center; gap: 9px; }
+.connector-download { display: inline-flex; min-height: 40px; padding: 0 15px; align-items: center; justify-content: center; border: 1px solid #078bff; border-radius: 9px; color: #fff; background: linear-gradient(135deg, #168fff, #0759d8); font-size: 12px; font-weight: 800; text-decoration: none; }
 .import-results { display: grid; gap: 7px; max-height: 220px; margin-top: 10px; overflow-y: auto; }
 .import-results:empty { display: none; }
 .import-results p { margin: 0; padding: 9px 11px; border: 1px solid #ffffff12; border-radius: 8px; background: #080c13; font-size: 13px; }
@@ -125,6 +133,9 @@ button:disabled { opacity: .45; cursor: not-allowed; }
   .catalog-tools { grid-template-columns: 1fr; }
   .streaming-import-row { grid-template-columns: 1fr; }
   .streaming-import-row > button { width: 100%; margin-top: 0; }
+  .windows-connector { align-items: stretch; flex-direction: column; }
+  .windows-connector-actions { display: grid; grid-template-columns: 1fr; }
+  .windows-connector-actions button, .connector-download { width: 100%; }
   .catalog-filter-result { text-align: left; }
   .actions button { width: 100%; }
 }

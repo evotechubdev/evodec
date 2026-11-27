@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com http://127.0.0.1:47831; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>EVOTV · Painel Administrativo</title>
   <link rel="icon" type="image/x-icon" href="assets/evotv.ico">
   <link rel="shortcut icon" type="image/x-icon" href="assets/evotv.ico">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=20261127-connector1">
 </head>
 <body>
   <header class="topbar">
@@ -45,6 +45,13 @@
     <section id="reelshort-panel" class="panel module-content" hidden>
       <div class="editor-heading">
         <div><h2>Importar Mininovelas</h2><p>Informe o streaming e cole de 1 a 20 links, um por linha. O catálogo será atualizado sem reinstalar os aplicativos.</p></div>
+      </div>
+      <div class="windows-connector" aria-live="polite">
+        <div><strong>Complemento Windows</strong><span id="windows-connector-status">Verificando instalação…</span></div>
+        <div class="windows-connector-actions">
+          <a class="connector-download" href="assets/INSTALAR_CONECTOR_WINDOWS.vbs" download="INSTALAR_CONECTOR_WINDOWS.vbs">Baixar instalador</a>
+          <button id="activate-windows-connector" class="secondary" type="button">Ativar / validar</button>
+        </div>
       </div>
       <div class="streaming-import-row">
         <label class="streaming-field">Streaming
@@ -105,6 +112,6 @@
       <img class="download-image-preview" data-download-preview alt="Prévia da aplicação">
     </article>
   </template>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="app.js?v=20261127-connector1"></script>
 </body>
 </html>

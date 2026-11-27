@@ -1,6 +1,8 @@
 const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
 const LOGIN_DOMAIN = 'evotv.com.br';
 const BACKEND = 'https://multimideas-evo-backend.onrender.com';
+const WINDOWS_BRIDGE = 'http://127.0.0.1:47831';
+const WINDOWS_JOB_PREFIX = 'windows:';
 const MODULE_LOADERS = { 'home-news': loadNewsModule, 'extra-reelshort': loadReelShortModule, 'site-downloads': loadDownloadsModule };
 const $ = selector => document.querySelector(selector);
 let token = '';
@@ -10,6 +12,7 @@ let uploads = 0;
 let currentImportJob = '';
 let downloads = [];
 let reelShortCatalog = [];
+let windowsBridgeOnline = false;
 
 function preventSilentCredentialAccess() {
   const request = navigator.credentials?.preventSilentAccess?.();
@@ -49,11 +52,73 @@ async function request(path, options = {}) {
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a operação.');
   return data;
 }
+async function windowsBridgeRequest(path, options = {}, timeoutMs = 3_000) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${WINDOWS_BRIDGE}${path}`, {
+      ...options,
+      signal: controller.signal,
+      headers: { 'x-evotv-bridge': '1', 'content-type': 'application/json', ...(options.headers || {}) },
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.error || 'O complemento Windows recusou a operação.');
+    return data;
+  } finally { clearTimeout(timeout); }
+}
+function setWindowsConnectorStatus(text, type = '') {
+  const node = $('#windows-connector-status');
+  if (!node) return;
+  node.textContent = text;
+  node.className = type;
+}
+async function refreshWindowsBridgeStatus() {
+  try {
+    const result = await windowsBridgeRequest('/health', {}, 1_500);
+    if (!result.ok) throw new Error('Resposta local inválida.');
+    windowsBridgeOnline = true;
+    setWindowsConnectorStatus(result.active ? 'Instalado e ativo · importação em andamento' : 'Instalado, ativo e pronto para importar', 'success');
+    return true;
+  } catch {
+    windowsBridgeOnline = false;
+    setWindowsConnectorStatus('Não detectado. Baixe o instalador ou clique em Ativar / validar.', 'error');
+    return false;
+  }
+}
+function launchWindowsBridge() {
+  const launcher = document.createElement('a');
+  launcher.href = 'evotv-import://start';
+  launcher.hidden = true;
+  document.body.append(launcher);
+  launcher.click();
+  launcher.remove();
+}
+async function ensureWindowsBridge({ alreadyLaunched = false } = {}) {
+  if (await refreshWindowsBridgeStatus()) return true;
+  setWindowsConnectorStatus('Autorize o navegador a abrir o Conector EVOTV…');
+  if (!alreadyLaunched) launchWindowsBridge();
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    await wait(500);
+    if (await refreshWindowsBridgeStatus()) return true;
+  }
+  throw new Error('O complemento Windows não foi encontrado. Use “Baixar instalador”, execute o arquivo uma vez e depois clique em Importar novamente.');
+}
 async function cancelActiveImport({ keepalive = false, quiet = false } = {}) {
   const hadActiveJob = Boolean(currentImportJob);
+  const activeJob = currentImportJob;
   currentImportJob = '';
   if (!token || !hadActiveJob) return false;
   try {
+    if (activeJob.startsWith(WINDOWS_JOB_PREFIX)) {
+      const jobId = activeJob.slice(WINDOWS_JOB_PREFIX.length);
+      await windowsBridgeRequest(`/v1/import/${encodeURIComponent(jobId)}/cancel`, { method: 'POST', body: '{}', keepalive }, keepalive ? 1_000 : 3_000);
+      if (!quiet) {
+        $('#reelshort-status').textContent = 'Importação local cancelada. Nenhum conteúdo incompleto foi salvo.';
+        $('#reelshort-status').className = 'ignored';
+        $('#import-reelshort').disabled = false;
+      }
+      return true;
+    }
     const response = await fetch(`${BACKEND}/api/admin/reelshort/import/cancel-active`, {
       method: 'POST',
       headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
@@ -352,6 +417,7 @@ async function loadReelShortModule() {
   $('#reelshort-panel').hidden = false;
   renderReelShortCatalog(Array.isArray(data.series) ? data.series : []);
   updateReelShortCount();
+  void refreshWindowsBridgeStatus();
 }
 function renderDownloads() {
   const root = $('#download-editors'); root.replaceChildren();
@@ -423,6 +489,52 @@ async function monitorReelShortImport(jobId) {
     await wait(2000);
   }
 }
+async function monitorWindowsImport(jobId) {
+  currentImportJob = `${WINDOWS_JOB_PREFIX}${jobId}`;
+  while (token && currentImportJob === `${WINDOWS_JOB_PREFIX}${jobId}`) {
+    const job = await windowsBridgeRequest(`/v1/import/${encodeURIComponent(jobId)}`, {}, 5_000);
+    const progressLabel = reelShortProgressLabel(job.progress || {});
+    if (progressLabel) $('#reelshort-status').textContent = `${progressLabel} · Windows`;
+    renderImportResult(job);
+    if (job.status === 'complete') {
+      const series = Array.isArray(job.series) ? job.series : [];
+      for (const [index, item] of series.entries()) {
+        $('#reelshort-status').textContent = `Salvando Série ${index + 1}/${series.length} no backend e no Firestore…`;
+        await request('/api/admin/reelshort/sync', { method: 'POST', body: JSON.stringify({ series: item }) });
+      }
+      await windowsBridgeRequest(`/v1/import/${encodeURIComponent(jobId)}/ack`, { method: 'POST', body: '{}' });
+      const importedEpisodes = Number(job.importedEpisodes) || 0;
+      const importedSeries = (job.imported || []).length;
+      $('#reelshort-status').textContent = `Importação concluída pelo Windows: ${importedSeries} série${importedSeries === 1 ? '' : 's'} e ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}; ${(job.ignored || []).length} ignorada(s) e ${(job.rejected || []).length} com erro.`;
+      $('#reelshort-status').className = 'success';
+      currentImportJob = '';
+      $('#import-reelshort').disabled = false;
+      const catalog = await request('/api/admin/reelshort');
+      renderReelShortCatalog(catalog.series || []);
+      await refreshWindowsBridgeStatus();
+      return;
+    }
+    if (job.status === 'failed') {
+      $('#reelshort-status').textContent = job.error || 'A importação pelo Windows falhou.';
+      $('#reelshort-status').className = 'error';
+      currentImportJob = '';
+      $('#import-reelshort').disabled = false;
+      return;
+    }
+    if (['cancelled', 'cancelling'].includes(job.status)) {
+      $('#reelshort-status').textContent = job.status === 'cancelled'
+        ? 'Importação local cancelada. Nenhum conteúdo incompleto foi salvo.'
+        : 'Cancelando importação no Windows…';
+      $('#reelshort-status').className = 'ignored';
+      if (job.status === 'cancelled') {
+        currentImportJob = '';
+        $('#import-reelshort').disabled = false;
+        return;
+      }
+    }
+    await wait(1_000);
+  }
+}
 async function openModule(moduleId) {
   if (moduleId !== 'extra-reelshort' && currentImportJob) await cancelActiveImport();
   if (!moduleId) {
@@ -475,6 +587,14 @@ $('#publish').addEventListener('click', async () => {
 $('#reelshort-links').addEventListener('input', updateReelShortCount);
 $('#reelshort-search').addEventListener('input', () => renderReelShortCatalog());
 $('#reelshort-category-filter').addEventListener('change', () => renderReelShortCatalog());
+$('#activate-windows-connector').addEventListener('click', async event => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  launchWindowsBridge();
+  try { await ensureWindowsBridge({ alreadyLaunched: true }); }
+  catch (error) { setWindowsConnectorStatus(error.message, 'error'); }
+  finally { button.disabled = false; }
+});
 $('#import-reelshort').addEventListener('click', async () => {
   const links = reelShortLinks();
   if (!links.length || links.length > 20) return alert('Informe de 1 a 20 links, um por linha.');
@@ -482,10 +602,14 @@ $('#import-reelshort').addEventListener('click', async () => {
   if (!streamingName) return alert('Informe o streaming das mininovelas.');
   $('#reelshort-streaming').value = streamingName;
   const button = $('#import-reelshort'); button.disabled = true; $('#reelshort-results').replaceChildren();
-  $('#reelshort-status').className = ''; $('#reelshort-status').textContent = 'Iniciando importação segura…';
+  $('#reelshort-status').className = ''; $('#reelshort-status').textContent = 'Validando o complemento Windows…';
+  const bridgeLaunchRequested = !windowsBridgeOnline;
+  if (bridgeLaunchRequested) launchWindowsBridge();
   try {
-    const data = await request('/api/admin/reelshort/import', { method: 'POST', body: JSON.stringify({ links, streamingName }) });
-    await monitorReelShortImport(data.jobId);
+    await ensureWindowsBridge({ alreadyLaunched: bridgeLaunchRequested });
+    const existingIds = reelShortCatalog.flatMap(item => [String(item.id || ''), ...(item.bookId ? [`book:${String(item.bookId).toLowerCase()}`] : [])]).filter(Boolean);
+    const data = await windowsBridgeRequest('/v1/import', { method: 'POST', body: JSON.stringify({ links, streamingName, existingIds }) }, 5_000);
+    await monitorWindowsImport(data.jobId);
   } catch (error) {
     currentImportJob = ''; button.disabled = false; $('#reelshort-status').className = 'error'; $('#reelshort-status').textContent = error.message;
   }
