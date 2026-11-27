@@ -9,6 +9,7 @@ let modules = [];
 let uploads = 0;
 let currentImportJob = '';
 let downloads = [];
+let reelShortCatalog = [];
 
 function preventSilentCredentialAccess() {
   const request = navigator.credentials?.preventSilentAccess?.();
@@ -177,6 +178,9 @@ function reelShortLinks() {
 function normalizedStreamingName(value) {
   return String(value || '').normalize('NFKC').replace(/\s+/g, ' ').trim().toLocaleUpperCase('pt-BR');
 }
+function normalizedCatalogText(value) {
+  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR').trim();
+}
 function updateReelShortCount() {
   const count = reelShortLinks().length;
   if (currentImportJob) return;
@@ -184,10 +188,38 @@ function updateReelShortCount() {
   node.textContent = count ? `${count} de 20 links informados.` : 'Nenhum link informado.';
   node.className = count > 20 ? 'error' : '';
 }
-function renderReelShortCatalog(series = []) {
-  $('#reelshort-total').textContent = `Total: ${series.length} mininovela${series.length === 1 ? '' : 's'}`;
+function updateReelShortCategoryFilter() {
+  const select = $('#reelshort-category-filter');
+  const selected = select.value;
+  const categories = [...new Map(reelShortCatalog.map(item => {
+    const id = String(item.categoryId || normalizedCatalogText(item.streamingName).replace(/[^a-z0-9]+/g, '-'));
+    return [id, { id, name: item.streamingName || 'SEM CATEGORIA' }];
+  }).filter(([id]) => id)).values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const all = document.createElement('option'); all.value = ''; all.textContent = 'Todas as categorias';
+  select.replaceChildren(all, ...categories.map(category => {
+    const option = document.createElement('option'); option.value = category.id; option.textContent = category.name; return option;
+  }));
+  select.value = categories.some(category => category.id === selected) ? selected : '';
+}
+function renderReelShortCatalog(series) {
+  if (Array.isArray(series)) {
+    reelShortCatalog = series.map(item => ({ ...item }));
+    updateReelShortCategoryFilter();
+  }
+  const search = normalizedCatalogText($('#reelshort-search').value);
+  const category = $('#reelshort-category-filter').value;
+  const filtered = reelShortCatalog.filter(item => {
+    const itemCategory = String(item.categoryId || normalizedCatalogText(item.streamingName).replace(/[^a-z0-9]+/g, '-'));
+    const searchable = normalizedCatalogText(`${item.name || ''} ${item.id || ''}`);
+    return (!category || itemCategory === category) && (!search || searchable.includes(search));
+  });
+  $('#reelshort-total').textContent = `Total: ${reelShortCatalog.length} mininovela${reelShortCatalog.length === 1 ? '' : 's'}`;
+  const filtering = Boolean(search || category);
+  $('#reelshort-filter-result').textContent = filtering
+    ? `${filtered.length} resultado${filtered.length === 1 ? '' : 's'} encontrado${filtered.length === 1 ? '' : 's'}.`
+    : '';
   const root = $('#reelshort-catalog'); root.replaceChildren();
-  for (const item of series) {
+  for (const item of filtered) {
     const article = document.createElement('article');
     const image = document.createElement('img'); image.src = item.imageUrl || ''; image.alt = '';
     const copy = document.createElement('div'); copy.className = 'reelshort-copy';
@@ -207,7 +239,10 @@ function renderReelShortCatalog(series = []) {
         try {
           const data = await request(`/api/admin/reelshort/${encodeURIComponent(item.id)}/streaming`, { method: 'POST', body: JSON.stringify({ streamingName }) });
           item.streamingName = data.series?.streamingName || streamingName;
+          item.categoryId = data.series?.categoryId || normalizedCatalogText(item.streamingName).replace(/[^a-z0-9]+/g, '-');
           input.value = item.streamingName; streaming.textContent = item.streamingName;
+          updateReelShortCategoryFilter();
+          renderReelShortCatalog();
           $('#reelshort-status').textContent = `Streaming de “${item.name}” atualizado para ${item.streamingName}, sem alterar os episódios.`;
           $('#reelshort-status').className = 'success';
         } catch (error) {
@@ -232,7 +267,7 @@ function renderReelShortCatalog(series = []) {
     }
     root.append(article);
   }
-  if (!series.length) root.textContent = 'Nenhuma mininovela cadastrada.';
+  if (!filtered.length) root.textContent = filtering ? 'Nenhuma mininovela encontrada.' : 'Nenhuma mininovela cadastrada.';
 }
 function renderImportResult(job) {
   const root = $('#reelshort-results'); root.replaceChildren();
@@ -302,6 +337,8 @@ function reelShortProgressLabel(progress = {}) {
 async function loadReelShortModule() {
   hideModulePanels();
   const data = await request('/api/admin/reelshort');
+  $('#reelshort-search').value = '';
+  $('#reelshort-category-filter').value = '';
   $('#page-title').textContent = 'Conteúdo Extra - Mininovelas';
   $('#reelshort-panel').hidden = false;
   renderReelShortCatalog(Array.isArray(data.series) ? data.series : []);
@@ -427,6 +464,8 @@ $('#publish').addEventListener('click', async () => {
   finally { button.disabled = false; }
 });
 $('#reelshort-links').addEventListener('input', updateReelShortCount);
+$('#reelshort-search').addEventListener('input', () => renderReelShortCatalog());
+$('#reelshort-category-filter').addEventListener('change', () => renderReelShortCatalog());
 $('#import-reelshort').addEventListener('click', async () => {
   const links = reelShortLinks();
   if (!links.length || links.length > 20) return alert('Informe de 1 a 20 links, um por linha.');
@@ -453,5 +492,5 @@ $('#publish-downloads').addEventListener('click', async () => {
 });
 $('#logout').addEventListener('click', async () => {
   await cancelActiveImport({ quiet: true });
-  token = ''; items = []; downloads = []; modules = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-navigation').hidden = true; $('#module-select').replaceChildren(new Option('Home', '')); $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Home'; clearCredentials(); preventSilentCredentialAccess(); message();
+  token = ''; items = []; downloads = []; modules = []; reelShortCatalog = []; currentImportJob = ''; document.body.classList.remove('authenticated'); hideModulePanels(); $('#module-navigation').hidden = true; $('#module-select').replaceChildren(new Option('Home', '')); $('#logout').hidden = true; $('#login-panel').hidden = false; $('#page-title').textContent = 'Home'; $('#reelshort-search').value = ''; $('#reelshort-category-filter').value = ''; clearCredentials(); preventSilentCredentialAccess(); message();
 });

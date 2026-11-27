@@ -46,10 +46,13 @@
       <div class="editor-heading">
         <div><h2>Importar Mininovelas</h2><p>Informe o streaming e cole de 1 a 20 links, um por linha. O catálogo será atualizado sem reinstalar os aplicativos.</p></div>
       </div>
-      <label class="streaming-field">Streaming
-        <input id="reelshort-streaming" list="streaming-options" maxlength="40" value="REELSHORT" placeholder="Ex.: REELSHORT ou NETSHORT" required>
-        <small>Esse nome será exibido no programa de PC e no aplicativo Android. Você poderá alterá-lo depois sem excluir o conteúdo.</small>
-      </label>
+      <div class="streaming-import-row">
+        <label class="streaming-field">Streaming
+          <input id="reelshort-streaming" list="streaming-options" maxlength="40" value="REELSHORT" placeholder="Ex.: REELSHORT ou NETSHORT" required>
+          <small>Esse nome será exibido no programa de PC e no aplicativo Android. Você poderá alterá-lo depois sem excluir o conteúdo.</small>
+        </label>
+        <button id="import-reelshort" type="button">Importar Mininovelas</button>
+      </div>
       <datalist id="streaming-options"><option value="REELSHORT"></option><option value="NETSHORT"></option></datalist>
       <label class="reelshort-links">Links das mininovelas
         <textarea id="reelshort-links" rows="10" maxlength="40960" placeholder="https://reelshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt&#10;https://netshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt"></textarea>
@@ -59,9 +62,15 @@
         <p id="reelshort-status" role="status">Nenhum link informado.</p>
         <div id="reelshort-results" class="import-results"></div>
       </div>
-      <div class="catalog-heading"><div><h3>Catálogo atual</h3><strong id="reelshort-total" class="catalog-total"></strong></div><span>Altere o streaming sem excluir ou recadastrar episódios. As playlists permanecem protegidas no backend.</span></div>
+      <div class="catalog-heading">
+        <div class="catalog-summary"><h3>Catálogo atual</h3><strong id="reelshort-total" class="catalog-total"></strong></div>
+        <div class="catalog-tools">
+          <label>Categoria<select id="reelshort-category-filter" aria-label="Filtrar mininovelas por categoria"><option value="">Todas as categorias</option></select></label>
+          <label>Pesquisar série<input id="reelshort-search" type="search" maxlength="120" placeholder="Digite o nome da série" autocomplete="off"></label>
+        </div>
+      </div>
+      <p id="reelshort-filter-result" class="catalog-filter-result" aria-live="polite"></p>
       <div id="reelshort-catalog" class="reelshort-catalog"></div>
-      <footer class="actions reelshort-actions"><button id="import-reelshort" type="button">Importar Mininovelas</button></footer>
     </section>
     <section id="downloads-panel" class="panel module-content" hidden>
       <div class="editor-heading"><div><h2>Downloads do Site EVOTV</h2><p>Atualize as duas opções exibidas no portal principal: Android e Windows.</p></div></div>
