@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com https://evotv-dramafren-relay.evotechubdev.workers.dev http://127.0.0.1:47831; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com https://evotv-dramafren-relay.evotechubdev.workers.dev; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>EVOTV · Painel Administrativo</title>
   <link rel="icon" type="image/x-icon" href="assets/evotv.ico">
   <link rel="shortcut icon" type="image/x-icon" href="assets/evotv.ico">
-  <link rel="stylesheet" href="styles.css?v=20261127-edge1">
+  <link rel="stylesheet" href="styles.css?v=20261128-cloudflare1">
 </head>
 <body>
   <header class="topbar">
@@ -44,34 +44,26 @@
     </section>
     <section id="reelshort-panel" class="panel module-content" hidden>
       <div class="editor-heading">
-        <div><h2>Importar Mininovelas</h2><p>Informe o streaming e cole de 1 a 20 links, um por linha. O catálogo será atualizado sem reinstalar os aplicativos.</p></div>
+        <div><h2>Importar Mininovelas</h2><p>Informe o streaming e cole de 1 a 20 links do DramaFren, um por linha. O catálogo será atualizado sem reinstalar os aplicativos.</p></div>
       </div>
-      <div class="windows-connector" aria-live="polite">
-        <div><strong>Complemento Windows</strong><span id="windows-connector-status">Verificando instalação…</span></div>
-        <div class="windows-connector-actions">
-          <a class="connector-download" href="assets/INSTALAR_CONECTOR_WINDOWS.vbs" download="INSTALAR_CONECTOR_WINDOWS.vbs">Baixar instalador</a>
-          <button id="activate-windows-connector" class="secondary" type="button">Ativar / validar</button>
-        </div>
-      </div>
-      <div class="edge-pilot" aria-live="polite">
+      <div class="cloudflare-import" aria-live="polite">
         <div>
-          <strong>Piloto Web · Cloudflare</strong>
-          <span id="edge-relay-status">Verificando relay…</span>
-          <small>Teste independente do conector: aceita exatamente 1 série completa e só salva depois de localizar todos os episódios.</small>
+          <strong>Importação Web · Cloudflare</strong>
+          <span id="cloudflare-relay-status">Verificando serviço…</span>
+          <small>Fluxo oficial para PC, Android e iOS, sem complemento local. Cada série só é enviada ao backend e ao Firebase depois que todos os episódios são localizados.</small>
         </div>
-        <button id="import-reelshort-edge" class="edge-button" type="button" disabled>Testar 1 série pela web</button>
       </div>
       <div class="streaming-import-row">
         <label class="streaming-field">Streaming
-          <input id="reelshort-streaming" list="streaming-options" maxlength="40" value="REELSHORT" placeholder="Ex.: REELSHORT ou NETSHORT" required>
+          <input id="reelshort-streaming" list="streaming-options" maxlength="40" value="REELSHORT" placeholder="Ex.: REELSHORT" required>
           <small>Esse nome será exibido no programa de PC e no aplicativo Android. Você poderá alterá-lo depois sem excluir o conteúdo.</small>
         </label>
         <button id="import-reelshort" type="button">Importar Mininovelas</button>
       </div>
-      <datalist id="streaming-options"><option value="REELSHORT"></option><option value="NETSHORT"></option></datalist>
+      <datalist id="streaming-options"><option value="REELSHORT"></option></datalist>
       <label class="reelshort-links">Links das mininovelas
-        <textarea id="reelshort-links" rows="10" maxlength="40960" placeholder="https://reelshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt&#10;https://netshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt"></textarea>
-        <small>Informe links pertencentes ao streaming selecionado. O formato técnico da fonte será identificado durante a importação.</small>
+        <textarea id="reelshort-links" rows="10" maxlength="40960" placeholder="https://reelshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt&#10;https://reelshort.dramafren.org/index.php?page=detail&amp;id=...&amp;lang=pt"></textarea>
+        <small>A consulta pública passa pelo Cloudflare em qualquer dispositivo. A autenticação é usada somente para publicar as séries completas no catálogo EVOTV.</small>
       </label>
       <div id="reelshort-import-info" class="import-info" aria-live="polite">
         <p id="reelshort-status" role="status">Nenhum link informado.</p>
@@ -120,6 +112,6 @@
       <img class="download-image-preview" data-download-preview alt="Prévia da aplicação">
     </article>
   </template>
-  <script type="module" src="app.js?v=20261127-edge1"></script>
+  <script type="module" src="app.js?v=20261128-cloudflare1"></script>
 </body>
 </html>

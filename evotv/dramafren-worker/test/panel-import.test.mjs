@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { importOneSeriesViaRelay, relayHealth } from '../../adm/dramafren-edge-import.js';
+import { importOneSeriesViaRelay, importSeriesBatchViaRelay, relayHealth } from '../../adm/dramafren-import.js';
 
 const bookId = '6a8752ac7c23cb02b40f062b';
 const link = `https://reelshort.dramafren.org/index.php?page=detail&id=${bookId}&lang=pt`;
@@ -68,4 +68,38 @@ test('painel reconhece health e impede serie ja cadastrada', async (t) => {
     streamingName: 'REELSHORT',
     existingIds: [`book:${bookId}`],
   }), /já existe no catálogo/);
+});
+
+test('painel orquestra o lote e sincroniza somente cada serie completa', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async input => {
+    const url = new URL(String(input));
+    if (url.pathname === '/v1/metadata') {
+      return Response.json({
+        id: 'serie-do-lote', bookId, name: 'Série do Lote',
+        sourceUrl: `https://www.reelshort.com/movie/serie-do-lote-${bookId}`,
+        imageUrl: 'https://v-img.crazymaplestudios.com/cover/test.webp',
+        chapters: [{ number: 1 }],
+      });
+    }
+    return Response.json({
+      episode: 1,
+      playlistUrl: 'https://v-mps.crazymaplestudios.com/video/episode-1.m3u8',
+      sourceProvider: 'dramafren',
+    });
+  };
+
+  const synchronized = [];
+  const job = await importSeriesBatchViaRelay({
+    links: [link, link],
+    streamingName: 'REELSHORT',
+    onSeriesComplete: async series => synchronized.push(series),
+  });
+  assert.equal(synchronized.length, 1);
+  assert.equal(synchronized[0].episodes.length, 1);
+  assert.equal(job.imported.length, 1);
+  assert.equal(job.importedEpisodes, 1);
+  assert.equal(job.ignored.length, 1);
+  assert.equal(job.rejected.length, 0);
 });

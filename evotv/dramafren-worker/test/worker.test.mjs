@@ -39,7 +39,8 @@ test('health identifica o relay independente', async () => {
     ok: true,
     service: 'evotv-dramafren-relay',
     mode: 'anonymous-no-origin',
-    maxSeriesPerImport: 1,
+    seriesPerRequest: 1,
+    panelBatchLimit: 20,
   });
 });
 
@@ -56,6 +57,20 @@ test('responde ao preflight somente para o painel', async () => {
   const response = await worker.fetch(panelRequest('/v1/metadata', { method: 'OPTIONS' }), env);
   assert.equal(response.status, 204);
   assert.equal(response.headers.get('access-control-allow-origin'), origin);
+});
+
+test('aceita o painel local em qualquer porta sem liberar dominios parecidos', async () => {
+  const localOrigin = 'http://localhost:5500';
+  const local = await worker.fetch(new Request('https://relay.example/v1/metadata', {
+    method: 'OPTIONS', headers: { origin: localOrigin },
+  }), env);
+  assert.equal(local.status, 204);
+  assert.equal(local.headers.get('access-control-allow-origin'), localOrigin);
+
+  const fakeLocal = await worker.fetch(new Request(`https://relay.example/v1/metadata?id=${bookId}`, {
+    headers: { origin: 'http://localhost.attacker.example' },
+  }), env);
+  assert.equal(fakeLocal.status, 403);
 });
 
 test('normaliza metadados oficiais e remove trailer', async (t) => {

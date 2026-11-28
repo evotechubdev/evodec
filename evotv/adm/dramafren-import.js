@@ -29,12 +29,12 @@ async function relayRequest(path, signal) {
 function inputBookId(rawUrl) {
   let url;
   try { url = new URL(String(rawUrl || '').trim()); }
-  catch { throw new Error('Informe um link HTTPS válido para o piloto Cloudflare.'); }
-  if (url.protocol !== 'https:') throw new Error('O link do piloto precisa usar HTTPS.');
+  catch { throw new Error('Informe um link HTTPS válido para a importação Cloudflare.'); }
+  if (url.protocol !== 'https:') throw new Error('O link da importação precisa usar HTTPS.');
   let id = '';
   if (url.hostname === 'reelshort.dramafren.org') id = url.searchParams.get('id') || '';
   else if (['reelshort.com', 'www.reelshort.com'].includes(url.hostname)) id = url.pathname.match(/([a-f0-9]{24})(?:\/)?$/i)?.[1] || '';
-  if (!BOOK_ID.test(id)) throw new Error('O piloto aceita um link de detalhe/watch do ReelShort no DramaFren.');
+  if (!BOOK_ID.test(id)) throw new Error('A importação aceita um link de detalhe/watch do ReelShort no DramaFren.');
   return id.toLowerCase();
 }
 
@@ -189,4 +189,64 @@ export async function importOneSeriesViaRelay({
       dramafrenEpisodes: episodes.map(item => item.number),
     },
   };
+}
+
+export async function importSeriesBatchViaRelay({
+  links,
+  streamingName,
+  existingIds = [],
+  signal,
+  onProgress = () => {},
+  onSeriesComplete = async () => {},
+  onResult = () => {},
+}) {
+  const acceptedLinks = (Array.isArray(links) ? links : [])
+    .map(value => String(value || '').trim())
+    .filter(Boolean);
+  if (!acceptedLinks.length || acceptedLinks.length > 20) {
+    throw new Error('Informe de 1 a 20 links do ReelShort no DramaFren.');
+  }
+
+  const knownIds = new Set(existingIds.map(value => String(value || '').toLowerCase()).filter(Boolean));
+  const job = { imported: [], ignored: [], rejected: [], importedEpisodes: 0 };
+  const publishResult = () => onResult({
+    imported: job.imported.map(item => ({ ...item })),
+    ignored: job.ignored.map(item => ({ ...item })),
+    rejected: job.rejected.map(item => ({ ...item })),
+    importedEpisodes: job.importedEpisodes,
+  });
+
+  for (const [index, link] of acceptedLinks.entries()) {
+    if (signal?.aborted) throw new DOMException('Importação cancelada.', 'AbortError');
+    const seriesProgress = { seriesIndex: index + 1, seriesTotal: acceptedLinks.length };
+    onProgress({ ...seriesProgress, episodeStage: 'metadata-requesting' });
+    try {
+      const series = await importOneSeriesViaRelay({
+        link,
+        streamingName,
+        existingIds: [...knownIds],
+        signal,
+        onProgress: progress => onProgress({ ...seriesProgress, ...progress }),
+      });
+      await onSeriesComplete(series, seriesProgress);
+      const totalEpisodes = series.episodes.length;
+      job.imported.push({
+        name: series.name,
+        streamingName: series.streamingName,
+        totalEpisodes,
+        dramafrenEpisodes: totalEpisodes,
+        unavailableEpisodes: 0,
+      });
+      job.importedEpisodes += totalEpisodes;
+      knownIds.add(series.id.toLowerCase());
+      knownIds.add(`book:${series.bookId.toLowerCase()}`);
+    } catch (error) {
+      if (error?.name === 'AbortError') throw error;
+      const result = { index: index + 1, link, reason: error.message, ...(error.item || {}) };
+      if (error?.code === 'REELSHORT_ALREADY_EXISTS') job.ignored.push(result);
+      else job.rejected.push(result);
+    }
+    publishResult();
+  }
+  return job;
 }

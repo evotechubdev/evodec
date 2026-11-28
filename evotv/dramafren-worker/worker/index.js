@@ -16,6 +16,18 @@ function allowedOrigins(env) {
   return new Set(csv(env.ALLOWED_PANEL_ORIGINS));
 }
 
+function allowedOrigin(origin, env) {
+  if (allowedOrigins(env).has(origin)) return true;
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'http:'
+      && !url.username && !url.password
+      && ['localhost', '127.0.0.1'].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 function requestOrigin(request) {
   return String(request.headers.get('origin') || '');
 }
@@ -28,7 +40,7 @@ function corsHeaders(origin, env) {
     'cache-control': 'private, no-store',
     vary: 'Origin',
   });
-  if (allowedOrigins(env).has(origin)) headers.set('access-control-allow-origin', origin);
+  if (allowedOrigin(origin, env)) headers.set('access-control-allow-origin', origin);
   return headers;
 }
 
@@ -208,11 +220,12 @@ export default {
         ok: true,
         service: 'evotv-dramafren-relay',
         mode: 'anonymous-no-origin',
-        maxSeriesPerImport: 1,
+        seriesPerRequest: 1,
+        panelBatchLimit: 20,
       }, 200, origin, env);
     }
 
-    if (!allowedOrigins(env).has(origin)) {
+    if (!allowedOrigin(origin, env)) {
       return jsonError(403, 'ORIGIN_FORBIDDEN', 'Origem do painel nao autorizada.', '', env);
     }
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders(origin, env) });

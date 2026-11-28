@@ -1,4 +1,4 @@
-import { importOneSeriesViaRelay } from '../../adm/dramafren-edge-import.js';
+import { importOneSeriesViaRelay } from '../../adm/dramafren-import.js';
 
 const input = String(process.argv[2] || '').trim();
 if (!input) throw new Error('Informe um link ReelShort do DramaFren como argumento.');

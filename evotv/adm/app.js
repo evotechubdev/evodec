@@ -1,11 +1,9 @@
-import { importOneSeriesViaRelay, relayHealth } from './dramafren-edge-import.js?v=20261127-edge1';
+import { importSeriesBatchViaRelay, relayHealth } from './dramafren-import.js?v=20261128-cloudflare1';
 
 const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
 const LOGIN_DOMAIN = 'evotv.com.br';
 const BACKEND = 'https://multimideas-evo-backend.onrender.com';
-const WINDOWS_BRIDGE = 'http://127.0.0.1:47831';
-const WINDOWS_JOB_PREFIX = 'windows:';
-const EDGE_JOB_PREFIX = 'edge:';
+const RELAY_JOB_PREFIX = 'cloudflare:';
 const MODULE_LOADERS = { 'home-news': loadNewsModule, 'extra-reelshort': loadReelShortModule, 'site-downloads': loadDownloadsModule };
 const $ = selector => document.querySelector(selector);
 let token = '';
@@ -15,9 +13,8 @@ let uploads = 0;
 let currentImportJob = '';
 let downloads = [];
 let reelShortCatalog = [];
-let windowsBridgeOnline = false;
-let edgeRelayOnline = false;
-let edgeImportController = null;
+let relayOnline = false;
+let relayImportController = null;
 
 function preventSilentCredentialAccess() {
   const request = navigator.credentials?.preventSilentAccess?.();
@@ -46,8 +43,7 @@ window.addEventListener('pagehide', () => { void cancelActiveImport({ keepalive:
 
 function message(text = '', type = '') { const node = $('#status'); node.textContent = text; node.className = type; }
 function setReelShortImportBusy(busy) {
-  $('#import-reelshort').disabled = busy;
-  $('#import-reelshort-edge').disabled = busy || !edgeRelayOnline;
+  $('#import-reelshort').disabled = busy || !relayOnline;
 }
 function slug(value) { return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 64); }
 function loginEmail(value) {
@@ -61,123 +57,39 @@ async function request(path, options = {}) {
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a operação.');
   return data;
 }
-async function windowsBridgeRequest(path, options = {}, timeoutMs = 3_000) {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(`${WINDOWS_BRIDGE}${path}`, {
-      ...options,
-      signal: controller.signal,
-      headers: { 'x-evotv-bridge': '1', 'content-type': 'application/json', ...(options.headers || {}) },
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'O complemento Windows recusou a operação.');
-    return data;
-  } finally { clearTimeout(timeout); }
-}
-function setWindowsConnectorStatus(text, type = '') {
-  const node = $('#windows-connector-status');
-  if (!node) return;
+function setRelayStatus(text, type = '') {
+  const node = $('#cloudflare-relay-status');
   node.textContent = text;
   node.className = type;
 }
-async function refreshWindowsBridgeStatus() {
-  try {
-    const result = await windowsBridgeRequest('/health', {}, 1_500);
-    if (!result.ok) throw new Error('Resposta local inválida.');
-    windowsBridgeOnline = true;
-    setWindowsConnectorStatus(result.active ? 'Instalado e ativo · importação em andamento' : 'Instalado, ativo e pronto para importar', 'success');
-    return true;
-  } catch {
-    windowsBridgeOnline = false;
-    setWindowsConnectorStatus('Não detectado. Baixe o instalador ou clique em Ativar / validar.', 'error');
-    return false;
-  }
-}
-function launchWindowsBridge() {
-  const launcher = document.createElement('a');
-  launcher.href = 'evotv-import://start';
-  launcher.hidden = true;
-  document.body.append(launcher);
-  launcher.click();
-  launcher.remove();
-}
-async function ensureWindowsBridge({ alreadyLaunched = false } = {}) {
-  if (await refreshWindowsBridgeStatus()) return true;
-  setWindowsConnectorStatus('Autorize o navegador a abrir o Conector EVOTV…');
-  if (!alreadyLaunched) launchWindowsBridge();
-  for (let attempt = 0; attempt < 20; attempt += 1) {
-    await wait(500);
-    if (await refreshWindowsBridgeStatus()) return true;
-  }
-  throw new Error('O complemento Windows não foi encontrado. Use “Baixar instalador”, execute o arquivo uma vez e depois clique em Importar novamente.');
-}
-function setEdgeRelayStatus(text, type = '') {
-  const node = $('#edge-relay-status');
-  node.textContent = text;
-  node.className = type;
-}
-async function refreshEdgeRelayStatus() {
+async function refreshRelayStatus() {
   try {
     await relayHealth();
-    edgeRelayOnline = true;
-    setEdgeRelayStatus('Online e pronto para o teste de 1 série', 'success');
+    relayOnline = true;
+    setRelayStatus('Online · importação web ativa em qualquer dispositivo', 'success');
     setReelShortImportBusy(Boolean(currentImportJob));
     return true;
   } catch {
-    edgeRelayOnline = false;
-    setEdgeRelayStatus('Ainda não publicado ou temporariamente indisponível', 'error');
+    relayOnline = false;
+    setRelayStatus('Cloudflare temporariamente indisponível', 'error');
     setReelShortImportBusy(Boolean(currentImportJob));
     return false;
   }
 }
-async function cancelActiveImport({ keepalive = false, quiet = false } = {}) {
+async function cancelActiveImport({ quiet = false } = {}) {
   const hadActiveJob = Boolean(currentImportJob);
   const activeJob = currentImportJob;
   currentImportJob = '';
   if (!token || !hadActiveJob) return false;
-  try {
-    if (activeJob.startsWith(EDGE_JOB_PREFIX)) {
-      edgeImportController?.abort();
-      edgeImportController = null;
-      if (!quiet) {
-        $('#reelshort-status').textContent = 'Teste Cloudflare cancelado. Nada foi salvo.';
-        $('#reelshort-status').className = 'ignored';
-        setReelShortImportBusy(false);
-      }
-      return true;
-    }
-    if (activeJob.startsWith(WINDOWS_JOB_PREFIX)) {
-      const jobId = activeJob.slice(WINDOWS_JOB_PREFIX.length);
-      await windowsBridgeRequest(`/v1/import/${encodeURIComponent(jobId)}/cancel`, { method: 'POST', body: '{}', keepalive }, keepalive ? 1_000 : 3_000);
-      if (!quiet) {
-        $('#reelshort-status').textContent = 'Importação local cancelada. Nenhum conteúdo incompleto foi salvo.';
-        $('#reelshort-status').className = 'ignored';
-        setReelShortImportBusy(false);
-      }
-      return true;
-    }
-    const response = await fetch(`${BACKEND}/api/admin/reelshort/import/cancel-active`, {
-      method: 'POST',
-      headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
-      body: '{}',
-      keepalive,
-    });
-    if (!response.ok) throw new Error('Não foi possível cancelar a importação em andamento.');
-    if (!quiet) {
-      $('#reelshort-status').textContent = 'Importação cancelada. Nenhum conteúdo incompleto foi salvo.';
-      $('#reelshort-status').className = 'ignored';
-      setReelShortImportBusy(false);
-    }
-    return true;
-  } catch (error) {
-    if (!quiet) {
-      $('#reelshort-status').textContent = error.message;
-      $('#reelshort-status').className = 'error';
-      setReelShortImportBusy(false);
-    }
-    return false;
+  if (!activeJob.startsWith(RELAY_JOB_PREFIX)) return false;
+  relayImportController?.abort();
+  relayImportController = null;
+  if (!quiet) {
+    $('#reelshort-status').textContent = 'Importação Cloudflare cancelada. Nenhuma série incompleta foi salva.';
+    $('#reelshort-status').className = 'ignored';
+    setReelShortImportBusy(false);
   }
+  return true;
 }
 async function uploadImage(file, path = '/api/admin/news/image') {
   if (!file || !['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) throw new Error('Selecione uma imagem JPEG, PNG ou WebP de até 5 MB.');
@@ -455,8 +367,7 @@ async function loadReelShortModule() {
   $('#reelshort-panel').hidden = false;
   renderReelShortCatalog(Array.isArray(data.series) ? data.series : []);
   updateReelShortCount();
-  void refreshWindowsBridgeStatus();
-  void refreshEdgeRelayStatus();
+  void refreshRelayStatus();
 }
 function renderDownloads() {
   const root = $('#download-editors'); root.replaceChildren();
@@ -493,86 +404,6 @@ async function loadDownloadsModule() {
   $('#page-title').textContent = 'Downloads do Site EVOTV';
   $('#downloads-panel').hidden = false;
   renderDownloads();
-}
-const wait = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
-async function monitorReelShortImport(jobId) {
-  currentImportJob = jobId;
-  while (token && currentImportJob === jobId) {
-    const job = await request(`/api/admin/reelshort/import/${encodeURIComponent(jobId)}`);
-    const progress = job.progress || {};
-    const progressLabel = reelShortProgressLabel(progress);
-    if (progressLabel) $('#reelshort-status').textContent = progressLabel;
-    renderImportResult(job);
-    if (job.status === 'complete') {
-      const importedEpisodes = Number(job.importedEpisodes) || (job.imported || []).reduce((total, item) => total + (Number(item.totalEpisodes) || 0), 0);
-      const importedSeries = (job.imported || []).length;
-      $('#reelshort-status').textContent = `Importação concluída: ${importedSeries} série${importedSeries === 1 ? '' : 's'} e ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}; ${(job.ignored || []).length} ignorada(s) e ${(job.rejected || []).length} com erro.`;
-      $('#reelshort-status').className = 'success';
-      currentImportJob = ''; setReelShortImportBusy(false);
-      const catalog = await request('/api/admin/reelshort'); renderReelShortCatalog(catalog.series || []);
-      return;
-    }
-    if (job.status === 'failed') {
-      $('#reelshort-status').textContent = job.error || 'A importação falhou.'; $('#reelshort-status').className = 'error';
-      currentImportJob = ''; setReelShortImportBusy(false); return;
-    }
-    if (['cancelled', 'cancelling'].includes(job.status)) {
-      $('#reelshort-status').textContent = job.status === 'cancelled'
-        ? 'Importação cancelada. Nenhum conteúdo incompleto foi salvo.'
-        : 'Cancelando importação…';
-      $('#reelshort-status').className = 'ignored';
-      if (job.status === 'cancelled') { currentImportJob = ''; setReelShortImportBusy(false); return; }
-    }
-    const importedEpisodes = Number(job.importedEpisodes) || 0;
-    if (job.status === 'saving') $('#reelshort-status').textContent = `Salvando ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} no catálogo…`;
-    await wait(2000);
-  }
-}
-async function monitorWindowsImport(jobId) {
-  currentImportJob = `${WINDOWS_JOB_PREFIX}${jobId}`;
-  while (token && currentImportJob === `${WINDOWS_JOB_PREFIX}${jobId}`) {
-    const job = await windowsBridgeRequest(`/v1/import/${encodeURIComponent(jobId)}`, {}, 5_000);
-    const progressLabel = reelShortProgressLabel(job.progress || {});
-    if (progressLabel) $('#reelshort-status').textContent = `${progressLabel} · Windows`;
-    renderImportResult(job);
-    if (job.status === 'complete') {
-      const series = Array.isArray(job.series) ? job.series : [];
-      for (const [index, item] of series.entries()) {
-        $('#reelshort-status').textContent = `Salvando Série ${index + 1}/${series.length} no backend e no Firestore…`;
-        await request('/api/admin/reelshort/sync', { method: 'POST', body: JSON.stringify({ series: item }) });
-      }
-      await windowsBridgeRequest(`/v1/import/${encodeURIComponent(jobId)}/ack`, { method: 'POST', body: '{}' });
-      const importedEpisodes = Number(job.importedEpisodes) || 0;
-      const importedSeries = (job.imported || []).length;
-      $('#reelshort-status').textContent = `Importação concluída pelo Windows: ${importedSeries} série${importedSeries === 1 ? '' : 's'} e ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}; ${(job.ignored || []).length} ignorada(s) e ${(job.rejected || []).length} com erro.`;
-      $('#reelshort-status').className = 'success';
-      currentImportJob = '';
-      setReelShortImportBusy(false);
-      const catalog = await request('/api/admin/reelshort');
-      renderReelShortCatalog(catalog.series || []);
-      await refreshWindowsBridgeStatus();
-      return;
-    }
-    if (job.status === 'failed') {
-      $('#reelshort-status').textContent = job.error || 'A importação pelo Windows falhou.';
-      $('#reelshort-status').className = 'error';
-      currentImportJob = '';
-      setReelShortImportBusy(false);
-      return;
-    }
-    if (['cancelled', 'cancelling'].includes(job.status)) {
-      $('#reelshort-status').textContent = job.status === 'cancelled'
-        ? 'Importação local cancelada. Nenhum conteúdo incompleto foi salvo.'
-        : 'Cancelando importação no Windows…';
-      $('#reelshort-status').className = 'ignored';
-      if (job.status === 'cancelled') {
-        currentImportJob = '';
-        setReelShortImportBusy(false);
-        return;
-      }
-    }
-    await wait(1_000);
-  }
 }
 async function openModule(moduleId) {
   if (moduleId !== 'extra-reelshort' && currentImportJob) await cancelActiveImport();
@@ -626,94 +457,73 @@ $('#publish').addEventListener('click', async () => {
 $('#reelshort-links').addEventListener('input', updateReelShortCount);
 $('#reelshort-search').addEventListener('input', () => renderReelShortCatalog());
 $('#reelshort-category-filter').addEventListener('change', () => renderReelShortCatalog());
-$('#activate-windows-connector').addEventListener('click', async event => {
-  const button = event.currentTarget;
-  button.disabled = true;
-  launchWindowsBridge();
-  try { await ensureWindowsBridge({ alreadyLaunched: true }); }
-  catch (error) { setWindowsConnectorStatus(error.message, 'error'); }
-  finally { button.disabled = false; }
-});
-$('#import-reelshort-edge').addEventListener('click', async () => {
-  if (currentImportJob) return;
-  const links = reelShortLinks();
-  if (links.length !== 1) return alert('O piloto Cloudflare aceita exatamente 1 link do ReelShort no DramaFren.');
-  const streamingName = normalizedStreamingName($('#reelshort-streaming').value);
-  if (!streamingName) return alert('Informe o streaming da mininovela.');
-  $('#reelshort-streaming').value = streamingName;
-  if (!edgeRelayOnline && !(await refreshEdgeRelayStatus())) {
-    $('#reelshort-status').className = 'error';
-    $('#reelshort-status').textContent = 'O relay Cloudflare ainda não está disponível para o teste.';
-    return;
-  }
-
-  const jobId = `${EDGE_JOB_PREFIX}${crypto.randomUUID?.() || Date.now().toString(36)}`;
-  edgeImportController = new AbortController();
-  currentImportJob = jobId;
-  setReelShortImportBusy(true);
-  $('#reelshort-results').replaceChildren();
-  $('#reelshort-status').className = '';
-  $('#reelshort-status').textContent = 'Consultando metadados públicos pelo Cloudflare…';
-  try {
-    const existingIds = reelShortCatalog
-      .flatMap(item => [String(item.id || ''), ...(item.bookId ? [`book:${String(item.bookId).toLowerCase()}`] : [])])
-      .filter(Boolean);
-    const series = await importOneSeriesViaRelay({
-      link: links[0],
-      streamingName,
-      existingIds,
-      signal: edgeImportController.signal,
-      onProgress: progress => {
-        if (currentImportJob !== jobId) return;
-        const label = reelShortProgressLabel({ seriesTotal: 1, seriesIndex: 1, ...progress });
-        if (label) $('#reelshort-status').textContent = `${label} · Cloudflare`;
-      },
-    });
-    if (currentImportJob !== jobId || edgeImportController.signal.aborted) return;
-    $('#reelshort-status').textContent = `Série completa localizada (${series.episodes.length} episódios). Salvando no backend administrativo e no Firestore…`;
-    await request('/api/admin/reelshort/sync', { method: 'POST', body: JSON.stringify({ series }) });
-    renderImportResult({ imported: [{
-      name: series.name,
-      streamingName: series.streamingName,
-      totalEpisodes: series.episodes.length,
-      dramafrenEpisodes: series.episodes.length,
-      unavailableEpisodes: 0,
-    }] });
-    $('#reelshort-status').textContent = `Teste concluído: “${series.name}” e seus ${series.episodes.length} episódios foram salvos pelo fluxo Cloudflare.`;
-    $('#reelshort-status').className = 'success';
-    const catalog = await request('/api/admin/reelshort');
-    renderReelShortCatalog(catalog.series || []);
-  } catch (error) {
-    if (error?.name === 'AbortError' && currentImportJob !== jobId) return;
-    const cancelled = error?.name === 'AbortError';
-    $('#reelshort-status').className = cancelled ? 'ignored' : 'error';
-    $('#reelshort-status').textContent = cancelled
-      ? 'Teste Cloudflare cancelado. Nada foi salvo.'
-      : error.message;
-    if (!cancelled) renderImportResult({ rejected: [{ index: 1, reason: error.message, ...(error.item || {}) }] });
-  } finally {
-    if (currentImportJob === jobId) currentImportJob = '';
-    edgeImportController = null;
-    setReelShortImportBusy(false);
-  }
-});
 $('#import-reelshort').addEventListener('click', async () => {
+  if (currentImportJob) return;
   const links = reelShortLinks();
   if (!links.length || links.length > 20) return alert('Informe de 1 a 20 links, um por linha.');
   const streamingName = normalizedStreamingName($('#reelshort-streaming').value);
   if (!streamingName) return alert('Informe o streaming das mininovelas.');
   $('#reelshort-streaming').value = streamingName;
-  setReelShortImportBusy(true); $('#reelshort-results').replaceChildren();
-  $('#reelshort-status').className = ''; $('#reelshort-status').textContent = 'Validando o complemento Windows…';
-  const bridgeLaunchRequested = !windowsBridgeOnline;
-  if (bridgeLaunchRequested) launchWindowsBridge();
+  if (!relayOnline && !(await refreshRelayStatus())) {
+    $('#reelshort-status').className = 'error';
+    $('#reelshort-status').textContent = 'O serviço Cloudflare está temporariamente indisponível.';
+    return;
+  }
+
+  const jobId = `${RELAY_JOB_PREFIX}${crypto.randomUUID?.() || Date.now().toString(36)}`;
+  relayImportController = new AbortController();
+  currentImportJob = jobId;
+  setReelShortImportBusy(true);
+  $('#reelshort-results').replaceChildren();
+  $('#reelshort-status').className = '';
+  $('#reelshort-status').textContent = 'Consultando o DramaFren pelo Cloudflare…';
   try {
-    await ensureWindowsBridge({ alreadyLaunched: bridgeLaunchRequested });
-    const existingIds = reelShortCatalog.flatMap(item => [String(item.id || ''), ...(item.bookId ? [`book:${String(item.bookId).toLowerCase()}`] : [])]).filter(Boolean);
-    const data = await windowsBridgeRequest('/v1/import', { method: 'POST', body: JSON.stringify({ links, streamingName, existingIds }) }, 5_000);
-    await monitorWindowsImport(data.jobId);
+    const existingIds = reelShortCatalog
+      .flatMap(item => [String(item.id || ''), ...(item.bookId ? [`book:${String(item.bookId).toLowerCase()}`] : [])])
+      .filter(Boolean);
+    const job = await importSeriesBatchViaRelay({
+      links,
+      streamingName,
+      existingIds,
+      signal: relayImportController.signal,
+      onProgress: progress => {
+        if (currentImportJob !== jobId) return;
+        const label = reelShortProgressLabel(progress);
+        if (label) $('#reelshort-status').textContent = `${label} · Cloudflare`;
+      },
+      onSeriesComplete: async (series, progress) => {
+        if (currentImportJob !== jobId || relayImportController.signal.aborted) {
+          throw new DOMException('Importação cancelada.', 'AbortError');
+        }
+        $('#reelshort-status').textContent = `Série ${progress.seriesIndex}/${progress.seriesTotal} completa (${series.episodes.length} episódios). Salvando no backend e no Firebase…`;
+        await request('/api/admin/reelshort/sync', { method: 'POST', body: JSON.stringify({ series }) });
+      },
+      onResult: result => {
+        if (currentImportJob === jobId) renderImportResult(result);
+      },
+    });
+    if (currentImportJob !== jobId || relayImportController.signal.aborted) return;
+    const importedSeries = job.imported.length;
+    const importedEpisodes = job.importedEpisodes;
+    const ignored = job.ignored.length;
+    const rejected = job.rejected.length;
+    $('#reelshort-status').textContent = `Importação concluída pelo Cloudflare: ${importedSeries} série${importedSeries === 1 ? '' : 's'} e ${importedEpisodes} episódio${importedEpisodes === 1 ? '' : 's'} importado${importedEpisodes === 1 ? '' : 's'}; ${ignored} ignorada(s) e ${rejected} com erro.`;
+    $('#reelshort-status').className = importedSeries ? 'success' : (rejected ? 'error' : 'ignored');
+    if (importedSeries) {
+      const catalog = await request('/api/admin/reelshort');
+      renderReelShortCatalog(catalog.series || []);
+    }
   } catch (error) {
-    currentImportJob = ''; setReelShortImportBusy(false); $('#reelshort-status').className = 'error'; $('#reelshort-status').textContent = error.message;
+    if (error?.name === 'AbortError' && currentImportJob !== jobId) return;
+    const cancelled = error?.name === 'AbortError';
+    $('#reelshort-status').className = cancelled ? 'ignored' : 'error';
+    $('#reelshort-status').textContent = cancelled
+      ? 'Importação Cloudflare cancelada. Nenhuma série incompleta foi salva.'
+      : error.message;
+  } finally {
+    if (currentImportJob === jobId) currentImportJob = '';
+    relayImportController = null;
+    setReelShortImportBusy(false);
   }
 });
 $('#publish-downloads').addEventListener('click', async () => {
