@@ -1,5 +1,5 @@
-// Atualizacao Marte-04: restaura relay fixo de filmes e series da Saturno-71.
-const CACHE = 'Marte-046eae0809cfa968ff4d8fd61a68cf1772eb4cabb830ae13fab958cecbe7e7cdb3';
+// Atualizacao Jupiter-02: relay Cloudflare renomeado e origem atualizada.
+const CACHE = 'Jupiter-02ec9ba8b50a1a0744d0d6ee17c759fd153cd542a5d989d28869383436a30fd8c0';
 const ISOLATION_CACHE = 'evotv-cross-origin-isolation-v1';
 const ISOLATION_POLICY_URL = new URL('./.cross-origin-isolation-policy', self.location.href).href;
 const APP_SHELL = [
@@ -11,6 +11,9 @@ const APP_SHELL = [
   './device-vault.js',
   './catalog-db.js',
   './series-catalog-db.js',
+  './live-screen.html',
+  './live-screen.css',
+  './live-screen.js',
   './vendor/mpegts.js',
   './vendor/hls.min.js',
   './manifest.webmanifest',
@@ -33,7 +36,7 @@ async function isolateNavigation(response) {
   const headers = new Headers(response.headers);
   headers.set('Cross-Origin-Opener-Policy', 'same-origin');
   headers.set('Cross-Origin-Embedder-Policy', policy);
-  headers.set('Permissions-Policy', 'cross-origin-isolated=(self "https://evotv-offline-media-proxy.evotechubdev.workers.dev")');
+  headers.set('Permissions-Policy', 'cross-origin-isolated=(self "https://evotv-media-relay.evotechubdev.workers.dev")');
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,

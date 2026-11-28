@@ -1,10 +1,10 @@
 export const FIREBASE_API_KEY = 'AIzaSyDbSMFXN6pmkqfhtBm3no2bXoAbyT_FoAo';
-export const APP_PWA_VERSION = 'Marte-04';
-export const APP_PWA_VERSION_CODE = '6eae0809cfa968ff4d8fd61a68cf1772eb4cabb830ae13fab958cecbe7e7cdb3';
+export const APP_PWA_VERSION = 'Jupiter-02';
+export const APP_PWA_VERSION_CODE = 'ec9ba8b50a1a0744d0d6ee17c759fd153cd542a5d989d28869383436a30fd8c0';
 export const APP_PWA_CACHE_ID = `${APP_PWA_VERSION}${APP_PWA_VERSION_CODE}`;
 const FIREBASE_AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`;
 const FIREBASE_REFRESH_URL = `https://securetoken.googleapis.com/v1/token?key=${FIREBASE_API_KEY}`;
-const APP_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
+export const APP_BACKEND_URL = 'https://multimideas-evo-backend.onrender.com';
 const LOGIN_DOMAIN = 'evotv.com.br';
 const CLIENT_PLATFORM = 'web';
 const REQUEST_TIMEOUT_MS = 30_000;
@@ -54,10 +54,12 @@ export class EvoAuthApi {
   }
 
   async appVersion(auth) {
-    const data = await this.backend('/api/app-version', auth);
+    // Web releases are controlled by the PWA service worker. The unified
+    // backend intentionally does not keep a second web-version registry.
+    await this.currentToken(auth);
     return {
-      appPwa: text(data.app_pwa),
-      appPwaVersionCode: text(data.app_pwa_cod_versao),
+      appPwa: APP_PWA_VERSION,
+      appPwaVersionCode: APP_PWA_VERSION_CODE,
     };
   }
 
@@ -65,16 +67,22 @@ export class EvoAuthApi {
     return this.backend('/api/extras/catalog', auth, { headers: sessionHeaders(session) });
   }
 
-  async extraStreamUrl(auth, session, id, download = false) {
+  extraSeriesEpisodes(auth, session, seriesId) {
+    const id = String(seriesId || '');
+    if (!/^[a-z0-9][a-z0-9-]{1,126}[a-z0-9]$/.test(id)) throw new EvoApiError('Mininovela inválida.');
+    return this.backend(`/api/extras/series/${encodeURIComponent(id)}/episodes`, auth, { headers: sessionHeaders(session) });
+  }
+
+  async extraStreamUrl(auth, session, id, seriesId, download = false) {
     const path = download ? '/api/extras/download-ticket' : '/api/extras/stream-ticket';
     const data = await this.backend(path, auth, {
       method: 'POST',
       headers: sessionHeaders(session),
-      body: JSON.stringify({ id: String(id || '') }),
+      body: JSON.stringify({ id: String(id || ''), seriesId: String(seriesId || '') }),
     });
     const url = new URL(requiredText(data, 'url'));
     if (url.protocol !== 'https:' || url.origin !== APP_BACKEND_URL
-      || !url.pathname.startsWith(download ? '/api/extras/download/' : '/api/extras/stream/')) {
+      || !url.pathname.startsWith(download ? '/extra-download/' : '/extra-stream/')) {
       throw new EvoApiError('O servidor retornou um link de conteúdo extra inválido.');
     }
     return url.href;

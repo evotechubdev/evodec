@@ -1,4 +1,5 @@
 import {
+  APP_BACKEND_URL,
   APP_PWA_CACHE_ID,
   APP_PWA_VERSION,
   APP_PWA_VERSION_CODE,
@@ -20,9 +21,8 @@ import {
 } from './device-vault.js';
 
 const PAGE_SIZE = 32;
-const MEDIA_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
-const MEDIA_PROXY_ORIGIN = 'https://evotv-offline-media-proxy.evotechubdev.workers.dev';
-const MEDIA_SOURCE_HOSTS = new Set(['89.222.120.168:34871', '89.222.120.168:30266']);
+const MEDIA_BACKEND_URL = APP_BACKEND_URL;
+const MEDIA_PROXY_ORIGIN = 'https://evotv-media-relay.evotechubdev.workers.dev';
 const TICKET_TIMEOUT_MS = 45_000;
 const MOVIE_TICKET_TIMEOUT_MS = 60_000;
 const APP_VERSION_MISMATCH_MESSAGE = 'Versão de cache diferente da versão publicada, faça limpeza de cache e cookies do seu navegador e teste novamente, se persistir o erro contate o suporte.';
@@ -496,16 +496,6 @@ function safeImage(value) {
   } catch { return ''; }
 }
 
-function mediaSourceTarget(value) {
-  try {
-    const url = new URL(String(value || ''));
-    if (url.protocol !== 'http:' || !MEDIA_SOURCE_HOSTS.has(url.host.toLowerCase())
-      || url.username || url.password || url.search || url.hash
-      || !['/s3v3/', '/1-filmes/', '/vauth/', '/rauth/', '/live/', '/movie/', '/series/'].some(prefix => url.pathname.startsWith(prefix))) return '';
-    return url.href;
-  } catch { return ''; }
-}
-
 function mediaCandidates(item) {
   if (item.kind === 'live') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`live:${item.stream_id}`] : [];
   if (item.kind === 'show') return /^\d{1,20}$/.test(String(item.stream_id || '')) ? [`show:${item.stream_id}`] : [];
@@ -961,7 +951,7 @@ async function openEmbeddedGame(game) {
   loading.append(loadingTitle, loadingDetail);
   const frame = document.createElement('iframe');
   frame.className = 'embedded-game-frame'; frame.title = game.title || 'Game';
-  frame.allow = 'autoplay; fullscreen; gamepad; keyboard-map; screen-wake-lock; cross-origin-isolated https://evotv-offline-media-proxy.evotechubdev.workers.dev; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
+  frame.allow = 'autoplay; fullscreen; gamepad; keyboard-map; screen-wake-lock; cross-origin-isolated https://evotv-media-relay.evotechubdev.workers.dev; clipboard-read; clipboard-write; accelerometer; gyroscope; xr-spatial-tracking';
   frame.referrerPolicy = 'strict-origin-when-cross-origin'; frame.loading = 'eager';
   frame.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-forms allow-pointer-lock allow-downloads allow-modals');
   frame.addEventListener('load', () => { loading.hidden = true; }, { once: true });
@@ -1072,61 +1062,110 @@ function showsCatalogPage(params) {
 }
 
 async function fetchCatalogPage(path, idToken, params) {
-  const search = new URLSearchParams({
-    offset: String(params.offset), limit: String(params.limit), q: params.query,
-    category: params.category, adult: params.adult ? '1' : '0',
-  });
-  if (params.refresh === true) search.set('refresh', '1');
-  if (params.category === FAVORITES_CATEGORY && params.favoriteIds?.size) {
-    search.set('favorites', [...params.favoriteIds].filter(id => /^\d{1,20}$/.test(id) || /^series:\d{1,20}$/.test(id)).join(','));
+  const section = path.includes('/series/') ? 'series' : path.includes('/live/') ? 'channels' : 'movies';
+  const categoriesPromise = params.offset === 0 || params.category === MOVIE_RELEASES_CATEGORY
+    ? fetchProviderCategories(idToken, section, params.adult) : null;
+  const categories = categoriesPromise ? await categoriesPromise : [];
+  const body = {
+    section,
+    category: params.category,
+    page: Math.floor(params.offset / params.limit) + 1,
+    limit: params.limit,
+    query: params.query,
+    adult: params.adult === true,
+  };
+  if (params.category === RECENT_CATEGORY) {
+    body.category = ALL_CATEGORY;
+    body.sort = 'recent';
+  } else if (params.category === MOVIE_RELEASES_CATEGORY) {
+    body.category = ALL_CATEGORY;
+    const releases = categories.filter(category => normalized(category.category_name).replace(/[^a-z0-9]+/g, ' ').trim() === 'filmes lancamentos 2026')
+      .map(category => String(category.category_id));
+    body.categories = releases.length ? releases : ['evo_missing_release_category'];
+  } else if (params.category === FAVORITES_CATEGORY) {
+    body.category = FAVORITES_CATEGORY;
+    body.favorites = [...(params.favoriteIds || [])]
+      .map(String)
+      .filter(value => section === 'series' ? /^series:\d{1,20}$/.test(value) : /^\d{1,20}$/.test(value))
+      .map(value => section === 'series' ? value.slice('series:'.length) : value);
+  } else if (section === 'channels' && params.category === LIVE_FAVORITES_CATEGORY) {
+    if (params.liveFavoriteIds !== null) body.favorites = cleanLiveFavoriteIds(params.liveFavoriteIds);
   }
-  if (path === '/api/catalog/live/page' && params.category === LIVE_FAVORITES_CATEGORY
-    && params.liveFavoriteIds !== null) {
-    search.set('favorites', cleanLiveFavoriteIds(params.liveFavoriteIds).join(','));
-  }
-  if (path === '/api/catalog/live/page' && params.category === LIVE_FAVORITES_CATEGORY
-    && params.liveFavoriteIds === null && params.favoriteIds?.size) {
-    search.set('legacy_favorites', [...params.favoriteIds].filter(id => /^\d{1,20}$/.test(id)).join(','));
-  }
-  const response = await fetch(`${MEDIA_BACKEND_URL}${path}?${search}`, {
-    headers: {
-      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
-      'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
-    }, credentials: 'omit', cache: 'no-store',
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(String(data?.error || `Falha no catalogo (${response.status}).`));
+  const data = await postBackendJson('/api/catalog', idToken, body);
   if (!Array.isArray(data.items)) throw new Error('Resposta de pagina do catalogo invalida.');
-  return data;
+  return {
+    ...data,
+    categories: categories.length ? categories : data.categories || [],
+    offset: params.offset,
+    liveFavoriteIds: section === 'channels' && params.category === LIVE_FAVORITES_CATEGORY
+      ? data.items.map(item => String(item.stream_id)) : undefined,
+  };
 }
 
 async function fetchCatalog(path, idToken) {
+  if (path !== '/api/catalog/shows') throw new Error('Catalogo desconhecido.');
+  const items = [];
+  let page = 1;
+  let result;
+  do {
+    result = await postBackendJson('/api/catalog', idToken, {
+      section: 'shows', category: 'all', page, limit: 60, query: '', adult: false,
+    });
+    if (!Array.isArray(result.items) || !Array.isArray(result.categories)) throw new Error('Resposta do catalogo de shows invalida.');
+    items.push(...result.items);
+    page += 1;
+  } while (result.hasMore && page <= 200);
+  return { ...result, items, page: 1, total: items.length, hasMore: false };
+}
+
+function backendRequestHeaders(idToken) {
+  return {
+    authorization: `Bearer ${idToken}`,
+    accept: 'application/json',
+    'content-type': 'application/json',
+    'x-evo-platform': 'web',
+    'x-evo-version': APP_PWA_VERSION,
+    'x-evo-version-code': APP_PWA_VERSION_CODE,
+    'x-evo-session': state.session?.sessionToken || '',
+    'x-evo-profile': String(state.session?.profile || ''),
+  };
+}
+
+async function postBackendJson(path, idToken, body, signal) {
   const response = await fetch(`${MEDIA_BACKEND_URL}${path}`, {
-    headers: {
-      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
-      'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
-    }, credentials: 'omit', cache: 'no-store',
+    method: 'POST',
+    headers: backendRequestHeaders(idToken),
+    body: JSON.stringify(body),
+    credentials: 'omit', cache: 'no-store', signal,
   });
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(String(data?.error || `Falha no catalogo (${response.status}).`));
-  if (!Array.isArray(data.items) || !Array.isArray(data.categories)) throw new Error('Resposta do catalogo de shows invalida.');
+  if (!response.ok) {
+    const failure = new Error(String(data?.error || `Falha no servidor (${response.status}).`));
+    failure.code = String(data?.code || '');
+    failure.status = response.status;
+    throw failure;
+  }
   return data;
+}
+
+async function fetchProviderCategories(idToken, section, adult) {
+  const actions = {
+    channels: 'get_live_categories', movies: 'get_vod_categories', series: 'get_series_categories',
+  };
+  const data = await postBackendJson('/api/tv', idToken, { action: actions[section], extra: {}, adult: adult === true });
+  return Array.isArray(data) ? data : [];
 }
 
 async function fetchMovieDetails(movieId) {
   if (!/^\d{1,20}$/.test(String(movieId || ''))) throw new Error('Filme inválido.');
   const idToken = await api.currentToken(state.auth);
-  const search = new URLSearchParams({ adult: state.adultView ? '1' : '0' });
-  const response = await fetch(`${MEDIA_BACKEND_URL}/api/catalog/movies/${encodeURIComponent(movieId)}/details?${search}`, {
-    headers: {
-      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
-      'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
-    }, credentials: 'omit', cache: 'no-store',
+  const data = await postBackendJson('/api/tv', idToken, {
+    action: 'get_vod_info', extra: { vod_id: String(movieId) }, adult: state.adultView === true,
   });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(String(data?.error || `Falha nos detalhes do filme (${response.status}).`));
   if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error('Resposta de detalhes do filme inválida.');
-  return data;
+  const info = data.info && typeof data.info === 'object' ? data.info : {};
+  const movie = data.movie_data && typeof data.movie_data === 'object' ? data.movie_data : {};
+  return { ...movie, ...info, stream_id: String(movie.stream_id || movieId) };
 }
 
 async function hydrateMovieDetails(item) {
@@ -1379,7 +1418,7 @@ async function openSeries(series) {
         evo_public_episode: true,
       }))
       : series.evo_extra_series
-      ? (series.episodes || []).map(episode => ({
+      ? (await api.extraSeriesEpisodes(state.auth, state.session, series.series_id)).episodes.map(episode => ({
         ...episode, episode_id: episode.id, title: episode.name, episode_num: episode.number,
         season: episode.season || '1', series_id: series.series_id, container_extension: episode.extension || 'm3u8',
         evo_extra_episode: true,
@@ -1887,86 +1926,53 @@ async function mediaTicket(source, signal, download = false, contentItem = state
     throw new Error('HTTPS_REQUIRED');
   }
   if (contentItem?.evo_extra_episode && /^extra:[a-z0-9-]{3,160}$/i.test(String(source))) {
-    return api.extraStreamUrl(state.auth, state.session, String(source).slice('extra:'.length), download);
+    return api.extraStreamUrl(
+      state.auth,
+      state.session,
+      String(source).slice('extra:'.length),
+      String(contentItem.series_id || state.activeSeries?.series_id || ''),
+      download,
+    );
   }
   if (contentItem?.evo_public_episode && mediaCandidates(contentItem).includes(String(source))) return String(source);
   const liveMatch = /^live:(\d{1,20})$/.exec(String(source));
   const movieMatch = /^movie:(\d{1,20})$/.exec(String(source));
   const seriesMatch = /^series:(\d{1,20}):(\d{1,20})$/.exec(String(source));
   const customShowPartMatch = /^show:(S\d{5,20}):(S\d{5,20}-\d{1,4})$/i.exec(String(source));
-  const headers = {
-    'content-type': 'application/json', 'x-evo-platform': 'web',
-    'x-evo-session': state.session?.sessionToken || '', 'x-evo-profile': String(state.session?.profile || ''),
-  };
-  let endpoint = '/api/media-ticket';
-  const content = seriesMatch
-    ? { kind: 'series', id: seriesMatch[1], streamId: seriesMatch[2], adult: state.adultView }
-    : movieMatch ? { kind: 'movie', id: movieMatch[1], adult: state.adultView } : null;
-  let debugLabel = content?.kind === 'series'
-    ? `série ${content.id}, episódio ${content.streamId}`
-    : content?.kind === 'movie' ? `filme ${content.id}` : '';
-  let body = content ? { content, download, debugMediaPlayback: true } : { target: source, download };
   const showMatch = /^show:(\d{1,20})$/.exec(String(source));
-  if (liveMatch || showMatch || customShowPartMatch) {
-    const idToken = await api.currentToken(state.auth);
-    endpoint = showMatch || customShowPartMatch ? '/api/show-ticket' : '/api/live-ticket';
-    headers.authorization = `Bearer ${idToken}`;
-    body = customShowPartMatch
-      ? { stream_id: customShowPartMatch[1], part_id: customShowPartMatch[2], adult: state.adultView }
-      : showMatch ? { stream_id: showMatch[1], download, adult: state.adultView }
-        : { stream_id: liveMatch[1], adult: state.adultView, debugLivePlayback: true };
-    if (liveMatch) debugLabel = `canal ${liveMatch[1]}`;
-  } else if (download) {
-    const idToken = await api.currentToken(state.auth);
-    headers.authorization = `Bearer ${idToken}`;
+  if (customShowPartMatch) throw new Error('SHOW_PART_UNAVAILABLE');
+
+  let kind = '';
+  let id = '';
+  let seriesId = '';
+  if (seriesMatch) {
+    kind = 'series'; seriesId = seriesMatch[1]; id = seriesMatch[2];
+  } else if (movieMatch) {
+    kind = 'movie'; id = movieMatch[1];
+  } else if (liveMatch) {
+    kind = 'live'; id = liveMatch[1];
+  } else if (showMatch) {
+    kind = contentItem?.evo_show_kind === 'movie' ? 'movie' : 'live'; id = showMatch[1];
   }
-  if (debugLabel) {
-    console.groupCollapsed(`[EVOTV diagnóstico ${debugLabel}]`);
-    console.info('1. Solicitando captura do token sem seguir a reprodução.', { source, content, download, endpoint });
-  }
-  const response = await fetch(`${MEDIA_BACKEND_URL}${endpoint}`, {
-    method: 'POST', mode: 'cors', credentials: 'omit', cache: 'no-store',
-    headers, body: JSON.stringify(body), signal,
-  });
-  const data = await response.json().catch(() => ({}));
-  if (debugLabel) {
-    console.info('2. Resposta do backend.', {
-      status: response.status,
-      code: data?.code || '',
-      providerStatus: Number(data?.providerStatus || 0),
-    });
-    for (const entry of data?.debug?.trace || []) {
-      console.info(`backend: ${entry.stage}`, entry);
-    }
-    if (data?.debug?.httpUrl) {
-      console.info('3. LINK HTTP COMPLETO MONTADO PELO SISTEMA:', data.debug.httpUrl);
-    } else {
-      console.warn('3. O backend não conseguiu montar o link HTTP porque nenhum token válido foi capturado.');
-    }
-  }
-  if (!response.ok) {
-    const failure = new Error(String(data?.code || `HTTP_${response.status}`));
-    failure.providerStatus = Number(data?.providerStatus || 0);
-    if (['MOVIE_TOKEN_UNAVAILABLE', 'SERIES_TOKEN_UNAVAILABLE', 'LIVE_TOKEN_UNAVAILABLE'].includes(failure.message)) {
-      console.warn('media_token_unavailable', {
-        kind: content?.kind || (liveMatch ? 'live' : ''),
-        providerStatus: failure.providerStatus || 0,
-      });
-    }
-    if (debugLabel) console.groupEnd();
-    throw failure;
-  }
-  const playbackUrl = new URL(String(data?.playbackUrl || ''));
-  const expectedPrefixes = content ? ['/open-vod/', '/open-stream/'] : ['/open-stream/'];
-  if (playbackUrl.protocol !== 'https:' || playbackUrl.origin !== MEDIA_PROXY_ORIGIN
-    || !expectedPrefixes.some(prefix => playbackUrl.pathname.startsWith(prefix)) || playbackUrl.search || playbackUrl.hash) {
+  if (!kind || !/^\d{1,20}$/.test(id)) throw new Error('CONTENT_INVALID');
+
+  const extension = String(contentItem?.container_extension || (kind === 'live' ? 'ts' : 'mp4'))
+    .replace(/[^a-z0-9]/gi, '').slice(0, 8) || (kind === 'live' ? 'ts' : 'mp4');
+  const idToken = await api.currentToken(state.auth);
+  const data = await postBackendJson('/api/stream-ticket', idToken, {
+    kind,
+    id,
+    extension,
+    transport: 'edge',
+    ...(seriesId ? { seriesId } : {}),
+    ...(download ? { purpose: 'download', ...(contentItem?.kind === 'show' ? { mediaType: 'show' } : {}) } : {}),
+  }, signal);
+  const authorizedUrl = new URL(String(data?.url || ''));
+  if (data?.transport !== 'edge' || authorizedUrl.protocol !== 'https:' || authorizedUrl.origin !== MEDIA_BACKEND_URL
+    || !authorizedUrl.pathname.startsWith('/open-stream/') || authorizedUrl.search || authorizedUrl.hash) {
     throw new Error('INVALID_PLAYBACK_URL');
   }
-  if (debugLabel) {
-    console.info('4. LINK HTTPS FINAL ENTREGUE AO PLAYER:', playbackUrl.href);
-    console.warn('Os links exibidos neste grupo contêm tokens temporários de acesso.');
-    console.groupEnd();
-  }
+  const playbackUrl = new URL(authorizedUrl.pathname, MEDIA_PROXY_ORIGIN);
   return playbackUrl.href;
 }
 

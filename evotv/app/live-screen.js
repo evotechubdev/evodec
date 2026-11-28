@@ -1,4 +1,5 @@
 (() => {
+  const MEDIA_PROXY_ORIGIN = 'https://evotv-media-relay.evotechubdev.workers.dev';
   const video = document.querySelector('#screen-video');
   const title = document.querySelector('#screen-title');
   const status = document.querySelector('#screen-status');
@@ -42,7 +43,8 @@
     let url;
     try { url = new URL(String(playbackUrl)); }
     catch { showError('Endereço de reprodução inválido.'); return; }
-    if (url.protocol !== 'https:' || !url.pathname.startsWith('/open-stream/') || url.search || url.hash) {
+    if (url.protocol !== 'https:' || url.origin !== MEDIA_PROXY_ORIGIN
+      || !url.pathname.startsWith('/open-stream/') || url.search || url.hash) {
       showError('Endereço de reprodução não autorizado.');
       return;
     }

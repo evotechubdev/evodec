@@ -1,7 +1,7 @@
 {
   "name": "EVOTV",
   "short_name": "EVOTV",
-  "description": "EVOTV PWA com login, perfis, controle parental e catálogo de filmes.",
+  "description": "EVOTV PWA com canais, filmes, séries e conteúdo extra.",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

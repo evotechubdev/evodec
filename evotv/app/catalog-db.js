@@ -1,18 +1,20 @@
-const CATALOG_BACKEND_URL = 'https://multimideas-evo-backend-app.onrender.com';
+import { APP_BACKEND_URL } from './auth-api.js';
 const LEGACY_DB_NAME = 'evotv-catalogo-offline';
 
 export async function currentCatalog(idToken, session) {
   if (!idToken) throw new Error('Entre no app para carregar o catÃ¡logo.');
-  const response = await fetch(`${CATALOG_BACKEND_URL}/api/catalog/movies`, {
+  const response = await fetch(`${APP_BACKEND_URL}/api/catalog`, {
+    method: 'POST',
     headers: {
-      authorization: `Bearer ${idToken}`, accept: 'application/json', 'x-evo-platform': 'web',
+      authorization: `Bearer ${idToken}`, accept: 'application/json', 'content-type': 'application/json', 'x-evo-platform': 'web',
       'x-evo-session': session?.sessionToken || '', 'x-evo-profile': String(session?.profile || ''),
     },
+    body: JSON.stringify({ section: 'movies', category: 'all', page: 1, limit: 60 }),
     credentials: 'omit', cache: 'no-store',
   });
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(String(data?.error || `CatÃ¡logo de filmes indisponÃ­vel (${response.status}).`));
-  return validateCatalog(data);
+  return validateCatalog({ ...data, patterns: [] });
 }
 
 export function clearLegacyCatalog() {
