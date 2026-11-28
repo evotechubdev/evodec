@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com http://127.0.0.1:47831; object-src 'none'; base-uri 'none'; form-action 'self'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: https:; connect-src https://identitytoolkit.googleapis.com https://multimideas-evo-backend.onrender.com https://evotv-dramafren-relay.evotechubdev.workers.dev http://127.0.0.1:47831; object-src 'none'; base-uri 'none'; form-action 'self'">
   <title>EVOTV · Painel Administrativo</title>
   <link rel="icon" type="image/x-icon" href="assets/evotv.ico">
   <link rel="shortcut icon" type="image/x-icon" href="assets/evotv.ico">
-  <link rel="stylesheet" href="styles.css?v=20261127-connector1">
+  <link rel="stylesheet" href="styles.css?v=20261127-edge1">
 </head>
 <body>
   <header class="topbar">
@@ -52,6 +52,14 @@
           <a class="connector-download" href="assets/INSTALAR_CONECTOR_WINDOWS.vbs" download="INSTALAR_CONECTOR_WINDOWS.vbs">Baixar instalador</a>
           <button id="activate-windows-connector" class="secondary" type="button">Ativar / validar</button>
         </div>
+      </div>
+      <div class="edge-pilot" aria-live="polite">
+        <div>
+          <strong>Piloto Web · Cloudflare</strong>
+          <span id="edge-relay-status">Verificando relay…</span>
+          <small>Teste independente do conector: aceita exatamente 1 série completa e só salva depois de localizar todos os episódios.</small>
+        </div>
+        <button id="import-reelshort-edge" class="edge-button" type="button" disabled>Testar 1 série pela web</button>
       </div>
       <div class="streaming-import-row">
         <label class="streaming-field">Streaming
@@ -112,6 +120,6 @@
       <img class="download-image-preview" data-download-preview alt="Prévia da aplicação">
     </article>
   </template>
-  <script type="module" src="app.js?v=20261127-connector1"></script>
+  <script type="module" src="app.js?v=20261127-edge1"></script>
 </body>
 </html>

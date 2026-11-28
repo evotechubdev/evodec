@@ -1,0 +1,15 @@
+{
+  "name": "evotv-dramafren-relay",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check worker/index.js",
+    "test": "node --test test/*.test.mjs",
+    "smoke:live": "node scripts/live-smoke.mjs",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "4.54.0"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "evotv-dramafren-relay",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-27",
+  "workers_dev": true,
+  "vars": {
+    "ALLOWED_PANEL_ORIGINS": "https://evotechubdev.github.io,http://127.0.0.1:4173,http://localhost:4173"
+  }
+}
