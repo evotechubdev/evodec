@@ -57,21 +57,14 @@ async function request(path, options = {}) {
   if (!response.ok) throw new Error(data.error || 'Não foi possível concluir a operação.');
   return data;
 }
-function setRelayStatus(text, type = '') {
-  const node = $('#cloudflare-relay-status');
-  node.textContent = text;
-  node.className = type;
-}
 async function refreshRelayStatus() {
   try {
     await relayHealth();
     relayOnline = true;
-    setRelayStatus('Online · importação web ativa em qualquer dispositivo', 'success');
     setReelShortImportBusy(Boolean(currentImportJob));
     return true;
   } catch {
     relayOnline = false;
-    setRelayStatus('Cloudflare temporariamente indisponível', 'error');
     setReelShortImportBusy(Boolean(currentImportJob));
     return false;
   }
