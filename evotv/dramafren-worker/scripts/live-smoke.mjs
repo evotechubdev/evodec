@@ -6,7 +6,7 @@ if (!input) throw new Error('Informe um link ReelShort do DramaFren como argumen
 const directFetch = globalThis.fetch;
 globalThis.fetch = (target, init = {}) => directFetch(target, {
   ...init,
-  headers: { ...(init.headers || {}), origin: 'https://evotechubdev.github.io' },
+  headers: { ...(init.headers || {}), origin: 'https://evotechub.com.br' },
 });
 
 let lastProgress = -1;

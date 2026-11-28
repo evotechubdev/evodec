@@ -3,9 +3,9 @@ import assert from 'node:assert/strict';
 import worker from '../worker/index.js';
 
 const env = {
-  ALLOWED_PANEL_ORIGINS: 'https://evotechubdev.github.io,http://127.0.0.1:4173',
+  ALLOWED_PANEL_ORIGINS: 'https://evotechub.com.br,https://evotechubdev.github.io,http://127.0.0.1:4173',
 };
-const origin = 'https://evotechubdev.github.io';
+const origin = 'https://evotechub.com.br';
 const bookId = '6a8752ac7c23cb02b40f062b';
 
 function panelRequest(path, init = {}) {
